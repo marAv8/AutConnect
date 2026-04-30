@@ -51,13 +51,21 @@ export async function createProvider(formData: FormData): Promise<void> {
       lastName,
       role,
     },
+    select: {
+      id: true,
+      role: true,
+    },
   });
 
-  await db.$executeRaw`
-    UPDATE "Provider"
-    SET "providerRole" = ${role}, "authType" = 'email'
-    WHERE "id" = ${provider.id}
-  `;
+  try {
+    await db.$executeRaw`
+      UPDATE "Provider"
+      SET "providerRole" = ${role}, "authType" = 'email'
+      WHERE "id" = ${provider.id}
+    `;
+  } catch (error) {
+    console.warn("Optional auth metadata columns are not available.", error);
+  }
 
   await setSession({
     providerId: provider.id,

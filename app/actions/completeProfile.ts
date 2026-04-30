@@ -60,11 +60,15 @@ export async function completeProfile(formData: FormData): Promise<void> {
     },
   });
 
-  await db.$executeRaw`
-    UPDATE "Provider"
-    SET "providerRole" = ${parsed.data.role}
-    WHERE "id" = ${updatedProvider.id}
-  `;
+  try {
+    await db.$executeRaw`
+      UPDATE "Provider"
+      SET "providerRole" = ${parsed.data.role}
+      WHERE "id" = ${updatedProvider.id}
+    `;
+  } catch (error) {
+    console.warn("Optional auth metadata columns are not available.", error);
+  }
 
   await setSession({
     providerId: updatedProvider.id,

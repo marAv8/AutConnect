@@ -31,6 +31,11 @@ export async function loginProvider(formData: FormData): Promise<void> {
         mode: "insensitive",
       },
     },
+    select: {
+      id: true,
+      passwordHash: true,
+      role: true,
+    },
   });
 
   // APPLICATION IS IN DEVELOPMENT MODE:

@@ -44,15 +44,19 @@ export const authOptions: NextAuthOptions = {
             mode: "insensitive",
           },
         },
-        select: { id: true, authType: true },
+        select: { id: true },
       });
 
       if (existing) {
-        await db.$executeRaw`
-          UPDATE "Provider"
-          SET "authType" = ${authType}
-          WHERE "id" = ${existing.id}
-        `;
+        try {
+          await db.$executeRaw`
+            UPDATE "Provider"
+            SET "authType" = ${authType}
+            WHERE "id" = ${existing.id}
+          `;
+        } catch (error) {
+          console.warn("Optional auth metadata columns are not available.", error);
+        }
         return true;
       }
 
@@ -66,13 +70,20 @@ export const authOptions: NextAuthOptions = {
           role: "",
           passwordHash: "",
         },
+        select: {
+          id: true,
+        },
       });
 
-      await db.$executeRaw`
-        UPDATE "Provider"
-        SET "providerRole" = NULL, "authType" = ${authType}
-        WHERE "id" = ${provider.id}
-      `;
+      try {
+        await db.$executeRaw`
+          UPDATE "Provider"
+          SET "providerRole" = NULL, "authType" = ${authType}
+          WHERE "id" = ${provider.id}
+        `;
+      } catch (error) {
+        console.warn("Optional auth metadata columns are not available.", error);
+      }
 
       return true;
     },
