@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Provider {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String?
+  firstName    String
+  lastName     String
+  role         String
+  providerRole String?
+  authType     String   @default("email")
+  createdAt    DateTime @default(now())
+
+  providerClients ProviderClient[]
+  goalDefinitions GoalDefinition[]
+
+  entries    Entry[]
+  entryReads EntryRead[]
+}
+
+enum Role {
+  Supervisor
+  Educator
+  SpeechPathologist
+  Caregiver
+  BehaviorTherapist
+  OccupationalTherapist
+}
+
+enum MetricType {
+  Percentage
+  Frequency
+  Duration
+  Subjective
+}
+
+enum ComparisonType {
+  LessThan
+  GreaterThan
+  Equal
+}
+
+enum AssessmentDomain {
+  Behavior
+  SkillAcquisition
+  Communication
+  Adaptive
+  Regulation
+  Other
+}
+
+model Client {
+  id          String    @id @default(uuid())
+  firstName   String
+  lastName    String
+  dateOfBirth DateTime?
+  diagnosis   String?
+  createdAt   DateTime  @default(now())
+
+  providerClients ProviderClient[]
+  goalDefinitions GoalDefinition[]
+
+  entries Entry[]
+}
+
+model ProviderClient {
+  id         String @id @default(uuid())
+  providerId String
+  clientId   String
+  role       Role // <-- this is missing right now
+
+  provider Provider @relation(fields: [providerId], references: [id])
+  client   Client   @relation(fields: [clientId], references: [id])
+}
+
+model Entry {
+  id String @id @default(uuid())
+
+  providerId String
+  clientId   String
+
+  date DateTime
+
+  q1 Int?
+  q2 Int?
+  q3 Int?
+  q4 Int?
+  q5 Int?
+  q6 Int?
+  q7 Int?
+
+  note String?
+  finalScore Int?
+
+  createdAt DateTime @default(now())
+
+  provider Provider @relation(fields: [providerId], references: [id])
+  client   Client   @relation(fields: [clientId], references: [id])
+
+  items AssessmentItem[]
+  reads EntryRead[]
+
+  @@unique([providerId, clientId, date])
+}
+
+model AssessmentItem {
+  id String @id @default(uuid())
+
+  entryId String
+  goalId  String?
+
+  target String
+  goal   String
+
+  score Int?
+
+  metricType   MetricType
+  domain       AssessmentDomain?
+  rawValue     Float?
+  supportLevel Int?
+
+  createdAt DateTime @default(now())
+
+  entry          Entry           @relation(fields: [entryId], references: [id])
+  goalDefinition GoalDefinition? @relation(fields: [goalId], references: [id])
+}
+
+model GoalDefinition {
+  id String @id @default(uuid())
+
+  clientId   String
+  providerId String
+
+  target String
+  goal   String
+
+  metricType MetricType
+  domain     AssessmentDomain?
+
+  targetValue Float?
+  comparison  ComparisonType?
+
+  weight Float @default(1.0)
+
+  isActive   Boolean @default(true)
+  isMastered Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  client   Client   @relation(fields: [clientId], references: [id])
+  provider Provider @relation(fields: [providerId], references: [id])
+
+  items AssessmentItem[]
+}
+
+model EntryRead {
+  id String @id @default(uuid())
+
+  entryId    String
+  providerId String
+
+  readAt DateTime?
+
+  entry    Entry    @relation(fields: [entryId], references: [id])
+  provider Provider @relation(fields: [providerId], references: [id])
+
+  @@unique([entryId, providerId])
+}
