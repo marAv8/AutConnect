@@ -11,6 +11,7 @@ export async function GET() {
     googleOAuth: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
     appleOAuth: Boolean(process.env.APPLE_CLIENT_ID && process.env.APPLE_CLIENT_SECRET),
     database: "unknown" as "ok" | "error" | "unknown",
+    schema: "unknown" as "ok" | "error" | "unknown",
   };
 
   try {
@@ -20,7 +21,14 @@ export async function GET() {
     checks.database = "error";
   }
 
+  try {
+    await db.provider.count();
+    checks.schema = "ok";
+  } catch {
+    checks.schema = "error";
+  }
+
   return NextResponse.json(checks, {
-    status: checks.database === "ok" ? 200 : 500,
+    status: checks.database === "ok" && checks.schema === "ok" ? 200 : 500,
   });
 }
