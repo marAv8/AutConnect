@@ -1,7 +1,7 @@
 "use server";
 
 import { createProviderSchema } from "@/app/libs/schemas/provider";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { setSession } from "@/lib/session";

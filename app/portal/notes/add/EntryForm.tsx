@@ -1,10 +1,32 @@
 "use client";
 
-import { AssessmentDomain, ComparisonType, MetricType } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createEntry } from "@/app/actions/createEntry";
 import { removeGoalDefinition } from "@/app/actions/removeGoalDefinition";
+
+const MetricType = {
+  Percentage: "Percentage",
+  Frequency: "Frequency",
+  Duration: "Duration",
+  Subjective: "Subjective",
+} as const;
+
+type MetricType = (typeof MetricType)[keyof typeof MetricType];
+
+const AssessmentDomain = {
+  Behavior: "Behavior",
+  SkillAcquisition: "SkillAcquisition",
+  Communication: "Communication",
+  Adaptive: "Adaptive",
+  Regulation: "Regulation",
+  Other: "Other",
+} as const;
+
+type AssessmentDomain =
+  (typeof AssessmentDomain)[keyof typeof AssessmentDomain];
+
+type ComparisonType = "LessThan" | "GreaterThan" | "Equal";
 
 type GoalDefinitionOption = {
   id: string;

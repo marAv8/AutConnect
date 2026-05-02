@@ -1,6 +1,6 @@
 "use server";
 
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -23,42 +23,63 @@ export async function loginProvider(formData: FormData): Promise<void> {
     return;
   }
 
-  const { email, password } = parsed.data;
-  const provider = await db.provider.findFirst({
+  const email = parsed.data.email.trim().toLowerCase();
+  const { password } = parsed.data;
+  const providers = await db.provider.findMany({
     where: {
       email: {
         equals: email,
         mode: "insensitive",
+      },
+      passwordHash: {
+        not: null,
+      },
+      NOT: {
+        passwordHash: "",
       },
     },
     select: {
       id: true,
       passwordHash: true,
       role: true,
+      providerRole: true,
     },
   });
 
   // APPLICATION IS IN DEVELOPMENT MODE:
   // any syntactically valid email is allowed. No verification or domain check.
+  if (providers.length === 0) {
+    console.error("Use OAuth login for this account");
+    return;
+  }
+
+  let provider = null;
+  for (const candidate of providers) {
+    if (!candidate.passwordHash) {
+      continue;
+    }
+
+    const isValid = await bcrypt.compare(password, candidate.passwordHash);
+    if (isValid) {
+      provider = candidate;
+      break;
+    }
+  }
+
   if (!provider) {
     console.error("Invalid credentials");
     return;
   }
 
-  if (!provider.passwordHash) {
-    console.error("Use OAuth login for this account");
-    return;
-  }
-
-  const isValid = await bcrypt.compare(password, provider.passwordHash);
-  if (!isValid) {
-    console.error("Invalid credentials");
+  const sessionRole = provider.role || provider.providerRole;
+  if (!sessionRole) {
+    console.error("Provider role is missing");
     return;
   }
 
   await setSession({
     providerId: provider.id,
-    role: provider.role,
+    role: sessionRole,
   });
 
   redirect("/dashboard");

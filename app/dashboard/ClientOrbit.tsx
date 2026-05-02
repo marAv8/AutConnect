@@ -152,6 +152,7 @@ export default function ClientOrbit({
 }: ClientOrbitProps) {
   const router = useRouter();
   const [menuProviderId, setMenuProviderId] = useState<string | null>(null);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const orbitRef = useRef<HTMLDivElement | null>(null);
 
   const roleLabel = (role: string) => {
@@ -181,6 +182,49 @@ export default function ClientOrbit({
   const dismissOwnNotesPrompt = useCallback(() => {
     setMenuProviderId(null);
   }, []);
+  const navigateToNoteHref = useCallback(
+    (href: string) => {
+      setPendingHref(href);
+      setMenuProviderId(null);
+      router.push(href);
+    },
+    [router]
+  );
+
+  useEffect(() => {
+    const ownEntry = client.entries?.find(
+      (entry) => entry.providerId === currentProviderId
+    );
+    const ownNotesHref = `/dashboard?clientId=${client.id}&view=orbit&notesClientId=${client.id}&authorProviderId=${currentProviderId}`;
+    const addNoteHref = `/portal/notes/add?clientId=${client.id}${
+      ownEntry ? "&edit=1" : ""
+    }`;
+
+    router.prefetch(ownNotesHref);
+    router.prefetch(addNoteHref);
+
+    for (const pc of providers) {
+      const entryForProvider = client.entries?.find(
+        (entry) => entry.providerId === pc.provider.id
+      );
+      const hasRecentProviderNotes = client.recentEntries?.some(
+        (entry) => entry.providerId === pc.provider.id
+      );
+
+      if (entryForProvider || hasRecentProviderNotes) {
+        router.prefetch(
+          `/dashboard?clientId=${client.id}&view=orbit&notesClientId=${client.id}&authorProviderId=${pc.provider.id}`
+        );
+      }
+    }
+  }, [
+    client.entries,
+    client.id,
+    client.recentEntries,
+    currentProviderId,
+    providers,
+    router,
+  ]);
 
   useEffect(() => {
     if (!menuProviderId) return;
@@ -239,6 +283,11 @@ export default function ClientOrbit({
             filter: blur(0);
           }
         }
+
+        @keyframes note-route-pending {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(0.94); }
+        }
       `}</style>
       {/* CENTER CLIENT */}
       <div
@@ -279,6 +328,14 @@ export default function ClientOrbit({
           (entry) => entry.providerId === pc.provider.id
         );
         const hasViewableProviderNotes = hasEntry || !!hasRecentProviderNotes;
+        const providerNotesHref = `/dashboard?clientId=${client.id}&view=orbit&notesClientId=${client.id}&authorProviderId=${pc.provider.id}`;
+        const ownNotesHref = `/dashboard?clientId=${client.id}&view=orbit&notesClientId=${client.id}&authorProviderId=${currentProviderId}`;
+        const addNoteHref = `/portal/notes/add?clientId=${client.id}${
+          hasEntry ? "&edit=1" : ""
+        }`;
+        const isProviderNotesPending = pendingHref === providerNotesHref;
+        const isOwnNotesPending = pendingHref === ownNotesHref;
+        const isAddNotePending = pendingHref === addNoteHref;
         const hasUnreadForMe =
           hasEntry &&
           (
@@ -310,10 +367,7 @@ export default function ClientOrbit({
       <div
         onClick={() => {
           if (!isMe && hasViewableProviderNotes) {
-            setMenuProviderId(null);
-            router.push(
-              `/dashboard?clientId=${client.id}&view=orbit&notesClientId=${client.id}&authorProviderId=${pc.provider.id}`
-            );
+            navigateToNoteHref(providerNotesHref);
           }
         }}
         style={{
@@ -330,8 +384,14 @@ export default function ClientOrbit({
           fontSize: 13,
           textAlign: "center",
           padding: 8,
-          cursor: !isMe && hasViewableProviderNotes ? "pointer" : "default",
+          cursor: isProviderNotesPending
+            ? "progress"
+            : !isMe && hasViewableProviderNotes
+              ? "pointer"
+              : "default",
           zIndex: showOwnMenu ? 21 : 1,
+          opacity: isProviderNotesPending ? 0.62 : 1,
+          transition: "opacity 140ms ease",
         }}
       >
         <div style={{ fontWeight: 600, fontSize: 15 }}>
@@ -342,7 +402,10 @@ export default function ClientOrbit({
         {showAction && (
           <button
             data-own-note-menu={isMe ? "true" : undefined}
-            onClick={() => {
+            aria-busy={isProviderNotesPending || isAddNotePending}
+            onClick={(event) => {
+              event.stopPropagation();
+
               if (isMe) {
                 setMenuProviderId((current) =>
                   current === pc.provider.id ? null : pc.provider.id
@@ -350,10 +413,7 @@ export default function ClientOrbit({
                 return;
               }
 
-              setMenuProviderId(null);
-              router.push(
-                `/dashboard?clientId=${client.id}&view=orbit&notesClientId=${client.id}&authorProviderId=${pc.provider.id}`
-              );
+              navigateToNoteHref(providerNotesHref);
             }}
             aria-label={
               isMe
@@ -371,10 +431,16 @@ export default function ClientOrbit({
               borderRadius: "50%",
               border: "1px solid #999",
               background: "white",
-              cursor: "pointer",
+              cursor:
+                isProviderNotesPending || isAddNotePending ? "progress" : "pointer",
               fontSize: hasEntry && !isSupervisorProvider ? 15 : 18,
               lineHeight: "26px",
               zIndex: 23,
+              opacity: isProviderNotesPending || isAddNotePending ? 0.64 : 1,
+              animation:
+                isProviderNotesPending || isAddNotePending
+                  ? "note-route-pending 700ms ease-in-out infinite"
+                  : undefined,
             }}
           >
             {showOwnSignal || (!isMe && hasUnreadForMe)
@@ -392,16 +458,34 @@ export default function ClientOrbit({
           >
             <span aria-hidden="true" style={providerActionBridgeStyle} />
             <Link
-              href={`/dashboard?clientId=${client.id}&view=orbit&notesClientId=${client.id}&authorProviderId=${currentProviderId}`}
-              onClick={dismissOwnNotesPrompt}
-              style={providerActionLinkStyle}
+              href={ownNotesHref}
+              prefetch={true}
+              aria-busy={isOwnNotesPending}
+              onClick={() => {
+                setPendingHref(ownNotesHref);
+                dismissOwnNotesPrompt();
+              }}
+              style={{
+                ...providerActionLinkStyle,
+                cursor: isOwnNotesPending ? "progress" : "pointer",
+                opacity: isOwnNotesPending ? 0.62 : 1,
+              }}
             >
               View Notes
             </Link>
             <Link
-              href={`/portal/notes/add?clientId=${client.id}${hasEntry ? "&edit=1" : ""}`}
-              onClick={dismissOwnNotesPrompt}
-              style={providerActionLinkStyle}
+              href={addNoteHref}
+              prefetch={true}
+              aria-busy={isAddNotePending}
+              onClick={() => {
+                setPendingHref(addNoteHref);
+                dismissOwnNotesPrompt();
+              }}
+              style={{
+                ...providerActionLinkStyle,
+                cursor: isAddNotePending ? "progress" : "pointer",
+                opacity: isAddNotePending ? 0.62 : 1,
+              }}
             >
               {hasEntry ? "Update Note" : "Add Note"}
             </Link>

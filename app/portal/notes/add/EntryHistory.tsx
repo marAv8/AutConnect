@@ -89,7 +89,11 @@ export default function EntryHistory({
           )}
 
           <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-            {canEdit && editHref && <Link href={editHref}>Edit</Link>}
+            {canEdit && editHref && (
+              <Link href={editHref} prefetch={true}>
+                Edit
+              </Link>
+            )}
           </div>
         </div>
       </div>
