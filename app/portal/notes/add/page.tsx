@@ -33,68 +33,68 @@ export default async function AddNotePage({
   const { clientId, edit } = await searchParams;
   if (!clientId) redirect("/dashboard");
 
-  const client = await db.client.findUnique({
-    where: { id: clientId },
-    select: { firstName: true, lastName: true },
-  });
-  if (!client) redirect("/dashboard");
-
-  const provider = await db.provider.findUnique({
-    where: { id: session.providerId },
-    select: { firstName: true, lastName: true, role: true },
-  });
-  if (!provider) redirect("/dashboard");
-
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const entry = await db.entry.findUnique({
-    where: {
-      providerId_clientId_date: {
-        providerId: session.providerId,
+  const [client, provider, entry, goalDefinitions] = await Promise.all([
+    db.client.findUnique({
+      where: { id: clientId },
+      select: { firstName: true, lastName: true },
+    }),
+    db.provider.findUnique({
+      where: { id: session.providerId },
+      select: { firstName: true, lastName: true, role: true },
+    }),
+    db.entry.findUnique({
+      where: {
+        providerId_clientId_date: {
+          providerId: session.providerId,
+          clientId,
+          date: today,
+        },
+      },
+      select: {
+        note: true,
+        items: {
+          orderBy: {
+            createdAt: "asc",
+          },
+          select: {
+            goalId: true,
+            target: true,
+            goal: true,
+            score: true,
+            metricType: true,
+            domain: true,
+            rawValue: true,
+            supportLevel: true,
+          },
+        },
+      },
+    }),
+    db.goalDefinition.findMany({
+      where: {
         clientId,
-        date: today,
+        providerId: session.providerId,
+        isActive: true,
+        isMastered: false,
       },
-    },
-    select: {
-      note: true,
-      items: {
-        orderBy: {
-          createdAt: "asc",
-        },
-        select: {
-          goalId: true,
-          target: true,
-          goal: true,
-          score: true,
-          metricType: true,
-          domain: true,
-          rawValue: true,
-          supportLevel: true,
-        },
+      orderBy: [{ weight: "desc" }, { createdAt: "asc" }],
+      select: {
+        id: true,
+        target: true,
+        goal: true,
+        metricType: true,
+        domain: true,
+        targetValue: true,
+        comparison: true,
+        weight: true,
       },
-    },
-  });
+    }),
+  ]);
 
-  const goalDefinitions = await db.goalDefinition.findMany({
-    where: {
-      clientId,
-      providerId: session.providerId,
-      isActive: true,
-      isMastered: false,
-    },
-    orderBy: [{ weight: "desc" }, { createdAt: "asc" }],
-    select: {
-      id: true,
-      target: true,
-      goal: true,
-      metricType: true,
-      domain: true,
-      targetValue: true,
-      comparison: true,
-      weight: true,
-    },
-  });
+  if (!client) redirect("/dashboard");
+  if (!provider) redirect("/dashboard");
 
   const hasEntryItems = (entry?.items.length ?? 0) > 0;
   const entryItems = entry?.items.map(formatEntryItemForForm) ?? [];

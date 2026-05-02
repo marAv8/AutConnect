@@ -23,6 +23,8 @@ model Provider {
 
   entries    Entry[]
   entryReads EntryRead[]
+
+  @@index([createdAt])
 }
 
 enum Role {
@@ -68,6 +70,8 @@ model Client {
   goalDefinitions GoalDefinition[]
 
   entries Entry[]
+
+  @@index([createdAt])
 }
 
 model ProviderClient {
@@ -78,6 +82,10 @@ model ProviderClient {
 
   provider Provider @relation(fields: [providerId], references: [id])
   client   Client   @relation(fields: [clientId], references: [id])
+
+  @@index([providerId])
+  @@index([clientId])
+  @@index([providerId, clientId])
 }
 
 model Entry {
@@ -96,7 +104,7 @@ model Entry {
   q6 Int?
   q7 Int?
 
-  note String?
+  note       String?
   finalScore Int?
 
   createdAt DateTime @default(now())
@@ -108,6 +116,9 @@ model Entry {
   reads EntryRead[]
 
   @@unique([providerId, clientId, date])
+  @@index([clientId, date])
+  @@index([clientId, providerId, date])
+  @@index([date])
 }
 
 model AssessmentItem {
@@ -130,6 +141,9 @@ model AssessmentItem {
 
   entry          Entry           @relation(fields: [entryId], references: [id])
   goalDefinition GoalDefinition? @relation(fields: [goalId], references: [id])
+
+  @@index([entryId])
+  @@index([goalId])
 }
 
 model GoalDefinition {
@@ -158,6 +172,9 @@ model GoalDefinition {
   provider Provider @relation(fields: [providerId], references: [id])
 
   items AssessmentItem[]
+
+  @@index([clientId, providerId, isActive, isMastered])
+  @@index([providerId])
 }
 
 model EntryRead {
@@ -172,4 +189,5 @@ model EntryRead {
   provider Provider @relation(fields: [providerId], references: [id])
 
   @@unique([entryId, providerId])
+  @@index([providerId, entryId])
 }

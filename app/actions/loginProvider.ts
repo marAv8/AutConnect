@@ -25,19 +25,8 @@ export async function loginProvider(formData: FormData): Promise<void> {
 
   const email = parsed.data.email.trim().toLowerCase();
   const { password } = parsed.data;
-  const providers = await db.provider.findMany({
-    where: {
-      email: {
-        equals: email,
-        mode: "insensitive",
-      },
-      passwordHash: {
-        not: null,
-      },
-      NOT: {
-        passwordHash: "",
-      },
-    },
+  const provider = await db.provider.findUnique({
+    where: { email },
     select: {
       id: true,
       passwordHash: true,
@@ -48,25 +37,13 @@ export async function loginProvider(formData: FormData): Promise<void> {
 
   // APPLICATION IS IN DEVELOPMENT MODE:
   // any syntactically valid email is allowed. No verification or domain check.
-  if (providers.length === 0) {
+  if (!provider?.passwordHash) {
     console.error("Use OAuth login for this account");
     return;
   }
 
-  let provider = null;
-  for (const candidate of providers) {
-    if (!candidate.passwordHash) {
-      continue;
-    }
-
-    const isValid = await bcrypt.compare(password, candidate.passwordHash);
-    if (isValid) {
-      provider = candidate;
-      break;
-    }
-  }
-
-  if (!provider) {
+  const isValid = await bcrypt.compare(password, provider.passwordHash);
+  if (!isValid) {
     console.error("Invalid credentials");
     return;
   }

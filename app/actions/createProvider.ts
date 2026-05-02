@@ -25,13 +25,8 @@ export async function createProvider(formData: FormData): Promise<void> {
   const { password, firstName, lastName, role } = parsed.data;
   const email = parsed.data.email.toLowerCase();
 
-  const existing = await db.provider.findFirst({
-    where: {
-      email: {
-        equals: email,
-        mode: "insensitive",
-      },
-    },
+  const existing = await db.provider.findUnique({
+    where: { email },
     select: { id: true },
   });
 

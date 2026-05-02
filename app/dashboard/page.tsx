@@ -26,62 +26,73 @@ export default async function DashboardPage({
     authorProviderId?: string;
   }>;
 }) {
-  const session = await getSession();
+  const [session, resolvedSearchParams] = await Promise.all([
+    getSession(),
+    searchParams,
+  ]);
 
   if (!session) {
     redirect("/login");
   }
 
-  const provider = await db.provider.findUnique({
-    where: { id: session.providerId },
-    select: { firstName: true, lastName: true, role: true },
-  });
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const [provider, initialClients] = await Promise.all([
+    db.provider.findUnique({
+      where: { id: session.providerId },
+      select: { firstName: true, lastName: true, role: true },
+    }),
+    db.client.findMany({
+      where: {
+        providerClients: {
+          some: {
+            providerId: session.providerId,
+          },
+        },
+      },
+      include: {
+        providerClients: {
+          select: {
+            role: true,
+            provider: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+        entries: {
+          where: {
+            date: today,
+          },
+          select: {
+            id: true,
+            providerId: true,
+            reads: {
+              where: {
+                providerId: session.providerId,
+              },
+              select: {
+                readAt: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+  ]);
 
   if (!provider) {
     redirect("/login");
   }
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-let clients = await db.client.findMany({
-  where: {
-    providerClients: {
-      some: {
-        providerId: session.providerId,
-      },
-    },
-  },
-  include: {
-    providerClients: {
-      include: {
-        provider: true,
-      },
-    },
-    entries: {
-      where: {
-        date: today,
-      },
-      select: {
-        id: true,
-        providerId: true,
-        finalScore: true,
-        items: true,
-        reads: {
-          where: {
-            providerId: session.providerId,
-          },
-          select: {
-            readAt: true,
-          },
-        },
-      },
-    },
-  },
-});
-
-  const { clientId, view, notesClientId, authorProviderId } = await searchParams;
+  let clients = initialClients;
+  const { clientId, view, notesClientId, authorProviderId } = resolvedSearchParams;
   const isSupervisor = session.role === "Supervisor";
   const isCaregiver = session.role === "Caregiver";
   const backToClientLabel = isCaregiver ? "Back to Children" : "Back to Client";
@@ -193,11 +204,14 @@ let clients = await db.client.findMany({
     : [];
 
   if (noteOverlayEntries.length > 0) {
+    const readAt = new Date();
+    const readEntryIds = new Set(noteOverlayEntries.map((entry) => entry.id));
+
     await db.entryRead.createMany({
       data: noteOverlayEntries.map((entry) => ({
         entryId: entry.id,
         providerId: session.providerId,
-        readAt: new Date(),
+        readAt,
       })),
       skipDuplicates: true,
     });
@@ -211,86 +225,62 @@ let clients = await db.client.findMany({
         readAt: null,
       },
       data: {
-        readAt: new Date(),
+        readAt,
       },
     });
 
-    clients = await db.client.findMany({
-      where: {
-        providerClients: {
-          some: {
-            providerId: session.providerId,
-          },
-        },
-      },
-      include: {
-        providerClients: {
-          include: {
-            provider: true,
-          },
-        },
-        entries: {
-          where: {
-            date: today,
-          },
-          select: {
-            id: true,
-            providerId: true,
-            finalScore: true,
-            items: true,
-            reads: {
-              where: {
-                providerId: session.providerId,
-              },
-              select: {
-                readAt: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    clients = clients.map((client) => ({
+      ...client,
+      entries: client.entries.map((entry) =>
+        readEntryIds.has(entry.id)
+          ? {
+              ...entry,
+              reads: [{ readAt }],
+            }
+          : entry
+      ),
+    }));
   }
 
-const recentEntries = clients.length
-  ? await db.entry.findMany({
-      where: {
-        clientId: {
-          in: clients.map((client) => client.id),
-        },
-        date: {
-          gte: sevenDaysAgo,
-        },
-        OR: [
-          {
-            note: {
-              not: null,
-            },
+  const recentEntries = clients.length
+    ? await db.entry.findMany({
+        where: {
+          clientId: {
+            in: clients.map((client) => client.id),
           },
-          {
-            items: {
-              some: {},
-            },
+          date: {
+            gte: sevenDaysAgo,
           },
-        ],
-      },
-      select: {
-        id: true,
-        clientId: true,
-        providerId: true,
-      },
-    })
-  : [];
+          OR: [
+            {
+              note: {
+                not: null,
+              },
+            },
+            {
+              items: {
+                some: {},
+              },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          clientId: true,
+          providerId: true,
+        },
+      })
+    : [];
 
-const clientsWithRecentEntries = clients.map((client) => ({
-  ...client,
-  recentEntries: recentEntries
-    .filter((entry) => entry.clientId === client.id)
-    .map((entry) => ({
-      id: entry.id,
-      providerId: entry.providerId,
-    })),
-}));
+  const clientsWithRecentEntries = clients.map((client) => ({
+    ...client,
+    recentEntries: recentEntries
+      .filter((entry) => entry.clientId === client.id)
+      .map((entry) => ({
+        id: entry.id,
+        providerId: entry.providerId,
+      })),
+  }));
 
   const shouldShowProviderClientList =
     !isSupervisor && clientsWithRecentEntries.length > 1 && view !== "orbit";

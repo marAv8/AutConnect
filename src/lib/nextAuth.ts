@@ -49,13 +49,8 @@ export const authOptions: NextAuthOptions = {
         return false;
       }
 
-      const existing = await db.provider.findFirst({
-        where: {
-          email: {
-            equals: email,
-            mode: "insensitive",
-          },
-        },
+      const existing = await db.provider.findUnique({
+        where: { email },
         select: { id: true },
       });
 

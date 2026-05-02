@@ -33,13 +33,8 @@ export async function completeProfile(formData: FormData): Promise<void> {
     return;
   }
 
-  const provider = await db.provider.findFirst({
-    where: {
-      email: {
-        equals: email,
-        mode: "insensitive",
-      },
-    },
+  const provider = await db.provider.findUnique({
+    where: { email },
     select: { id: true },
   });
 
