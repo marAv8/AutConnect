@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { CSSProperties } from "react";
+import OverlayContainer from "@/components/ui/OverlayContainer";
 import EntryForm from "./EntryForm";
 
 type Props = {
@@ -11,23 +11,6 @@ type Props = {
   clientName: string;
   providerName: string;
   providerRole: string;
-  goalDefinitions: {
-    id: string;
-    target: string;
-    goal: string;
-    metricType: "Percentage" | "Frequency" | "Duration" | "Subjective";
-    domain:
-      | "Behavior"
-      | "SkillAcquisition"
-      | "Communication"
-      | "Adaptive"
-      | "Regulation"
-      | "Other"
-      | null;
-    targetValue: number | null;
-    comparison: "LessThan" | "GreaterThan" | "Equal" | null;
-    weight: number;
-  }[];
   mode?: "create" | "edit";
   initialValues?: {
     note: string;
@@ -49,20 +32,8 @@ type Props = {
       supportLevel: string;
     }[];
   };
-};
-
-const overlayGlassStyle: CSSProperties = {
-  background: "rgba(18, 22, 28, 0.42)",
-  backdropFilter: "blur(18px) saturate(1.15)",
-  WebkitBackdropFilter: "blur(18px) saturate(1.15)",
-};
-
-const overlayPanelStyle: CSSProperties = {
-  border: "1px solid rgba(255, 255, 255, 0.62)",
-  background: "rgba(255, 255, 255, 0.9)",
-  backdropFilter: "blur(26px) saturate(1.18)",
-  WebkitBackdropFilter: "blur(26px) saturate(1.18)",
-  boxShadow: "0 34px 90px rgba(0, 0, 0, 0.34), 0 2px 18px rgba(0, 0, 0, 0.12)",
+  onClose?: () => void;
+  onSubmitted?: () => void;
 };
 
 export default function NoteOverlay({
@@ -72,76 +43,57 @@ export default function NoteOverlay({
   clientName,
   providerName,
   providerRole,
-  goalDefinitions,
   mode = "create",
   initialValues,
+  onClose,
+  onSubmitted,
 }: Props) {
   const today = new Date().toLocaleDateString();
   const backLabel = role === "Caregiver" ? "Back to Children" : "Back to Client";
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 100,
-        ...overlayGlassStyle,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 32,
-        isolation: "isolate",
-      }}
-    >
+    <OverlayContainer>
       <div
         style={{
-          maxHeight: "calc(100vh - 64px)",
-          maxWidth: 1220,
+          maxWidth: 1120,
+          margin: "0 auto",
           width: "100%",
-          overflowY: "auto",
         }}
       >
-        <div style={{ marginBottom: 24 }}>
-          <Link
-            href={`/dashboard?clientId=${clientId}&view=orbit`}
-            style={{
-              color: "#fff",
-              fontWeight: 600,
-              position: "relative",
-              zIndex: 6,
-              textDecoration: "none",
-              textShadow: "0 1px 16px rgba(0, 0, 0, 0.45)",
-            }}
-          >
-            {backLabel}
-          </Link>
+        <div className="mb-6 flex items-center">
+          {onClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="back-link"
+            >
+              {backLabel.replace("Back to ", "")}
+            </button>
+          ) : (
+            <Link
+              href={`/dashboard?clientId=${clientId}&view=orbit`}
+              className="back-link"
+            >
+              {backLabel.replace("Back to ", "")}
+            </Link>
+          )}
         </div>
 
-        <div
-          style={{
-            ...overlayPanelStyle,
-            borderRadius: 12,
-            margin: "0 auto",
-            maxWidth: 1120,
-            padding: "28px 32px 32px",
-            width: "100%",
-            boxSizing: "border-box",
-          }}
-        >
+        <div className="paper-surface add-note-shell p-8">
           <EntryForm
             clientId={clientId}
             providerId={providerId}
             role={role}
             mode={mode}
-            goalDefinitions={goalDefinitions}
             clientName={clientName}
             providerName={providerName}
             providerRole={providerRole}
             todayLabel={today}
             initialValues={initialValues}
+            onSubmitted={onSubmitted}
           />
         </div>
       </div>
-    </div>
+    </OverlayContainer>
   );
 }

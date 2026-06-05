@@ -6,28 +6,19 @@ export default function LoginPage() {
   const googleEnabled = Boolean(
     process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
   );
-  const appleEnabled = Boolean(
-    process.env.APPLE_CLIENT_ID && process.env.APPLE_CLIENT_SECRET
-  );
 
   return (
     <main className="auth-shell">
       <div className="auth-page">
-        <header className="auth-header">
-          <div className="auth-logo">AC</div>
-        </header>
-
         <section className="auth-card auth-card-login">
           <div className="auth-form-wrap">
             <div className="auth-heading">
-              
-              <h2>Welcome to AutConnect</h2>
+              <h2>AC</h2>
             </div>
 
             <OAuthButtons
               mode="login"
               googleEnabled={googleEnabled}
-              appleEnabled={appleEnabled}
             />
 
             <div className="auth-separator">or</div>

@@ -10,16 +10,27 @@ type Props = {
 };
 
 const overlayGlassStyle: CSSProperties = {
-  background: "rgba(18, 22, 28, 0.42)",
-  backdropFilter: "blur(18px) saturate(1.15)",
-  WebkitBackdropFilter: "blur(18px) saturate(1.15)",
+  background: "rgb(0 0 0 / 25%)",
+  backdropFilter: "blur(3px)",
+  WebkitBackdropFilter: "blur(3px)",
 };
 
 const overlayPanelStyle: CSSProperties = {
-  background: "rgba(255, 255, 255, 0.92)",
-  backdropFilter: "blur(26px) saturate(1.18)",
-  WebkitBackdropFilter: "blur(26px) saturate(1.18)",
-  boxShadow: "0 34px 90px rgba(0, 0, 0, 0.28), 0 2px 18px rgba(0, 0, 0, 0.1)",
+  background: "var(--note-neo-surface)",
+  border: "none",
+  boxShadow: "var(--note-neo-raised)",
+};
+
+const recessedInputStyle: CSSProperties = {
+  background: "rgb(255 255 255 / 78%)",
+  border: "none",
+  boxShadow: "var(--note-neo-input)",
+};
+
+const elevatedControlStyle: CSSProperties = {
+  background: "var(--note-neo-surface)",
+  border: "none",
+  boxShadow: "var(--note-neo-control)",
 };
 
 export default function InsightsOverlay({ clientId, isOpen, onClose }: Props) {
@@ -99,7 +110,7 @@ export default function InsightsOverlay({ clientId, isOpen, onClose }: Props) {
         style={{
           ...overlayPanelStyle,
           width: "min(100%, 560px)",
-          borderRadius: 12,
+          borderRadius: 18,
           padding: "30px 32px",
           boxSizing: "border-box",
           display: "grid",
@@ -114,17 +125,15 @@ export default function InsightsOverlay({ clientId, isOpen, onClose }: Props) {
           placeholder="Ask about this client"
           autoFocus
           style={{
+            ...recessedInputStyle,
             width: "100%",
             boxSizing: "border-box",
-            border: "none",
-            borderRadius: 0,
-            borderBottom: "1px solid rgba(34, 34, 34, 0.28)",
-            background: "transparent",
-            color: "#222",
+            color: "var(--foreground)",
             fontSize: 18,
             lineHeight: 1.35,
             outline: "none",
-            padding: "10px 4px 12px",
+            padding: "12px 18px",
+            borderRadius: 14,
             textAlign: "center",
           }}
         />
@@ -133,14 +142,14 @@ export default function InsightsOverlay({ clientId, isOpen, onClose }: Props) {
           type="submit"
           disabled={!question.trim() || isAsking}
           style={{
-            border: "none",
-            background: "transparent",
-            color: "#2248e8",
+            ...elevatedControlStyle,
+            borderRadius: 13,
+            color: "var(--foreground)",
             cursor: question.trim() && !isAsking ? "pointer" : "default",
             fontSize: 16,
             fontWeight: 600,
             opacity: question.trim() && !isAsking ? 1 : 0.42,
-            padding: "4px 8px",
+            padding: "8px 16px",
           }}
         >
           {isAsking ? "Asking..." : "Ask"}
@@ -150,7 +159,7 @@ export default function InsightsOverlay({ clientId, isOpen, onClose }: Props) {
           <div
             style={{
               width: "100%",
-              borderTop: "1px solid rgba(34, 34, 34, 0.18)",
+              borderTop: "none",
               paddingTop: 18,
               display: "grid",
               gap: 10,
@@ -160,7 +169,7 @@ export default function InsightsOverlay({ clientId, isOpen, onClose }: Props) {
           >
             <div
               style={{
-                color: error ? "#8a1f1f" : "#222",
+                color: error ? "var(--danger)" : "var(--foreground)",
                 fontSize: 18,
                 lineHeight: 1.48,
                 maxWidth: 480,

@@ -87,27 +87,30 @@ export default async function ViewNotePage({
     redirect(`/dashboard?clientId=${clientId}`);
   }
 
-  await db.entryRead.createMany({
-    data: entries.map((entry) => ({
-      entryId: entry.id,
-      providerId: session.providerId,
-      readAt: new Date(),
-    })),
-    skipDuplicates: true,
-  });
+  const readAt = new Date();
 
-  await db.entryRead.updateMany({
-    where: {
-      providerId: session.providerId,
-      entryId: {
-        in: entries.map((entry) => entry.id),
+  await Promise.all([
+    db.entryRead.createMany({
+      data: entries.map((entry) => ({
+        entryId: entry.id,
+        providerId: session.providerId,
+        readAt,
+      })),
+      skipDuplicates: true,
+    }),
+    db.entryRead.updateMany({
+      where: {
+        providerId: session.providerId,
+        entryId: {
+          in: entries.map((entry) => entry.id),
+        },
+        readAt: null,
       },
-      readAt: null,
-    },
-    data: {
-      readAt: new Date(),
-    },
-  });
+      data: {
+        readAt,
+      },
+    }),
+  ]);
 
   return (
     <NoteHistoryViewer
@@ -122,6 +125,7 @@ export default async function ViewNotePage({
         providerRole: formatRole(entry.provider.role),
         items: entry.items,
       }))}
+      variant="overlay"
       backLabel={session.role === "Caregiver" ? "Back to Children" : "Back to Client"}
     />
   );

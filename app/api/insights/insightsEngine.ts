@@ -13,7 +13,9 @@ export type ParsedInsightQuestion = {
 };
 
 type InsightResult = {
+  headline?: string;
   summary: string;
+  context?: string;
   trend?: "up" | "down" | "flat";
   supportingData?: {
     providers?: Array<{
@@ -35,6 +37,12 @@ type InsightResult = {
 };
 
 type InsightEntry = Awaited<ReturnType<typeof fetchInsightEntries>>[number];
+type ProviderInsight = NonNullable<
+  NonNullable<InsightResult["supportingData"]>["providers"]
+>[number];
+type BehaviorInsight = NonNullable<
+  NonNullable<InsightResult["supportingData"]>["behaviors"]
+>[number];
 
 const roleAliases: Array<[RegExp, Role]> = [
   [/\b(parent|caregiver|caretaker|family|home)\b/i, Role.Caregiver],
@@ -318,16 +326,14 @@ function mostDifficultBehavior(entries: InsightEntry[]): InsightResult {
 
   if (behaviors.length === 0) {
     return {
-      summary: "No frequency-based behavior data was found for this client.",
+      ...formatNoDataObservation("No frequency-based behavior patterns were found for this client."),
       supportingData: { behaviors: [], sessions: entries.length },
     };
   }
 
   const top = behaviors[0];
   return {
-    summary: `${top.target} has the highest frequency, averaging ${top.avgFrequency.toFixed(
-      1
-    )} per session across ${top.observations} observations.`,
+    ...formatBehaviorObservation(top),
     supportingData: { behaviors, sessions: entries.length },
   };
 }
@@ -371,16 +377,14 @@ function noteTimingCompliance(entries: InsightEntry[]): InsightResult {
 
   if (ranked.length === 0) {
     return {
-      summary: "No submitted notes were found for this client.",
+      ...formatNoDataObservation("No submitted notes were found for this client."),
       supportingData: { providers: [], sessions: 0 },
     };
   }
 
   const slowest = ranked[0];
   return {
-    summary: `${slowest.role} averages ${slowest.avgDelayHours.toFixed(
-      1
-    )} hours between session date and note submission.`,
+    ...formatComplianceObservation(slowest),
     supportingData: { providers: ranked, sessions: entries.length },
   };
 }
@@ -411,6 +415,151 @@ function trendFor(entries: InsightEntry[], parsed: ParsedInsightQuestion): Insig
   return second > first ? "up" : "down";
 }
 
+function formatTrendObservation(trend: InsightResult["trend"]) {
+  switch (trend) {
+    case "up":
+      return "Recent sessions are beginning to show a more consistent pattern.";
+    case "down":
+      return "Recent sessions suggest this area may need closer follow-up.";
+    case "flat":
+      return "The pattern has stayed fairly steady across the available sessions.";
+    default:
+      return undefined;
+  }
+}
+
+function consistencyBand(avgPercent: number) {
+  if (avgPercent >= 80) return "strong consistency";
+  if (avgPercent >= 60) return "moderate consistency";
+  if (avgPercent >= 40) return "emerging consistency";
+  return "limited consistency";
+}
+
+function expectedRangeLabel(thresholdPercent: number) {
+  if (thresholdPercent >= 70) return "the expected range";
+  if (thresholdPercent >= 50) return "the developing range";
+  return "the early skill range";
+}
+
+function joinObservation(parts: Array<string | undefined>) {
+  return parts.filter(Boolean).join(" ");
+}
+
+function formatNoDataObservation(summary: string) {
+  return {
+    summary,
+  };
+}
+
+function formatAverageObservation({
+  roleLabel,
+  avgPercent,
+  sessions,
+  trend,
+}: {
+  roleLabel: string;
+  avgPercent: number;
+  sessions: number;
+  trend: InsightResult["trend"];
+}) {
+  const subject = roleLabel === "The care team" ? "The care team" : `${roleLabel} sessions`;
+  const band = consistencyBand(avgPercent);
+
+  return {
+    headline: "Overall pattern",
+    summary: joinObservation([
+      `${subject} is showing ${band} overall.`,
+      formatTrendObservation(trend),
+    ]),
+    context:
+      sessions > 1
+        ? `This reflects the available pattern across ${sessions} sessions.`
+        : "This reflects the available pattern from one session.",
+  };
+}
+
+function formatBehaviorObservation(behavior: BehaviorInsight) {
+  return {
+    headline: "Behavior pattern",
+    summary: `${behavior.target}-related behaviors appeared more consistently than other tracked behaviors during this period.`,
+    context:
+      behavior.observations > 1
+        ? `This pattern appeared across ${behavior.observations} observations.`
+        : "This pattern appeared in the available behavior observation.",
+  };
+}
+
+function formatComplianceObservation(provider: ProviderInsight) {
+  const delay = provider.avgDelayHours ?? 0;
+  const timing =
+    delay <= 2
+      ? "Note timing appears prompt overall."
+      : delay <= 24
+        ? "Note timing appears generally consistent, with some delay after sessions."
+        : "Note timing may need closer follow-up after sessions.";
+
+  return {
+    headline: "Note timing",
+    summary: `${timing} ${provider.role} notes showed the longest delay in the available records.`,
+  };
+}
+
+function formatThresholdObservation({
+  matched,
+  thresholdPercent,
+  comparison,
+  trend,
+}: {
+  matched: ProviderInsight[];
+  thresholdPercent: number;
+  comparison: "above" | "below";
+  trend: InsightResult["trend"];
+}) {
+  const range = expectedRangeLabel(thresholdPercent);
+
+  if (matched.length === 0) {
+    return {
+      headline: "Threshold pattern",
+      summary: joinObservation([
+        comparison === "above"
+          ? `No provider group is consistently above ${range} right now.`
+          : `No provider group is consistently below ${range} right now.`,
+        formatTrendObservation(trend),
+      ]),
+    };
+  }
+
+  const roles = matched.map((provider) => provider.role).join(", ");
+  const direction =
+    comparison === "above"
+      ? `showed steadier performance within ${range}`
+      : `may need additional support within ${range}`;
+
+  return {
+    headline: "Threshold pattern",
+    summary: joinObservation([
+      `${roles} ${direction}.`,
+      formatTrendObservation(trend),
+    ]),
+  };
+}
+
+function formatRankingObservation({
+  provider,
+  trend,
+}: {
+  provider: ProviderInsight;
+  trend: InsightResult["trend"];
+}) {
+  return {
+    headline: "Support pattern",
+    summary: joinObservation([
+      `Additional support may be useful during ${provider.role.toLowerCase()} sessions, where consistency was lower than the rest of the care team.`,
+      formatTrendObservation(trend),
+    ]),
+  };
+}
+
 export async function buildInsight(clientId: string, question: string): Promise<InsightResult> {
   const parsed = parseQuestion(question);
   const rawEntries = await fetchInsightEntries(clientId, parsed);
@@ -418,7 +567,7 @@ export async function buildInsight(clientId: string, question: string): Promise<
 
   if (entries.length === 0) {
     return {
-      summary: "No matching data was found for this client.",
+      ...formatNoDataObservation("No matching data was found for this client."),
       supportingData: { sessions: 0 },
     };
   }
@@ -438,7 +587,7 @@ export async function buildInsight(clientId: string, question: string): Promise<
   const providers = providerSummaries(entries, parsed).sort((a, b) => a.avgScore - b.avgScore);
   if (providers.length === 0) {
     return {
-      summary: "No scored assessment data was found for this client.",
+      ...formatNoDataObservation("No scored assessment data was found for this client."),
       supportingData: { providers: [], sessions: entries.length },
     };
   }
@@ -456,38 +605,41 @@ export async function buildInsight(clientId: string, question: string): Promise<
         ? provider.avgScore > thresholdScore
         : provider.avgScore < thresholdScore
     );
+    const trend = trendFor(entries, parsed);
 
-    const label = parsed.comparison === "above" ? "above" : "below";
     return {
-      summary:
-        matched.length > 0
-          ? `${matched.map((provider) => provider.role).join(", ")} scored ${label} ${(
-              thresholdScore * 10
-            ).toFixed(0)}% on average.`
-          : `No providers scored ${label} ${(thresholdScore * 10).toFixed(0)}% on average.`,
-      trend: trendFor(entries, parsed),
+      ...formatThresholdObservation({
+        matched,
+        thresholdPercent: thresholdScore * 10,
+        comparison: parsed.comparison,
+        trend,
+      }),
+      trend,
       supportingData: { providers: matched, sessions: entries.length },
     };
   }
 
   if (parsed.intent === "ranking") {
     const lowest = providers[0];
+    const trend = trendFor(entries, parsed);
     return {
-      summary: `${lowest.role} shows the lowest average performance at approximately ${lowest.avgPercent.toFixed(
-        0
-      )}% across ${lowest.sessions} sessions.`,
-      trend: trendFor(entries, parsed),
+      ...formatRankingObservation({ provider: lowest, trend }),
+      trend,
       supportingData: { providers, sessions: entries.length },
     };
   }
 
   const avgScore = average(providers.map((provider) => provider.avgScore)) ?? 0;
   const roleLabel = parsed.providerRole ? formatRole(parsed.providerRole) : "The care team";
+  const trend = trendFor(entries, parsed);
   return {
-    summary: `${roleLabel} averages approximately ${(avgScore * 10).toFixed(
-      0
-    )}% across ${entries.length} matching sessions.`,
-    trend: trendFor(entries, parsed),
+    ...formatAverageObservation({
+      roleLabel,
+      avgPercent: avgScore * 10,
+      sessions: entries.length,
+      trend,
+    }),
+    trend,
     supportingData: { providers, sessions: entries.length },
   };
 }

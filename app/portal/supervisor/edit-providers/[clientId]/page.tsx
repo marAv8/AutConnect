@@ -87,20 +87,18 @@ export default async function EditClientProvidersPage({
       }}
     >
       <div style={{ marginTop: HEADER_TO_LINK_GAP, marginBottom: LINK_TO_CONTENT_GAP }}>
-        <Link href="/dashboard" style={{ fontWeight: 600 }}>
+        <Link href="/dashboard" className="back-link">
           Client List
         </Link>
       </div>
       <div style={{ display: "flex", justifyContent: "center", height: "calc(100% - 58px)" }}>
         <div style={{ width: "100%", maxWidth: 1100, minHeight: 0 }}>
           <div
+            className="paper-surface provider-assignment-panel"
             style={{
               width: "100%",
               height: "100%",
-              border: "1px solid #d7d7d7",
-              borderRadius: 14,
               padding: 28,
-              background: "#fff",
               boxSizing: "border-box",
               overflow: "hidden",
             }}

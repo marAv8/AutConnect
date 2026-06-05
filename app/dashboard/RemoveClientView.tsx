@@ -8,7 +8,6 @@ import {
   STATUS_BADGE_SIZE,
 } from "./layoutConfig";
 import ModeContentFrame from "./ModeContentFrame";
-import GridFrame from "./GridFrame";
 
 type Client = {
   id: string;
@@ -40,23 +39,24 @@ export default function RemoveClientView({
 
   return (
     <ModeContentFrame>
-      <GridFrame>
-        <div
-          style={{
-            width: "100%",
-            maxWidth: visibleWidth + 16,
-            margin: "0 auto",
-            maxHeight: visibleHeight + STATUS_BADGE_CLEARANCE + 16,
-            overflowY: "auto",
-            overflowX: "hidden",
-            paddingTop: STATUS_BADGE_CLEARANCE,
-            paddingRight: 8,
-            boxSizing: "border-box",
-            scrollbarGutter: "stable both-edges",
-          }}
-        >
+      <div
+        className="client-cavity-tray"
+        style={{
+          width: "100%",
+          maxWidth: visibleWidth + 196,
+          margin: "0 auto",
+          maxHeight: visibleHeight + STATUS_BADGE_CLEARANCE + 174,
+          overflowY: "auto",
+          overflowX: "hidden",
+          padding: `${STATUS_BADGE_CLEARANCE + 40}px clamp(32px, 7vw, 80px) 92px`,
+          boxSizing: "border-box",
+          scrollbarGutter: "stable both-edges",
+        }}
+      >
           <div
             style={{
+              position: "relative",
+              zIndex: 1,
               display: "flex",
               flexWrap: "wrap",
               gap: MODE_GRID_GAP,
@@ -88,7 +88,8 @@ export default function RemoveClientView({
                   borderRadius: "50%",
                   border: "none",
                   background: palette[index % palette.length],
-                  color: "#2b2b2b",
+                  color: "var(--foreground)",
+                  boxShadow: "var(--shadow-dashboard-sphere)",
                   fontSize: CLIENT_ORB_FONT_SIZE,
                   fontWeight: 500,
                   cursor: "pointer",
@@ -108,9 +109,10 @@ export default function RemoveClientView({
                     width: STATUS_BADGE_SIZE,
                     height: STATUS_BADGE_SIZE,
                     borderRadius: "50%",
-                    background: "#fff",
-                    border: "2px solid #d93025",
-                    color: "#d93025",
+                    background: "var(--glass-strong)",
+                    border: "none",
+                    boxShadow: "var(--shadow-dashboard-badge)",
+                    color: "var(--negative)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -124,15 +126,14 @@ export default function RemoveClientView({
                       width: 12,
                       height: 3,
                       borderRadius: 999,
-                      background: "#d93025",
+                      background: "var(--negative)",
                     }}
                   />
                 </span>
               </button>
             ))}
           </div>
-        </div>
-      </GridFrame>
+      </div>
     </ModeContentFrame>
   );
 }

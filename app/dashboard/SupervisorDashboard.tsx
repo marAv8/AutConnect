@@ -27,7 +27,7 @@ type ProviderClient = {
 type EntryState = {
   id: string;
   providerId: string;
-  reads?: { readAt: Date | null }[];
+  reads?: { readAt: Date | string | null }[];
 };
 
 type RecentEntryState = {
@@ -61,51 +61,98 @@ type Props = {
 type Mode = "grid" | "orbit" | "remove" | "add";
 
 const palette = [
-  "#e7f0f4",
-  "#e7f0de",
-  "#ece6f7",
-  "#e0eefc",
-  "#f4e2ec",
-  "#f8ead9",
-  "#faefe3",
+  "#e1e1e1",
+  "#ededed",
+  "#d9d9d9",
+  "#f4f4f4",
+  "#e6e6e6",
+  "#eeeeee",
+  "#d5d5d5",
 ];
 
 const initialsOf = (firstName: string, lastName: string) =>
   `${firstName.slice(0, 2)}${lastName.slice(0, 2)}`;
 
 const menuStackStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "flex-start",
-  gap: 14,
+  position: "relative",
+  width: 58,
+  height: 58,
 };
 
 const menuPanelStyle: React.CSSProperties = {
+  position: "absolute",
+  left: 0,
+  bottom: "calc(100% + 16px)",
   display: "grid",
-  gap: 10,
-  width: "max-content",
+  gap: 12,
+  minWidth: 154,
+  padding: 0,
+  justifyItems: "center",
+  background: "transparent",
+  border: "none",
+  boxShadow: "none",
 };
 
 const menuActionStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "100%",
+  minHeight: 42,
   border: "none",
-  background: "transparent",
-  textAlign: "left",
-  padding: 0,
+  borderRadius: 14,
+  background: "var(--note-neo-surface)",
+  textAlign: "center",
+  textDecoration: "none",
+  padding: "0 16px",
   cursor: "pointer",
-  fontSize: 16,
+  fontSize: 13,
+  fontWeight: 650,
+  color: "rgb(0 0 0 / 82%)",
+  boxShadow: "var(--note-neo-control)",
 };
 
 const menuButtonStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
   width: 58,
   height: 58,
   borderRadius: "50%",
-  border: "3px solid #2248e8",
-  background: "#fff",
-  color: "#2248e8",
+  border: "none",
+  background: "var(--note-neo-surface)",
+  color: "var(--foreground)",
   fontSize: 28,
   lineHeight: 1,
   cursor: "pointer",
+  boxShadow: "var(--note-neo-control)",
 };
+
+const menuDotRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 6,
+  height: 10,
+};
+
+const menuDotStyle: React.CSSProperties = {
+  width: 5,
+  height: 5,
+  borderRadius: "50%",
+  background: "currentColor",
+  display: "block",
+};
+
+function MenuDots() {
+  return (
+    <span aria-hidden="true" style={menuDotRowStyle}>
+      <span style={menuDotStyle} />
+      <span style={menuDotStyle} />
+      <span style={menuDotStyle} />
+    </span>
+  );
+}
 
 export default function SupervisorDashboard({
   assignedClients,
@@ -272,10 +319,79 @@ export default function SupervisorDashboard({
     [activeClientId]
   );
 
+  const handleEntryRead = useCallback(
+    (clientId: string, authorProviderId: string) => {
+      setAssignedClientState((currentClients) =>
+        currentClients.map((client) => {
+          if (client.id !== clientId) return client;
+
+          return {
+            ...client,
+            entries: client.entries?.map((entry) =>
+              entry.providerId === authorProviderId
+                ? {
+                    ...entry,
+                    reads: [{ readAt: new Date() }],
+                  }
+                : entry
+            ),
+          };
+        })
+      );
+    },
+    []
+  );
+
+  const handleEntrySaved = useCallback(
+    (clientId: string, authorProviderId: string, entryId: string) => {
+      setAssignedClientState((currentClients) =>
+        currentClients.map((client) => {
+          if (client.id !== clientId) return client;
+
+          const entries = client.entries ?? [];
+          const hasEntry = entries.some((entry) => entry.id === entryId);
+
+          return {
+            ...client,
+            entries: hasEntry
+              ? entries.map((entry) =>
+                  entry.id === entryId
+                    ? {
+                        ...entry,
+                        providerId: authorProviderId,
+                        reads:
+                          authorProviderId === currentProviderId
+                            ? [{ readAt: null }]
+                            : entry.reads,
+                      }
+                    : entry
+                )
+              : [
+                  ...entries,
+                  {
+                    id: entryId,
+                    providerId: authorProviderId,
+                    reads: [{ readAt: null }],
+                  },
+                ],
+            recentEntries: client.recentEntries?.some((entry) => entry.id === entryId)
+              ? client.recentEntries
+              : [
+                  ...(client.recentEntries ?? []),
+                  { id: entryId, providerId: authorProviderId },
+                ],
+          };
+        })
+      );
+    },
+    [currentProviderId]
+  );
+
   const topNav =
     mode === "orbit" ? (
       <button
         type="button"
+        className="back-link"
         onClick={() => {
           setInsightsOpen(false);
           setMode("grid");
@@ -285,16 +401,17 @@ export default function SupervisorDashboard({
           background: "transparent",
           padding: 0,
           margin: 0,
-          fontSize: 16,
-          fontWeight: 600,
+          fontSize: 15,
+          fontWeight: 550,
           cursor: "pointer",
         }}
       >
-        Back to Client List
+        Client List
       </button>
     ) : mode === "grid" || mode === "add" || mode === "remove" ? (
       <button
         type="button"
+        className="back-link"
         onClick={() => {
           if (mode === "grid") return;
           setInsightsOpen(false);
@@ -305,14 +422,14 @@ export default function SupervisorDashboard({
           background: "transparent",
           padding: 0,
           margin: 0,
-          fontSize: 16,
-          fontWeight: 600,
+          fontSize: 15,
+          fontWeight: 550,
           cursor: mode === "grid" ? "default" : "pointer",
           visibility: mode === "grid" ? "hidden" : "visible",
           pointerEvents: mode === "grid" ? "none" : "auto",
         }}
       >
-        Back to Client List
+        Client List
       </button>
     ) : null;
 
@@ -327,6 +444,8 @@ export default function SupervisorDashboard({
           currentProviderId={currentProviderId}
           activeClientId={activeClientId}
           onActiveClientChange={handleActiveClientChange}
+          onEntryRead={handleEntryRead}
+          onEntrySaved={handleEntrySaved}
         />
         {activeClient ? (
           <InsightsOverlay
@@ -380,7 +499,13 @@ export default function SupervisorDashboard({
       <div ref={menuRef} style={menuStackStyle}>
         {menuOpen && (
           <div style={menuPanelStyle}>
-            <Link href="/portal/supervisor/create-client">Add Client</Link>
+            <Link
+              href="/portal/supervisor/create-client"
+              className="soft-link"
+              style={menuActionStyle}
+            >
+              Add Client
+            </Link>
             <button
               type="button"
               onClick={() => {
@@ -405,12 +530,13 @@ export default function SupervisorDashboard({
         )}
         <button
           type="button"
+          className="material-control"
           onClick={() => setMenuOpen((value) => !value)}
           aria-expanded={menuOpen}
           aria-label="More"
           style={menuButtonStyle}
         >
-          ...
+          <MenuDots />
         </button>
       </div>
     ) : mode === "orbit" ? (
@@ -421,6 +547,8 @@ export default function SupervisorDashboard({
               <Link
                 href={`/portal/supervisor/edit-providers/${activeClientId}`}
                 onClick={() => setMenuOpen(false)}
+                className="soft-link"
+                style={menuActionStyle}
               >
                 Care Team
               </Link>
@@ -439,12 +567,13 @@ export default function SupervisorDashboard({
         )}
         <button
           type="button"
+          className="material-control"
           onClick={() => setMenuOpen((value) => !value)}
           aria-expanded={menuOpen}
           aria-label="More"
           style={menuButtonStyle}
         >
-          ...
+          <MenuDots />
         </button>
       </div>
     ) : null;

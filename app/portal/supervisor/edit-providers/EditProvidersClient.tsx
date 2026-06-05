@@ -23,16 +23,16 @@ type Props = {
 type Mode = "none" | "remove" | "add";
 
 const palette = [
-  "#b8ccd6",
-  "#d8b3ca",
-  "#d8ae86",
-  "#d8bfd3",
-  "#8ea3bb",
-  "#d7c18a",
-  "#b29bab",
-  "#89c68a",
-  "#e4b4ea",
-  "#8ac48a",
+  "#e1e1e1",
+  "#ededed",
+  "#d9d9d9",
+  "#f4f4f4",
+  "#e6e6e6",
+  "#eeeeee",
+  "#d5d5d5",
+  "#e4e4e4",
+  "#dddddd",
+  "#f0f0f0",
 ];
 const CLIENT_ORB_SIZE = 120;
 const CLIENT_ORB_FONT_SIZE = 34;
@@ -84,7 +84,7 @@ export default function EditProvidersClient({
   return (
     <main style={{ padding: "0 32px 24px" }}>
       <div style={{ marginBottom: LINK_TO_CONTENT_GAP, marginTop: HEADER_TO_LINK_GAP }}>
-        <Link href="/dashboard" style={{ fontWeight: 600 }}>
+        <Link href="/dashboard" className="back-link">
           Client List
         </Link>
       </div>
@@ -133,7 +133,8 @@ export default function EditProvidersClient({
                   justifyContent: "center",
                   fontSize: CLIENT_ORB_FONT_SIZE,
                   fontWeight: 600,
-                  color: "#222",
+                  color: "var(--foreground)",
+                  boxShadow: "var(--shadow-sphere)",
                 }}
               >
                 {client.initials}
@@ -150,10 +151,11 @@ export default function EditProvidersClient({
                     borderRadius: "50%",
                     border:
                       mode === "remove"
-                        ? "2px solid #d93025"
-                        : "2px solid #2e7d32",
-                    color: mode === "remove" ? "#d93025" : "#2e7d32",
-                    background: "#fff",
+                        ? "1px solid rgb(0 0 0 / 34%)"
+                        : "1px solid rgb(0 0 0 / 24%)",
+                    color: mode === "remove" ? "var(--negative)" : "var(--positive)",
+                    background: "var(--glass-strong)",
+                    boxShadow: "var(--shadow-tactile)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",

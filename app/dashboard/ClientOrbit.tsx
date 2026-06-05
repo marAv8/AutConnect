@@ -1,8 +1,6 @@
 //app/dashboard/ClientOrbit.tsx
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
 type ProviderClient = {
@@ -23,7 +21,7 @@ type ClientOrbitProps = {
     entries?: {
       id: string;
       providerId: string;
-      reads?: { readAt: Date | null }[];
+      reads?: { readAt: Date | string | null }[];
     }[];
     recentEntries?: {
       id: string;
@@ -31,50 +29,37 @@ type ClientOrbitProps = {
     }[];
   };
   currentProviderId: string;
+  onOpenNotes: (providerId: string) => void;
+  onOpenEntryForm: (providerId: string, overlayType: "add" | "update") => void;
 };
 
 const providerActionMenuStyle: CSSProperties = {
   position: "absolute",
-  left: "calc(100% + 4px)",
-  top: -30,
+  left: "calc(100% + 14px)",
+  top: -40,
   display: "grid",
-  gap: 8,
-  minWidth: 142,
-  zIndex: 8,
-  padding: 10,
-  borderRadius: 10,
-  border: "1px solid rgba(255, 255, 255, 0.66)",
-  background: "rgba(255, 255, 255, 0.92)",
-  backdropFilter: "blur(18px) saturate(1.16)",
-  WebkitBackdropFilter: "blur(18px) saturate(1.16)",
-  boxShadow: "0 18px 48px rgba(0, 0, 0, 0.22), 0 1px 12px rgba(0, 0, 0, 0.12)",
+  gap: 10,
+  minWidth: 158,
+  zIndex: 24,
+  padding: "14px 16px",
+  borderRadius: 14,
+  border: "none",
+  background: "var(--glass-strong)",
+  boxShadow: "var(--shadow-dashboard-badge)",
   transformOrigin: "0 32px",
   animation: "provider-action-pop 180ms cubic-bezier(0.2, 0.9, 0.25, 1.12) both",
 };
 
-const providerActionBridgeStyle: CSSProperties = {
-  position: "absolute",
-  left: -13,
-  top: 42,
-  width: 22,
-  height: 22,
-  borderRadius: "50%",
-  border: "1px solid rgba(255, 255, 255, 0.66)",
-  borderRight: "none",
-  borderBottom: "none",
-  background: "rgba(255, 255, 255, 0.92)",
-  boxShadow: "-8px 12px 24px rgba(0, 0, 0, 0.08)",
-};
-
 const providerActionLinkStyle: CSSProperties = {
-  color: "#222",
+  color: "var(--foreground)",
   textDecoration: "none",
   fontSize: 14,
-  fontWeight: 600,
+  fontWeight: 550,
   whiteSpace: "nowrap",
-  padding: "8px 10px",
-  borderRadius: 7,
-  background: "rgba(255, 255, 255, 0.68)",
+  padding: "8px 6px",
+  borderRadius: 0,
+  background: "transparent",
+  textAlign: "center",
 };
 
 function providerOrbitPoint(index: number, count: number, distance: number) {
@@ -149,10 +134,10 @@ function providerOrbitPoint(index: number, count: number, distance: number) {
 export default function ClientOrbit({
   client,
   currentProviderId,
+  onOpenNotes,
+  onOpenEntryForm,
 }: ClientOrbitProps) {
-  const router = useRouter();
   const [menuProviderId, setMenuProviderId] = useState<string | null>(null);
-  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const orbitRef = useRef<HTMLDivElement | null>(null);
 
   const roleLabel = (role: string) => {
@@ -182,50 +167,6 @@ export default function ClientOrbit({
   const dismissOwnNotesPrompt = useCallback(() => {
     setMenuProviderId(null);
   }, []);
-  const navigateToNoteHref = useCallback(
-    (href: string) => {
-      setPendingHref(href);
-      setMenuProviderId(null);
-      router.push(href);
-    },
-    [router]
-  );
-
-  useEffect(() => {
-    const ownEntry = client.entries?.find(
-      (entry) => entry.providerId === currentProviderId
-    );
-    const ownNotesHref = `/dashboard?clientId=${client.id}&view=orbit&notesClientId=${client.id}&authorProviderId=${currentProviderId}`;
-    const addNoteHref = `/portal/notes/add?clientId=${client.id}${
-      ownEntry ? "&edit=1" : ""
-    }`;
-
-    router.prefetch(ownNotesHref);
-    router.prefetch(addNoteHref);
-
-    for (const pc of providers) {
-      const entryForProvider = client.entries?.find(
-        (entry) => entry.providerId === pc.provider.id
-      );
-      const hasRecentProviderNotes = client.recentEntries?.some(
-        (entry) => entry.providerId === pc.provider.id
-      );
-
-      if (entryForProvider || hasRecentProviderNotes) {
-        router.prefetch(
-          `/dashboard?clientId=${client.id}&view=orbit&notesClientId=${client.id}&authorProviderId=${pc.provider.id}`
-        );
-      }
-    }
-  }, [
-    client.entries,
-    client.id,
-    client.recentEntries,
-    currentProviderId,
-    providers,
-    router,
-  ]);
-
   useEffect(() => {
     if (!menuProviderId) return;
 
@@ -275,19 +216,13 @@ export default function ClientOrbit({
           from {
             opacity: 0;
             transform: translate(-8px, -4px) scale(0.82);
-            filter: blur(1px);
           }
           to {
             opacity: 1;
             transform: translate(0, 0) scale(1);
-            filter: blur(0);
           }
         }
 
-        @keyframes note-route-pending {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(0.94); }
-        }
       `}</style>
       {/* CENTER CLIENT */}
       <div
@@ -298,7 +233,9 @@ export default function ClientOrbit({
           width: centerSize,
           height: centerSize,
           borderRadius: "50%",
-          border: "2px solid #ccc",
+          border: "none",
+          background: "rgb(244 244 244 / 94%)",
+          boxShadow: "var(--shadow-dashboard-sphere)",
           transform: "translate(-50%, -50%)",
           display: "flex",
           alignItems: "center",
@@ -328,14 +265,6 @@ export default function ClientOrbit({
           (entry) => entry.providerId === pc.provider.id
         );
         const hasViewableProviderNotes = hasEntry || !!hasRecentProviderNotes;
-        const providerNotesHref = `/dashboard?clientId=${client.id}&view=orbit&notesClientId=${client.id}&authorProviderId=${pc.provider.id}`;
-        const ownNotesHref = `/dashboard?clientId=${client.id}&view=orbit&notesClientId=${client.id}&authorProviderId=${currentProviderId}`;
-        const addNoteHref = `/portal/notes/add?clientId=${client.id}${
-          hasEntry ? "&edit=1" : ""
-        }`;
-        const isProviderNotesPending = pendingHref === providerNotesHref;
-        const isOwnNotesPending = pendingHref === ownNotesHref;
-        const isAddNotePending = pendingHref === addNoteHref;
         const hasUnreadForMe =
           hasEntry &&
           (
@@ -344,8 +273,9 @@ export default function ClientOrbit({
             entryForProvider.reads.some((read) => read.readAt === null)
           );
         const isSupervisorProvider = pc.role === "Supervisor";
-        const showOwnSignal = isMe && hasEntry && hasUnreadForMe;
-        const showAction = isMe || hasUnreadForMe;
+        const showOwnSignal = isMe && hasUnreadForMe;
+        const showProviderUnreadSignal = !isMe && hasUnreadForMe;
+        const showAction = isMe || showProviderUnreadSignal;
         const showOwnMenu =
           isMe &&
           menuProviderId === pc.provider.id;
@@ -365,9 +295,9 @@ export default function ClientOrbit({
           >
       {/* Circle */}
       <div
-        onClick={() => {
-          if (!isMe && hasViewableProviderNotes) {
-            navigateToNoteHref(providerNotesHref);
+          onClick={() => {
+            if (!isMe && hasViewableProviderNotes) {
+            onOpenNotes(pc.provider.id);
           }
         }}
         style={{
@@ -375,8 +305,9 @@ export default function ClientOrbit({
           width: spokeSize,
           height: spokeSize,
           borderRadius: "50%",
-          background: "#f5f5f5",
-          border: "1px solid #bbb",
+          background: "rgb(250 250 250 / 88%)",
+          border: "none",
+          boxShadow: "var(--shadow-dashboard-sphere-light)",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -384,14 +315,10 @@ export default function ClientOrbit({
           fontSize: 13,
           textAlign: "center",
           padding: 8,
-          cursor: isProviderNotesPending
-            ? "progress"
-            : !isMe && hasViewableProviderNotes
+          cursor: !isMe && hasViewableProviderNotes
               ? "pointer"
               : "default",
           zIndex: showOwnMenu ? 21 : 1,
-          opacity: isProviderNotesPending ? 0.62 : 1,
-          transition: "opacity 140ms ease",
         }}
       >
         <div style={{ fontWeight: 600, fontSize: 15 }}>
@@ -402,7 +329,6 @@ export default function ClientOrbit({
         {showAction && (
           <button
             data-own-note-menu={isMe ? "true" : undefined}
-            aria-busy={isProviderNotesPending || isAddNotePending}
             onClick={(event) => {
               event.stopPropagation();
 
@@ -413,7 +339,7 @@ export default function ClientOrbit({
                 return;
               }
 
-              navigateToNoteHref(providerNotesHref);
+              onOpenNotes(pc.provider.id);
             }}
             aria-label={
               isMe
@@ -429,21 +355,16 @@ export default function ClientOrbit({
               width: badgeSize,
               height: badgeSize,
               borderRadius: "50%",
-              border: "1px solid #999",
-              background: "white",
-              cursor:
-                isProviderNotesPending || isAddNotePending ? "progress" : "pointer",
+              border: "none",
+              background: "rgb(248 248 248 / 94%)",
+              boxShadow: "var(--shadow-dashboard-badge)",
+              cursor: "pointer",
               fontSize: hasEntry && !isSupervisorProvider ? 15 : 18,
               lineHeight: "26px",
               zIndex: 23,
-              opacity: isProviderNotesPending || isAddNotePending ? 0.64 : 1,
-              animation:
-                isProviderNotesPending || isAddNotePending
-                  ? "note-route-pending 700ms ease-in-out infinite"
-                  : undefined,
             }}
           >
-            {showOwnSignal || (!isMe && hasUnreadForMe)
+            {showOwnSignal || showProviderUnreadSignal
               ? isSupervisorProvider
                 ? "!"
                 : "●"
@@ -456,39 +377,34 @@ export default function ClientOrbit({
             data-own-note-menu="true"
             style={providerActionMenuStyle}
           >
-            <span aria-hidden="true" style={providerActionBridgeStyle} />
-            <Link
-              href={ownNotesHref}
-              prefetch={true}
-              aria-busy={isOwnNotesPending}
+            <button
+              type="button"
               onClick={() => {
-                setPendingHref(ownNotesHref);
                 dismissOwnNotesPrompt();
+                onOpenNotes(currentProviderId);
               }}
               style={{
                 ...providerActionLinkStyle,
-                cursor: isOwnNotesPending ? "progress" : "pointer",
-                opacity: isOwnNotesPending ? 0.62 : 1,
+                border: "none",
+                cursor: "pointer",
               }}
             >
               View Notes
-            </Link>
-            <Link
-              href={addNoteHref}
-              prefetch={true}
-              aria-busy={isAddNotePending}
+            </button>
+            <button
+              type="button"
               onClick={() => {
-                setPendingHref(addNoteHref);
                 dismissOwnNotesPrompt();
+                onOpenEntryForm(currentProviderId, hasEntry ? "update" : "add");
               }}
               style={{
                 ...providerActionLinkStyle,
-                cursor: isAddNotePending ? "progress" : "pointer",
-                opacity: isAddNotePending ? 0.62 : 1,
+                border: "none",
+                cursor: "pointer",
               }}
             >
               {hasEntry ? "Update Note" : "Add Note"}
-            </Link>
+            </button>
           </div>
         )}
 

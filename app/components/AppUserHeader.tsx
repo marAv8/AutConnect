@@ -25,14 +25,14 @@ export default async function AppUserHeader() {
           width: "100%",
         }}
       >
-        <div style={{ fontSize: 28, fontWeight: 600, lineHeight: 1 }}>AC</div>
+        <div style={{ fontSize: 28, fontWeight: 650, lineHeight: 1, color: "rgb(0 0 0 / 82%)" }}>AC</div>
 
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontWeight: 500 }}>
+          <div style={{ fontWeight: 550, color: "rgb(0 0 0 / 80%)" }}>
             {provider.firstName} {provider.lastName} -- {formatRole(provider.role)}
           </div>
           <div style={{ marginTop: 10 }}>
-            <Link href="/login" style={{ color: "#0b57d0", textDecoration: "underline" }}>
+            <Link href="/login" className="soft-link" style={{ fontSize: 14, fontWeight: 550 }}>
               Logout
             </Link>
           </div>

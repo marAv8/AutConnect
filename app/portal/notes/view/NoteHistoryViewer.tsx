@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import OverlayContainer from "@/components/ui/OverlayContainer";
 
 type EntryItem = {
   id: string;
@@ -38,26 +39,21 @@ type Props = {
   entries: EntryItem[];
   variant?: "page" | "overlay";
   backLabel?: string;
-};
-
-const overlayGlassStyle: CSSProperties = {
-  background: "rgba(18, 22, 28, 0.42)",
-  backdropFilter: "blur(18px) saturate(1.15)",
-  WebkitBackdropFilter: "blur(18px) saturate(1.15)",
+  onClose?: () => void;
 };
 
 const activeOverlayCardStyle: CSSProperties = {
-  border: "1px solid rgba(255, 255, 255, 0.62)",
-  background: "rgba(255, 255, 255, 0.9)",
-  backdropFilter: "blur(26px) saturate(1.18)",
-  WebkitBackdropFilter: "blur(26px) saturate(1.18)",
-  boxShadow: "0 34px 90px rgba(0, 0, 0, 0.34), 0 2px 18px rgba(0, 0, 0, 0.12)",
+  border: "none",
+  background: "var(--surface-raised)",
+  boxShadow:
+    "0 5px 5px rgb(0 0 0 / 22%), 0 1px 1px rgb(0 0 0 / 14%), 0 8px 10px rgb(0 0 0 / 7%), -3px -3px 5px rgb(255 255 255 / 68%), inset 0 1px 0 rgb(255 255 255 / 70%), inset 0 -1px 3px rgb(0 0 0 / 5%)",
 };
 
 const activePageCardStyle: CSSProperties = {
-  border: "1px solid #ddd",
-  background: "#fff",
-  boxShadow: "0 12px 36px rgba(0, 0, 0, 0.08)",
+  border: "none",
+  background: "var(--surface-raised)",
+  boxShadow:
+    "0 5px 5px rgb(0 0 0 / 22%), 0 1px 1px rgb(0 0 0 / 14%), 0 8px 10px rgb(0 0 0 / 7%), -3px -3px 5px rgb(255 255 255 / 68%), inset 0 1px 0 rgb(255 255 255 / 70%), inset 0 -1px 3px rgb(0 0 0 / 5%)",
 };
 
 export default function NoteHistoryViewer({
@@ -66,6 +62,7 @@ export default function NoteHistoryViewer({
   entries,
   variant = "page",
   backLabel = "Back to Client",
+  onClose,
 }: Props) {
   const [index, setIndex] = useState(0);
   const [dragOffset, setDragOffset] = useState(0);
@@ -202,20 +199,22 @@ export default function NoteHistoryViewer({
         }
       `}</style>
       <div style={{ marginBottom: 24 }}>
-        <Link
-          href={`/dashboard?clientId=${clientId}&view=orbit`}
-          style={{
-            color: variant === "overlay" ? "#fff" : undefined,
-            fontWeight: 600,
-            position: "relative",
-            zIndex: 6,
-            textDecoration: "none",
-            textShadow:
-              variant === "overlay" ? "0 1px 16px rgba(0, 0, 0, 0.45)" : undefined,
-          }}
-        >
-          {backLabel}
-        </Link>
+        {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className="back-link"
+          >
+            {backLabel.replace("Back to ", "")}
+          </button>
+        ) : (
+          <Link
+            href={`/dashboard?clientId=${clientId}&view=orbit`}
+            className="back-link"
+          >
+            {backLabel.replace("Back to ", "")}
+          </Link>
+        )}
       </div>
 
       <div
@@ -242,15 +241,13 @@ export default function NoteHistoryViewer({
               cursor: canNavigateOlder ? "pointer" : "default",
               fontSize: 48,
               lineHeight: 1,
-              color: variant === "overlay" ? "#fff" : "#444",
+              color: "rgb(0 0 0 / 54%)",
               opacity: canNavigateOlder ? 1 : 0,
               position: "absolute",
               left: 0,
             top: "50%",
             transform: "translateY(-50%)",
             zIndex: 5,
-            textShadow:
-              variant === "overlay" ? "0 2px 18px rgba(0, 0, 0, 0.5)" : undefined,
           }}
         >
           ‹
@@ -289,83 +286,96 @@ export default function NoteHistoryViewer({
             style={{
               position: "relative",
               zIndex: 3,
-              padding: 40,
-              borderRadius: 12,
-              ...(variant === "overlay" ? activeOverlayCardStyle : activePageCardStyle),
               height: 500,
+              paddingRight: 22,
               boxSizing: "border-box",
               overflowY: "auto",
+              overflowX: "visible",
               transform: activeCardTransform,
               transition: cardTransition,
               willChange: "transform",
-              display: "flex",
-              flexDirection: "column",
             }}
           >
-            <div style={{ marginBottom: 16, opacity: 0.7 }}>
-              <div>{clientInitials}</div>
-              <div>
-                {current.providerName} -- {current.providerRole}
+            <div
+              style={{
+                padding: 40,
+                borderRadius: 18,
+                ...(variant === "overlay" ? activeOverlayCardStyle : activePageCardStyle),
+                minHeight: 500,
+                boxSizing: "border-box",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <div style={{ marginBottom: 16, opacity: 0.7 }}>
+                <div>{clientInitials}</div>
+                <div>
+                  {current.providerName} -- {current.providerRole}
+                </div>
+                <div>{new Date(current.date).toLocaleDateString()}</div>
               </div>
-              <div>{new Date(current.date).toLocaleDateString()}</div>
-            </div>
 
-            {hasComment ? (
-              <div
-                style={{
-                  whiteSpace: "pre-wrap",
-                  border: "1px solid #eee",
-                  borderRadius: 8,
-                  padding: 12,
-                  marginBottom: 16,
-                  minHeight: 64,
-                  flex: "0 0 auto",
-                }}
-              >
-                {current.note}
-              </div>
-            ) : null}
-
-            {hasSummary ? (
-              <div
-                style={{
-                  marginBottom: 16,
-                  flex: "1 1 auto",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: hasComment ? "flex-start" : "center",
-                }}
-              >
-                <div style={{ marginBottom: 10, fontWeight: 600 }}>Summary</div>
+              {hasComment ? (
                 <div
                   style={{
-                    border: "1px solid #eee",
-                    borderRadius: 8,
+                    whiteSpace: "pre-wrap",
+                    border: "none",
+                    borderRadius: 14,
                     padding: 12,
-                    display: "grid",
-                    gap: 8,
+                    marginBottom: 16,
+                    minHeight: 64,
+                    flex: "0 0 auto",
+                    boxShadow:
+                      "inset 0 2px 3px rgb(0 0 0 / 10%), inset 0 1px 1px rgb(0 0 0 / 5%), inset 0 -2px 2px rgb(255 255 255 / 42%)",
                   }}
                 >
-                  {highestScore !== null ? <div>Highest: {highestScore}%</div> : null}
-                  {lowestScore !== null ? <div>Lowest: {lowestScore}%</div> : null}
-                  {overallPercent !== null ? <div>Overall: {overallPercent}%</div> : null}
-                  {domainScores.length > 0 ? (
-                    <div style={{ display: "grid", gap: 4 }}>
-                      {domainScores.map((domainScore) => (
-                        <div key={domainScore.domain}>
-                          {formatDomain(domainScore.domain)}: {domainScore.percent}%
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                  {scoreRange !== null ? (
-                    <div style={{ marginTop: 4, opacity: 0.72 }}>
-                      Spread: {scoreRange} points between the highest and lowest entries.
-                    </div>
-                  ) : null}
+                  {current.note}
                 </div>
-              </div>
-            ) : null}
+              ) : null}
+
+              {hasSummary ? (
+                <div
+                  style={{
+                    marginBottom: 16,
+                    flex: "1 1 auto",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: hasComment ? "flex-start" : "center",
+                  }}
+                >
+                  <div style={{ marginBottom: 10, fontWeight: 600 }}>Summary</div>
+                  <div
+                    style={{
+                      border: "none",
+                      borderRadius: 14,
+                      padding: 12,
+                      display: "grid",
+                      gap: 8,
+                      boxShadow:
+                        "inset 0 2px 3px rgb(0 0 0 / 10%), inset 0 1px 1px rgb(0 0 0 / 5%), inset 0 -2px 2px rgb(255 255 255 / 42%)",
+                    }}
+                  >
+                    {highestScore !== null ? <div>Highest: {highestScore}%</div> : null}
+                    {lowestScore !== null ? <div>Lowest: {lowestScore}%</div> : null}
+                    {overallPercent !== null ? <div>Overall: {overallPercent}%</div> : null}
+                    {domainScores.length > 0 ? (
+                      <div style={{ display: "grid", gap: 4 }}>
+                        {domainScores.map((domainScore) => (
+                          <div key={domainScore.domain}>
+                            {formatDomain(domainScore.domain)}: {domainScore.percent}%
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {scoreRange !== null ? (
+                      <div style={{ marginTop: 4, opacity: 0.72 }}>
+                        Spread: {scoreRange} points between the highest and lowest entries.
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <NotePreviewCard
@@ -388,15 +398,13 @@ export default function NoteHistoryViewer({
               cursor: canNavigateNewer ? "pointer" : "default",
               fontSize: 48,
               lineHeight: 1,
-              color: variant === "overlay" ? "#fff" : "#444",
+              color: "rgb(0 0 0 / 54%)",
               opacity: canNavigateNewer ? 1 : 0,
               position: "absolute",
             right: 0,
             top: "50%",
             transform: "translateY(-50%)",
             zIndex: 5,
-            textShadow:
-              variant === "overlay" ? "0 2px 18px rgba(0, 0, 0, 0.5)" : undefined,
           }}
         >
           ›
@@ -407,30 +415,18 @@ export default function NoteHistoryViewer({
 
   if (variant === "overlay") {
     return (
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 100,
-          ...overlayGlassStyle,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 32,
-          animation: "noteOverlayFadeIn 260ms ease-out both",
-          isolation: "isolate",
-        }}
-      >
+      <OverlayContainer>
         <div
           style={{
-            width: "min(1180px, 100%)",
-            maxHeight: "calc(100vh - 64px)",
+            width: "min(1280px, 100%)",
+            margin: "0 auto",
             overflow: "visible",
+            animation: "noteOverlayFadeIn 260ms ease-out both",
           }}
         >
           {content}
         </div>
-      </div>
+      </OverlayContainer>
     );
   }
 
@@ -469,21 +465,18 @@ function NotePreviewCard({
         padding: 24,
         border:
           variant === "overlay"
-            ? "1px solid rgba(255, 255, 255, 0.58)"
-            : "1px solid #e5e5e5",
-        borderRadius: 12,
-        background: variant === "overlay" ? "rgba(255, 255, 255, 0.76)" : "#fff",
-        backdropFilter: variant === "overlay" ? "blur(18px) saturate(1.12)" : undefined,
-        WebkitBackdropFilter:
-          variant === "overlay" ? "blur(18px) saturate(1.12)" : undefined,
-        color: variant === "overlay" ? "rgba(23, 23, 23, 0.78)" : undefined,
+            ? "1px solid rgb(0 0 0 / 14%)"
+            : "1px solid rgb(0 0 0 / 12%)",
+        borderRadius: 18,
+        background: "var(--surface-raised)",
+        color: "rgb(0 0 0 / 76%)",
         opacity: variant === "overlay" ? undefined : 0.42,
         position: "relative",
         zIndex: 1,
         transform,
         transition,
         pointerEvents: "none",
-        boxShadow: "0 18px 54px rgba(0, 0, 0, 0.22)",
+        boxShadow: "var(--shadow-soft), var(--inset-paper)",
         willChange: "transform",
       }}
     >

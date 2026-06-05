@@ -5,8 +5,6 @@ import { db } from "@/lib/db";
 import Link from "next/link";
 import ClientCarousel from "./ClientCarousel";
 import SupervisorDashboard from "./SupervisorDashboard";
-import NoteHistoryViewer from "@/app/portal/notes/view/NoteHistoryViewer";
-import { formatRole } from "@/app/libs/roles";
 import {
   CLIENT_ORB_FONT_SIZE,
   CLIENT_ORB_SIZE,
@@ -22,8 +20,6 @@ export default async function DashboardPage({
   searchParams: Promise<{
     clientId?: string;
     view?: string;
-    notesClientId?: string;
-    authorProviderId?: string;
   }>;
 }) {
   const [session, resolvedSearchParams] = await Promise.all([
@@ -91,11 +87,10 @@ export default async function DashboardPage({
     redirect("/login");
   }
 
-  let clients = initialClients;
-  const { clientId, view, notesClientId, authorProviderId } = resolvedSearchParams;
+  const clients = initialClients;
+  const { clientId, view } = resolvedSearchParams;
   const isSupervisor = session.role === "Supervisor";
   const isCaregiver = session.role === "Caregiver";
-  const backToClientLabel = isCaregiver ? "Back to Children" : "Back to Client";
   const backToClientListLabel = isCaregiver
     ? "Back to Children"
     : "Back to Client List";
@@ -121,126 +116,6 @@ export default async function DashboardPage({
         orderBy: { createdAt: "desc" },
       })
     : [];
-
-  const noteOverlayClient = notesClientId
-    ? await db.client.findFirst({
-        where: {
-          id: notesClientId,
-          providerClients: {
-            some: {
-              providerId: session.providerId,
-            },
-          },
-        },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-      })
-    : null;
-  const noteAuthorProviderId = authorProviderId ?? session.providerId;
-
-  const noteOverlayEntries = noteOverlayClient
-    ? await db.entry.findMany({
-        where: {
-          clientId: noteOverlayClient.id,
-          providerId: noteAuthorProviderId,
-          date: {
-            gte: sevenDaysAgo,
-          },
-          OR: [
-            {
-              note: {
-                not: null,
-              },
-            },
-            {
-              items: {
-                some: {},
-              },
-            },
-          ],
-        },
-        orderBy: {
-          date: "desc",
-        },
-        take: 7,
-        select: {
-          id: true,
-          providerId: true,
-          note: true,
-          date: true,
-          finalScore: true,
-          items: {
-            orderBy: {
-              createdAt: "asc",
-            },
-            select: {
-              target: true,
-              goal: true,
-              score: true,
-              metricType: true,
-              domain: true,
-              rawValue: true,
-              supportLevel: true,
-              goalDefinition: {
-                select: {
-                  targetValue: true,
-                  comparison: true,
-                },
-              },
-            },
-          },
-          provider: {
-            select: {
-              firstName: true,
-              lastName: true,
-              role: true,
-            },
-          },
-        },
-      })
-    : [];
-
-  if (noteOverlayEntries.length > 0) {
-    const readAt = new Date();
-    const readEntryIds = new Set(noteOverlayEntries.map((entry) => entry.id));
-
-    await db.entryRead.createMany({
-      data: noteOverlayEntries.map((entry) => ({
-        entryId: entry.id,
-        providerId: session.providerId,
-        readAt,
-      })),
-      skipDuplicates: true,
-    });
-
-    await db.entryRead.updateMany({
-      where: {
-        providerId: session.providerId,
-        entryId: {
-          in: noteOverlayEntries.map((entry) => entry.id),
-        },
-        readAt: null,
-      },
-      data: {
-        readAt,
-      },
-    });
-
-    clients = clients.map((client) => ({
-      ...client,
-      entries: client.entries.map((entry) =>
-        readEntryIds.has(entry.id)
-          ? {
-              ...entry,
-              reads: [{ readAt }],
-            }
-          : entry
-      ),
-    }));
-  }
 
   const recentEntries = clients.length
     ? await db.entry.findMany({
@@ -272,14 +147,27 @@ export default async function DashboardPage({
       })
     : [];
 
+  const recentEntriesByClientId = new Map<
+    string,
+    Array<{ id: string; providerId: string }>
+  >();
+  for (const entry of recentEntries) {
+    const existing = recentEntriesByClientId.get(entry.clientId);
+    const recentEntry = {
+      id: entry.id,
+      providerId: entry.providerId,
+    };
+
+    if (existing) {
+      existing.push(recentEntry);
+    } else {
+      recentEntriesByClientId.set(entry.clientId, [recentEntry]);
+    }
+  }
+
   const clientsWithRecentEntries = clients.map((client) => ({
     ...client,
-    recentEntries: recentEntries
-      .filter((entry) => entry.clientId === client.id)
-      .map((entry) => ({
-        id: entry.id,
-        providerId: entry.providerId,
-      })),
+    recentEntries: recentEntriesByClientId.get(client.id) ?? [],
   }));
 
   const shouldShowProviderClientList =
@@ -308,12 +196,9 @@ export default async function DashboardPage({
         {!isSupervisor && !shouldShowProviderClientList && clients.length > 1 ? (
           <Link
             href="/dashboard"
-            style={{
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
+            className="back-link"
           >
-            {backToClientListLabel}
+            {backToClientListLabel.replace("Back to ", "")}
           </Link>
         ) : null}
         {clients.length === 0 && (
@@ -351,23 +236,6 @@ export default async function DashboardPage({
           </div>
         )}
       </section>
-      {noteOverlayClient && noteOverlayEntries.length > 0 ? (
-        <NoteHistoryViewer
-          clientId={noteOverlayClient.id}
-          clientInitials={`${noteOverlayClient.firstName.slice(0, 2)}${noteOverlayClient.lastName.slice(0, 2)}`}
-          entries={noteOverlayEntries.map((entry) => ({
-            id: entry.id,
-            note: entry.note ?? "",
-            date: entry.date.toISOString(),
-            finalScore: entry.finalScore,
-            providerName: `${entry.provider.firstName} ${entry.provider.lastName}`,
-            providerRole: formatRole(entry.provider.role),
-            items: entry.items,
-          }))}
-          variant="overlay"
-          backLabel={backToClientLabel}
-        />
-      ) : null}
     </main>
   );
 }
@@ -382,13 +250,13 @@ function ProviderClientList({
   }>;
 }) {
   const palette = [
-    "#e7f0f4",
-    "#e7f0de",
-    "#ece6f7",
-    "#e0eefc",
-    "#f4e2ec",
-    "#f8ead9",
-    "#faefe3",
+    "#e1e1e1",
+    "#ededed",
+    "#d9d9d9",
+    "#f4f4f4",
+    "#e6e6e6",
+    "#eeeeee",
+    "#d5d5d5",
   ];
   const visibleWidth =
     CLIENT_ORB_SIZE * GRID_VISIBLE_COLUMNS + MODE_GRID_GAP * (GRID_VISIBLE_COLUMNS - 1);
@@ -441,7 +309,8 @@ function ProviderClientList({
                 height: CLIENT_ORB_SIZE,
                 borderRadius: "50%",
                 background: palette[index % palette.length],
-                color: "#2b2b2b",
+                color: "var(--foreground)",
+                boxShadow: "var(--shadow-dashboard-sphere)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",

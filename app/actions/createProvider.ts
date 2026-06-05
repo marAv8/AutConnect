@@ -25,18 +25,50 @@ export async function createProvider(formData: FormData): Promise<void> {
   const { password, firstName, lastName, role } = parsed.data;
   const email = parsed.data.email.toLowerCase();
 
-  const existing = await db.provider.findUnique({
-    where: { email },
-    select: { id: true },
+  const existing = await db.provider.findFirst({
+    where: {
+      email: {
+        equals: email,
+        mode: "insensitive",
+      },
+    },
+    select: {
+      id: true,
+      passwordHash: true,
+    },
   });
 
-  // ✅ THIS IS THE CRITICAL FIX
-  if (existing) {
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  if (existing?.passwordHash) {
     redirect("/create-account?error=email-exists");
     return;
   }
 
-  const passwordHash = await bcrypt.hash(password, 12);
+  if (existing) {
+    const provider = await db.provider.update({
+      where: { id: existing.id },
+      data: {
+        passwordHash,
+        firstName,
+        lastName,
+        role,
+        providerRole: role,
+        authType: "email",
+      },
+      select: {
+        id: true,
+        role: true,
+      },
+    });
+
+    await setSession({
+      providerId: provider.id,
+      role: provider.role,
+    });
+
+    redirect("/dashboard");
+  }
 
   const provider = await db.provider.create({
     data: {
@@ -45,22 +77,14 @@ export async function createProvider(formData: FormData): Promise<void> {
       firstName,
       lastName,
       role,
+      providerRole: role,
+      authType: "email",
     },
     select: {
       id: true,
       role: true,
     },
   });
-
-  try {
-    await db.$executeRaw`
-      UPDATE "Provider"
-      SET "providerRole" = ${role}, "authType" = 'email'
-      WHERE "id" = ${provider.id}
-    `;
-  } catch (error) {
-    console.warn("Optional auth metadata columns are not available.", error);
-  }
 
   await setSession({
     providerId: provider.id,

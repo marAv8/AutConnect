@@ -74,7 +74,7 @@ export default function EditClientProvidersForm({
   }, [fullName]);
 
   return (
-    <form action={onSubmit} style={{ height: "100%" }}>
+    <form action={onSubmit} className="provider-assignment-form" style={{ height: "100%" }}>
       <input type="hidden" name="clientId" value={clientId} />
       <input type="hidden" name="fullName" value={fullName} />
       {selectedIds.map((providerId) => (
@@ -98,30 +98,26 @@ export default function EditClientProvidersForm({
           alignItems: "start",
         }}
       >
-        <section style={{ display: "grid", gap: 10 }}>
+        <section className="client-info-zone" style={{ display: "grid", gap: 10 }}>
           <label style={{ display: "grid", gap: 8, marginBottom: 4 }}>
-            <span style={{ fontWeight: 600 }}>Client full name</span>
+            <span style={{ fontWeight: 600, color: "rgb(0 0 0 / 76%)" }}>Client full name</span>
             <input
               value={fullName}
               onChange={(event) => setFullName(event.target.value)}
               style={{
-                border: "1px solid #bfbfbf",
-                borderRadius: 8,
                 padding: "10px 12px",
               }}
             />
           </label>
 
           <label style={{ display: "grid", gap: 8, marginBottom: 10 }}>
-            <span style={{ fontWeight: 600 }}>Client initials</span>
+            <span style={{ fontWeight: 600, color: "rgb(0 0 0 / 76%)" }}>Client initials</span>
             <input
               value={initials}
               readOnly
               style={{
-                border: "1px solid #bfbfbf",
-                borderRadius: 8,
                 padding: "10px 12px",
-                background: "#f8f8f8",
+                background: "rgb(238 238 238 / 72%)",
               }}
             />
           </label>
@@ -155,6 +151,7 @@ export default function EditClientProvidersForm({
                   cursor: "pointer",
                   fontSize: 24,
                   lineHeight: 1,
+                  color: "rgb(0 0 0 / 58%)",
                 }}
               >
                 −
@@ -165,11 +162,11 @@ export default function EditClientProvidersForm({
           <div style={{ marginTop: 22 }}>
             <button
               type="submit"
+              className="material-control action-positive"
               style={{
-                border: "1px solid #222",
-                borderRadius: 8,
-                padding: "10px 14px",
-                background: "#fff",
+                borderRadius: 13,
+                minHeight: 42,
+                padding: "10px 16px",
                 cursor: "pointer",
                 fontWeight: 600,
               }}
@@ -180,6 +177,7 @@ export default function EditClientProvidersForm({
         </section>
 
         <section
+          className="provider-selection-zone"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(2, minmax(260px, 1fr))",
@@ -193,12 +191,9 @@ export default function EditClientProvidersForm({
             return (
               <div key={role}>
                 <div
+                  className="provider-role-badge"
                   style={{
-                    border: "1px solid #bfbfbf",
-                    borderRadius: 8,
-                    padding: "9px 12px",
                     marginBottom: 10,
-                    fontWeight: 600,
                   }}
                 >
                   {roleLabel(role)}
@@ -208,6 +203,7 @@ export default function EditClientProvidersForm({
                   {roleProviders.map((provider) => (
                     <label
                       key={provider.id}
+                      className="provider-option"
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -217,6 +213,7 @@ export default function EditClientProvidersForm({
                     >
                       <input
                         type="checkbox"
+                        className="provider-checkbox"
                         checked={selectedSet.has(provider.id)}
                         onChange={(event) =>
                           toggleProvider(provider.id, event.target.checked)

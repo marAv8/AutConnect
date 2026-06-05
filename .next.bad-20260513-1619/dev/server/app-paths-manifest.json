@@ -1,0 +1,7 @@
+{
+  "/api/auth/google/start/route": "app/api/auth/google/start/route.js",
+  "/api/notes/form-data/route": "app/api/notes/form-data/route.js",
+  "/create-account/page": "app/create-account/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/login/page": "app/login/page.js"
+}

@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
+import { revalidatePath } from "next/cache";
 
 export async function updateSupervisorNote(formData: FormData) {
   const session = await getSession();
@@ -47,5 +48,6 @@ export async function updateSupervisorNote(formData: FormData) {
     data: { note },
   });
 
+  revalidatePath("/dashboard");
   return { ok: true };
 }

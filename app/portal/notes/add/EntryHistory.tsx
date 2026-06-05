@@ -35,9 +35,9 @@ export default function EntryHistory({
       <div style={{ marginBottom: 24 }}>
         <Link
           href={`/dashboard?clientId=${clientId}&view=orbit`}
-          style={{ fontWeight: 600 }}
+          className="back-link"
         >
-          Back to Client
+          Client
         </Link>
       </div>
 
@@ -51,12 +51,11 @@ export default function EntryHistory({
         }}
       >
         <div
+          className="paper-surface"
           style={{
             padding: 40,
             maxWidth: 500,
             width: "100%",
-            border: "1px solid #ddd",
-            borderRadius: 12,
           }}
         >
           <div style={{ marginBottom: 16, opacity: 0.7 }}>
@@ -70,8 +69,8 @@ export default function EntryHistory({
           <div
             style={{
               whiteSpace: "pre-wrap",
-              border: "1px solid #eee",
-              borderRadius: 8,
+              border: "1px solid rgb(0 0 0 / 12%)",
+              borderRadius: 14,
               padding: 12,
               marginBottom: 16,
             }}

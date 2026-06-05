@@ -1,22 +1,31 @@
 import { completeProfile } from "@/app/actions/completeProfile";
-import { authOptions } from "@/lib/nextAuth";
-import { getServerSession } from "next-auth";
+import { db } from "@/lib/db";
+import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 
 export default async function CompleteProfilePage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
-  if (!session?.user?.email) {
+  if (!session) {
     redirect("/login");
+  }
+
+  const provider = await db.provider.findUnique({
+    where: { id: session.providerId },
+    select: { firstName: true, lastName: true, role: true },
+  });
+
+  if (!provider) {
+    redirect("/login");
+  }
+
+  if (provider.role) {
+    redirect("/dashboard");
   }
 
   return (
     <main className="auth-shell">
       <div className="auth-page">
-        <header className="auth-header">
-          <div className="auth-logo">AC</div>
-        </header>
-
         <section className="auth-card auth-card-login">
           <div className="auth-form-wrap">
             <div className="auth-heading">
@@ -29,7 +38,7 @@ export default async function CompleteProfilePage() {
                 <input
                   id="firstName"
                   name="firstName"
-                  defaultValue={session.user.name?.split(" ")[0] ?? ""}
+                  defaultValue={provider.firstName}
                   required
                 />
               </div>
@@ -39,7 +48,7 @@ export default async function CompleteProfilePage() {
                 <input
                   id="lastName"
                   name="lastName"
-                  defaultValue={session.user.name?.split(" ").slice(1).join(" ") ?? ""}
+                  defaultValue={provider.lastName}
                   required
                 />
               </div>

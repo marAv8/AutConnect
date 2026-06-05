@@ -1,0 +1,508 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R 8 0 R 10 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Length 4532 >>
+stream
+BT
+/F2 20 Tf
+1 0 0 1 54 738.00 Tm
+(AutConnect File Structure and User Flow Map) Tj
+/F1 9.5 Tf
+1 0 0 1 54 722.00 Tm
+() Tj
+/F1 9.5 Tf
+1 0 0 1 54 709.00 Tm
+(This document explains how the project folders are organized and how the main user flows map) Tj
+/F1 9.5 Tf
+1 0 0 1 54 696.00 Tm
+(  to files. The app uses Next.js App Router, so folders under app/ are primarily URL routes,) Tj
+/F1 9.5 Tf
+1 0 0 1 54 683.00 Tm
+(  not role folders. To find code for a user action, start with the route page.tsx, then follow) Tj
+/F1 9.5 Tf
+1 0 0 1 54 670.00 Tm
+(  imported components and server actions.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 657.00 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 54 644.00 Tm
+(Folder Mental Model) Tj
+/F1 9.5 Tf
+1 0 0 1 54 628.00 Tm
+(- app/ contains screens and URL routes. A page.tsx file is the entry screen for that route,) Tj
+/F1 9.5 Tf
+1 0 0 1 54 615.00 Tm
+(  while nearby components support that screen.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 602.00 Tm
+(- app/actions/ contains server actions that mutate data, such as login, account creation,) Tj
+/F1 9.5 Tf
+1 0 0 1 54 589.00 Tm
+(  note creation, and supervisor client management.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 576.00 Tm
+(- app/api/ contains API route handlers, including Google OAuth and insights.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 563.00 Tm
+(- app/components/ contains reusable UI pieces shared across routes.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 550.00 Tm
+(- app/dashboard/ is the main dashboard hub. It mixes provider and supervisor dashboard UI) Tj
+/F1 9.5 Tf
+1 0 0 1 54 537.00 Tm
+(  because both roles enter through /dashboard.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 524.00 Tm
+(- app/portal/notes/ is the shared note writing and note reading flow for providers and) Tj
+/F1 9.5 Tf
+1 0 0 1 54 511.00 Tm
+(  supervisors.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 498.00 Tm
+(- app/portal/supervisor/ contains supervisor-only management screens, such as creating) Tj
+/F1 9.5 Tf
+1 0 0 1 54 485.00 Tm
+(  clients and editing care teams.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 472.00 Tm
+(- src/lib/ contains shared backend utilities such as database access, session cookies, and) Tj
+/F1 9.5 Tf
+1 0 0 1 54 459.00 Tm
+(  scoring.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 446.00 Tm
+(- prisma/ contains the database schema and migrations.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 433.00 Tm
+(- public/ contains static assets. Future SVG assets should be organized separately under) Tj
+/F1 9.5 Tf
+1 0 0 1 54 420.00 Tm
+(  public/assets/ or as React components under app/components/icons/.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 407.00 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 54 394.00 Tm
+(Create Account Flow) Tj
+/F1 9.5 Tf
+1 0 0 1 54 378.00 Tm
+(- Entry route: app/create-account/page.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 365.00 Tm
+(- Manual account action: app/actions/createProvider.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 352.00 Tm
+(- Google button: app/components/auth/OAuthButtons.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 339.00 Tm
+(- Google start route: app/api/auth/google/start/route.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 326.00 Tm
+(- Google callback route: app/api/auth/callback/google/route.ts and) Tj
+/F1 9.5 Tf
+1 0 0 1 54 313.00 Tm
+(  app/api/auth/google/callback/route.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 300.00 Tm
+(- Session helper: src/lib/session.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 287.00 Tm
+(- Database helper: src/lib/db.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 274.00 Tm
+(- Purpose: The user either fills out the create account form or starts Google OAuth. Both) Tj
+/F1 9.5 Tf
+1 0 0 1 54 261.00 Tm
+(  paths create or update a Provider, set the autconnect_session cookie, and send the user) Tj
+/F1 9.5 Tf
+1 0 0 1 54 248.00 Tm
+(  toward dashboard or complete-profile.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 235.00 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 54 222.00 Tm
+(Login Flow) Tj
+/F1 9.5 Tf
+1 0 0 1 54 206.00 Tm
+(- Entry route: app/login/page.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 193.00 Tm
+(- Manual login action: app/actions/loginProvider.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 180.00 Tm
+(- Google login button: app/components/auth/OAuthButtons.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 167.00 Tm
+(- Google OAuth routes: app/api/auth/google/start/route.ts,) Tj
+/F1 9.5 Tf
+1 0 0 1 54 154.00 Tm
+(  app/api/auth/callback/google/route.ts, app/api/auth/google/callback/route.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 141.00 Tm
+(- Session helper: src/lib/session.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 128.00 Tm
+(- Purpose: Manual login verifies email/password and Google login verifies Google identity.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 115.00 Tm
+(  Both end with the same session shape: providerId and role in autconnect_session.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 102.00 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 54 89.00 Tm
+(Dashboard Flow) Tj
+/F1 8 Tf
+1 0 0 1 498 30 Tm
+(Page 1 of 3) Tj
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 5 0 R >>
+endobj
+7 0 obj
+<< /Length 4482 >>
+stream
+BT
+/F1 9.5 Tf
+1 0 0 1 54 738.00 Tm
+(- Main route: app/dashboard/page.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 725.00 Tm
+(- Dashboard layout: app/dashboard/layout.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 712.00 Tm
+(- Provider carousel: app/dashboard/ClientCarousel.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 699.00 Tm
+(- Provider/client orbit: app/dashboard/ClientOrbit.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 686.00 Tm
+(- Orbit wrapper: app/dashboard/OrbitView.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 673.00 Tm
+(- Supervisor dashboard: app/dashboard/SupervisorDashboard.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 660.00 Tm
+(- Database/session helpers: src/lib/db.ts and src/lib/session.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 647.00 Tm
+(- Purpose: /dashboard is the role-switching hub. It reads the session, loads assigned) Tj
+/F1 9.5 Tf
+1 0 0 1 54 634.00 Tm
+(  clients and notes, then renders either provider-style orbit UI or supervisor dashboard UI) Tj
+/F1 9.5 Tf
+1 0 0 1 54 621.00 Tm
+(  based on session.role.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 608.00 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 54 595.00 Tm
+(Provider Note Writing Flow) Tj
+/F1 9.5 Tf
+1 0 0 1 54 579.00 Tm
+(- User clicks plus in: app/dashboard/ClientOrbit.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 566.00 Tm
+(- Add note route: app/portal/notes/add/page.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 553.00 Tm
+(- Overlay wrapper: app/portal/notes/add/NoteOverlay.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 540.00 Tm
+(- Interactive form: app/portal/notes/add/EntryForm.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 527.00 Tm
+(- Create note action: app/actions/createEntry.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 514.00 Tm
+(- Validation schema: app/libs/schemas/entry.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 501.00 Tm
+(- Item parser: app/libs/entryItems.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 488.00 Tm
+(- Scoring helper: src/lib/sessionScoring.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 475.00 Tm
+(- Database models: prisma/schema.prisma) Tj
+/F1 9.5 Tf
+1 0 0 1 54 462.00 Tm
+(- Purpose: The add note page prepares client, provider, goals, and existing entry data.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 449.00 Tm
+(  EntryForm submits to createEntry, which writes Entry and AssessmentItem records and resets) Tj
+/F1 9.5 Tf
+1 0 0 1 54 436.00 Tm
+(  EntryRead rows so assigned providers see unread note signals.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 423.00 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 54 410.00 Tm
+(Read Notes Flow) Tj
+/F1 9.5 Tf
+1 0 0 1 54 394.00 Tm
+(- Sphere click source: app/dashboard/ClientOrbit.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 381.00 Tm
+(- Dashboard overlay loader: app/dashboard/page.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 368.00 Tm
+(- Standalone note route: app/portal/notes/view/page.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 355.00 Tm
+(- Note viewer UI: app/portal/notes/view/NoteHistoryViewer.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 342.00 Tm
+(- Database model: EntryRead in prisma/schema.prisma) Tj
+/F1 9.5 Tf
+1 0 0 1 54 329.00 Tm
+(- Purpose: A note sphere opens recent notes for a selected client/provider. Opening notes) Tj
+/F1 9.5 Tf
+1 0 0 1 54 316.00 Tm
+(  creates or updates EntryRead rows, where readAt null means unread and a timestamp means) Tj
+/F1 9.5 Tf
+1 0 0 1 54 303.00 Tm
+(  read.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 290.00 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 54 277.00 Tm
+(Supervisor Dashboard Flow) Tj
+/F1 9.5 Tf
+1 0 0 1 54 261.00 Tm
+(- Main route: app/dashboard/page.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 248.00 Tm
+(- Supervisor dashboard UI: app/dashboard/SupervisorDashboard.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 235.00 Tm
+(- Workspace shell: app/dashboard/SupervisorWorkspaceLayout.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 222.00 Tm
+(- Client grid: app/dashboard/GridClientView.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 209.00 Tm
+(- Add existing client view: app/dashboard/AddClientView.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 196.00 Tm
+(- Remove client view: app/dashboard/RemoveClientView.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 183.00 Tm
+(- Supervisor mutations: app/actions/manageSupervisorClients.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 170.00 Tm
+(- Purpose: Supervisors enter through the same /dashboard route, but session.role selects) Tj
+/F1 9.5 Tf
+1 0 0 1 54 157.00 Tm
+(  SupervisorDashboard. The supervisor menu switches between grid, add existing client,) Tj
+/F1 9.5 Tf
+1 0 0 1 54 144.00 Tm
+(  remove client, and selected-client orbit modes.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 131.00 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 54 118.00 Tm
+(Supervisor Client Creation Flow) Tj
+/F1 9.5 Tf
+1 0 0 1 54 102.00 Tm
+(- Create client route: app/portal/supervisor/create-client/page.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 89.00 Tm
+(- Provider selection form: app/portal/supervisor/create-client/CreateClientProvidersForm.tsx) Tj
+/F1 8 Tf
+1 0 0 1 498 30 Tm
+(Page 2 of 3) Tj
+ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 7 0 R >>
+endobj
+9 0 obj
+<< /Length 4197 >>
+stream
+BT
+/F1 9.5 Tf
+1 0 0 1 54 738.00 Tm
+(- Create with providers action: app/actions/createClientWithProviders.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 725.00 Tm
+(- Basic create client action: app/actions/createClient.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 712.00 Tm
+(- Purpose: This creates a new Client and links providers through ProviderClient rows. It is) Tj
+/F1 9.5 Tf
+1 0 0 1 54 699.00 Tm
+(  separate from dashboard add-link behavior, which links the supervisor to an existing) Tj
+/F1 9.5 Tf
+1 0 0 1 54 686.00 Tm
+(  client.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 673.00 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 54 660.00 Tm
+(Supervisor Care Team Flow) Tj
+/F1 9.5 Tf
+1 0 0 1 54 644.00 Tm
+(- Care team list route: app/portal/supervisor/edit-providers/page.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 631.00 Tm
+(- Care team list UI: app/portal/supervisor/edit-providers/EditProvidersClient.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 618.00 Tm
+(- Specific client route: app/portal/supervisor/edit-providers/[clientId]/page.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 605.00 Tm
+(- Specific client form: app/portal/supervisor/edit-) Tj
+/F1 9.5 Tf
+1 0 0 1 54 592.00 Tm
+(  providers/[clientId]/EditClientProvidersForm.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 579.00 Tm
+(- Assignment action: app/actions/manageSupervisorClients.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 566.00 Tm
+(- Purpose: Supervisors choose a client and update assigned providers. The main mutation is) Tj
+/F1 9.5 Tf
+1 0 0 1 54 553.00 Tm
+(  updateClientAssignments, which edits Client and ProviderClient records.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 540.00 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 54 527.00 Tm
+(Supervisor Insights Flow) Tj
+/F1 9.5 Tf
+1 0 0 1 54 511.00 Tm
+(- Insights trigger/UI: app/dashboard/SupervisorDashboard.tsx and) Tj
+/F1 9.5 Tf
+1 0 0 1 54 498.00 Tm
+(  app/dashboard/InsightsOverlay.tsx) Tj
+/F1 9.5 Tf
+1 0 0 1 54 485.00 Tm
+(- Client hook: app/dashboard/useInsights.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 472.00 Tm
+(- API route: app/api/insights/route.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 459.00 Tm
+(- Insight builder: app/api/insights/insightsEngine.ts) Tj
+/F1 9.5 Tf
+1 0 0 1 54 446.00 Tm
+(- Purpose: The supervisor opens insights for the active client. The UI calls /api/insights,) Tj
+/F1 9.5 Tf
+1 0 0 1 54 433.00 Tm
+(  and the server builds insight data from entries and related records.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 420.00 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 54 407.00 Tm
+(Design and SVG Organization Recommendation) Tj
+/F1 9.5 Tf
+1 0 0 1 54 391.00 Tm
+(- Current static SVGs: public/file.svg, public/globe.svg, public/next.svg,) Tj
+/F1 9.5 Tf
+1 0 0 1 54 378.00 Tm
+(  public/vercel.svg, public/window.svg) Tj
+/F1 9.5 Tf
+1 0 0 1 54 365.00 Tm
+(- Recommended static assets folder: public/assets/) Tj
+/F1 9.5 Tf
+1 0 0 1 54 352.00 Tm
+(- Recommended static SVG folder: public/assets/icons/ and public/assets/illustrations/) Tj
+/F1 9.5 Tf
+1 0 0 1 54 339.00 Tm
+(- Recommended React SVG components folder: app/components/icons/) Tj
+/F1 9.5 Tf
+1 0 0 1 54 326.00 Tm
+(- Purpose: Keep route files focused on screens and user flow, while icons and visual assets) Tj
+/F1 9.5 Tf
+1 0 0 1 54 313.00 Tm
+(  live in predictable design folders. This will make future motion, React Spring, shadcn,) Tj
+/F1 9.5 Tf
+1 0 0 1 54 300.00 Tm
+(  and custom SVG work easier to find and maintain.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 287.00 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 54 274.00 Tm
+(How To Find Code By User Flow) Tj
+/F1 9.5 Tf
+1 0 0 1 54 258.00 Tm
+(- Start with the URL the user is on.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 245.00 Tm
+(- Open that folder under app/ and find page.tsx.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 232.00 Tm
+(- Read imports from page.tsx to find supporting components.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 219.00 Tm
+(- For data changes, follow form action imports into app/actions/.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 206.00 Tm
+(- For session or database behavior, check src/lib/session.ts, src/lib/db.ts, and) Tj
+/F1 9.5 Tf
+1 0 0 1 54 193.00 Tm
+(  prisma/schema.prisma.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 180.00 Tm
+(- For shared note behavior, check app/portal/notes/ first.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 167.00 Tm
+(- For supervisor management behavior, check app/portal/supervisor/ and) Tj
+/F1 9.5 Tf
+1 0 0 1 54 154.00 Tm
+(  app/dashboard/SupervisorDashboard.tsx.) Tj
+/F1 9.5 Tf
+1 0 0 1 54 141.00 Tm
+() Tj
+/F1 8 Tf
+1 0 0 1 498 30 Tm
+(Page 3 of 3) Tj
+ET
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 9 0 R >>
+endobj
+xref
+0 11
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000128 00000 n 
+0000000198 00000 n 
+0000000273 00000 n 
+0000004857 00000 n 
+0000004993 00000 n 
+0000009527 00000 n 
+0000009663 00000 n 
+0000013912 00000 n 
+trailer
+<< /Size 11 /Root 1 0 R >>
+startxref
+14049
+%%EOF

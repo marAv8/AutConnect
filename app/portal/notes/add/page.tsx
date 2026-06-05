@@ -86,9 +86,6 @@ export default async function AddNotePage({
         goal: true,
         metricType: true,
         domain: true,
-        targetValue: true,
-        comparison: true,
-        weight: true,
       },
     }),
   ]);
@@ -187,7 +184,6 @@ export default async function AddNotePage({
       clientName={`${client.firstName} ${client.lastName}`}
       providerName={`${provider.firstName} ${provider.lastName}`}
       providerRole={formatRole(provider.role)}
-      goalDefinitions={goalDefinitions}
       mode={isEditMode ? "edit" : "create"}
       initialValues={
         isEditMode || priorSessionItems.length > 0

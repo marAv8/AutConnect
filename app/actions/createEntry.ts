@@ -6,6 +6,7 @@ import { type AssessmentItemInput, createEntrySchema } from "@/app/libs/schemas/
 import { parseAssessmentItems } from "@/app/libs/entryItems";
 import { Prisma } from "@prisma/client";
 import { calculateSessionScore, normalizeItem } from "@/lib/sessionScoring";
+import { revalidatePath } from "next/cache";
 
 export async function createEntry(formData: FormData) {
   // 1. Auth
@@ -63,41 +64,21 @@ export async function createEntry(formData: FormData) {
       });
 
       if (existingEntry) {
-        const entry = await db.entry.update({
-          where: { id: existingEntry.id },
-          data: {
-            note: parsed.data.note || null,
-          },
-          select: { id: true },
-        });
-
-        const providerClients = await db.providerClient.findMany({
-          where: { clientId: parsed.data.clientId },
-          select: { providerId: true },
-        });
-
-        const providerIds = providerClients.map((pc) => pc.providerId);
-
-        if (providerIds.length > 0) {
-          await db.entryRead.deleteMany({
-            where: {
-              entryId: entry.id,
-              providerId: {
-                in: providerIds,
-              },
+        const [entry, providerIds] = await Promise.all([
+          db.entry.update({
+            where: { id: existingEntry.id },
+            data: {
+              note: parsed.data.note || null,
             },
-          });
+            select: { id: true },
+          }),
+          getAssignedProviderIds(parsed.data.clientId),
+        ]);
 
-          await db.entryRead.createMany({
-            data: providerIds.map((providerId) => ({
-              entryId: entry.id,
-              providerId,
-              readAt: null,
-            })),
-          });
-        }
+        await resetEntryReads(entry.id, providerIds);
 
-        return { ok: true };
+        revalidatePath("/dashboard");
+        return { ok: true, entryId: entry.id };
       }
     }
 
@@ -185,37 +166,15 @@ export async function createEntry(formData: FormData) {
       select: { id: true },
     });
 
-    await updateMasteredGoals(parsed.data.clientId, session.providerId, goalIds);
+    await Promise.all([
+      updateMasteredGoals(parsed.data.clientId, session.providerId, goalIds),
+      getAssignedProviderIds(parsed.data.clientId).then((providerIds) =>
+        resetEntryReads(entry.id, providerIds)
+      ),
+    ]);
 
-    // A submitted or updated note is unread for every assigned provider,
-    // including the author, until each person opens it.
-    const providerClients = await db.providerClient.findMany({
-      where: { clientId: parsed.data.clientId },
-      select: { providerId: true },
-    });
-
-    const providerIds = providerClients.map((pc) => pc.providerId);
-
-    if (providerIds.length > 0) {
-      await db.entryRead.deleteMany({
-        where: {
-          entryId: entry.id,
-          providerId: {
-            in: providerIds,
-          },
-        },
-      });
-
-      await db.entryRead.createMany({
-        data: providerIds.map((providerId) => ({
-          entryId: entry.id,
-          providerId,
-          readAt: null,
-        })),
-      });
-    }
-
-    return { ok: true };
+    revalidatePath("/dashboard");
+    return { ok: true, entryId: entry.id };
   } catch (error) {
     // Keep the response stable if a concurrent save hits the same daily entry.
     if (
@@ -227,6 +186,41 @@ export async function createEntry(formData: FormData) {
 
     throw error;
   }
+}
+
+async function getAssignedProviderIds(clientId: string) {
+  const providerClients = await db.providerClient.findMany({
+    where: { clientId },
+    select: { providerId: true },
+  });
+
+  return providerClients.map((pc) => pc.providerId);
+}
+
+async function resetEntryReads(entryId: string, providerIds: string[]) {
+  if (providerIds.length === 0) {
+    return;
+  }
+
+  // A submitted or updated note is unread for every assigned provider,
+  // including the author, until each person opens it.
+  await db.$transaction([
+    db.entryRead.deleteMany({
+      where: {
+        entryId,
+        providerId: {
+          in: providerIds,
+        },
+      },
+    }),
+    db.entryRead.createMany({
+      data: providerIds.map((providerId) => ({
+        entryId,
+        providerId,
+        readAt: null,
+      })),
+    }),
+  ]);
 }
 
 async function ensureGoalDefinitions(

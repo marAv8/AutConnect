@@ -2,9 +2,7 @@
 
 import { providerRoleEnum } from "@/app/libs/schemas/provider";
 import { db } from "@/lib/db";
-import { authOptions } from "@/lib/nextAuth";
-import { setSession } from "@/lib/session";
-import { getServerSession } from "next-auth";
+import { getSession, setSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -15,10 +13,9 @@ const completeProfileSchema = z.object({
 });
 
 export async function completeProfile(formData: FormData): Promise<void> {
-  const session = await getServerSession(authOptions);
-  const email = session?.user?.email?.toLowerCase();
+  const session = await getSession();
 
-  if (!email) {
+  if (!session) {
     redirect("/login");
   }
 
@@ -33,37 +30,19 @@ export async function completeProfile(formData: FormData): Promise<void> {
     return;
   }
 
-  const provider = await db.provider.findUnique({
-    where: { email },
-    select: { id: true },
-  });
-
-  if (!provider) {
-    redirect("/login");
-  }
-
   const updatedProvider = await db.provider.update({
-    where: { id: provider.id },
+    where: { id: session.providerId },
     data: {
       firstName: parsed.data.firstName,
       lastName: parsed.data.lastName,
       role: parsed.data.role,
+      providerRole: parsed.data.role,
     },
     select: {
       id: true,
       role: true,
     },
   });
-
-  try {
-    await db.$executeRaw`
-      UPDATE "Provider"
-      SET "providerRole" = ${parsed.data.role}
-      WHERE "id" = ${updatedProvider.id}
-    `;
-  } catch (error) {
-    console.warn("Optional auth metadata columns are not available.", error);
-  }
 
   await setSession({
     providerId: updatedProvider.id,

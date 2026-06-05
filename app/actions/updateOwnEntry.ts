@@ -5,6 +5,7 @@ import { getSession } from "@/lib/session";
 import { createEntrySchema } from "@/app/libs/schemas/entry";
 import { parseAssessmentItems } from "@/app/libs/entryItems";
 import { calculateSessionScore } from "@/lib/sessionScoring";
+import { revalidatePath } from "next/cache";
 
 export async function updateOwnEntry(formData: FormData) {
   const session = await getSession();
@@ -89,6 +90,7 @@ export async function updateOwnEntry(formData: FormData) {
       });
     }
 
+    revalidatePath("/dashboard");
     return { ok: true };
   }
 
@@ -172,5 +174,6 @@ export async function updateOwnEntry(formData: FormData) {
     });
   }
 
+  revalidatePath("/dashboard");
   return { ok: true };
 }

@@ -1,0 +1,96 @@
+{
+  "node": {
+    "4031383e03d6a0cbcee75cf9b864f084e35b10d3e3": {
+      "workers": {
+        "app/dashboard/page": {
+          "moduleId": "[project]/.next-internal/server/app/dashboard/page/actions.js { ACTIONS_MODULE0 => \"[project]/app/actions/manageSupervisorClients.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/app/actions/removeGoalDefinition.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE2 => \"[project]/app/actions/createEntry.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false,
+          "exportedName": "addSupervisorClient",
+          "filename": "app/actions/manageSupervisorClients.ts"
+        }
+      },
+      "layer": {
+        "app/dashboard/page": "action-browser"
+      },
+      "filename": "app/actions/manageSupervisorClients.ts",
+      "exportedName": "addSupervisorClient"
+    },
+    "403475f993048c0c22c035bdc88ee74a42695a6e6d": {
+      "workers": {
+        "app/dashboard/page": {
+          "moduleId": "[project]/.next-internal/server/app/dashboard/page/actions.js { ACTIONS_MODULE0 => \"[project]/app/actions/manageSupervisorClients.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/app/actions/removeGoalDefinition.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE2 => \"[project]/app/actions/createEntry.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false,
+          "exportedName": "removeSupervisorClient",
+          "filename": "app/actions/manageSupervisorClients.ts"
+        }
+      },
+      "layer": {
+        "app/dashboard/page": "action-browser"
+      },
+      "filename": "app/actions/manageSupervisorClients.ts",
+      "exportedName": "removeSupervisorClient"
+    },
+    "4068e2e89634554c5d319d92ded32eb01c3001ab91": {
+      "workers": {
+        "app/dashboard/page": {
+          "moduleId": "[project]/.next-internal/server/app/dashboard/page/actions.js { ACTIONS_MODULE0 => \"[project]/app/actions/manageSupervisorClients.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/app/actions/removeGoalDefinition.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE2 => \"[project]/app/actions/createEntry.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false,
+          "exportedName": "removeGoalDefinition",
+          "filename": "app/actions/removeGoalDefinition.ts"
+        }
+      },
+      "layer": {
+        "app/dashboard/page": "action-browser"
+      },
+      "filename": "app/actions/removeGoalDefinition.ts",
+      "exportedName": "removeGoalDefinition"
+    },
+    "40179bd34cdf5febee2070e4446ec772b285450725": {
+      "workers": {
+        "app/dashboard/page": {
+          "moduleId": "[project]/.next-internal/server/app/dashboard/page/actions.js { ACTIONS_MODULE0 => \"[project]/app/actions/manageSupervisorClients.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/app/actions/removeGoalDefinition.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE2 => \"[project]/app/actions/createEntry.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false,
+          "exportedName": "createEntry",
+          "filename": "app/actions/createEntry.ts"
+        }
+      },
+      "layer": {
+        "app/dashboard/page": "action-browser"
+      },
+      "filename": "app/actions/createEntry.ts",
+      "exportedName": "createEntry"
+    },
+    "40532e91645ff726ceee88449faec92ca161d55986": {
+      "workers": {
+        "app/login/page": {
+          "moduleId": "[project]/.next-internal/server/app/login/page/actions.js { ACTIONS_MODULE0 => \"[project]/app/actions/loginProvider.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false,
+          "exportedName": "loginProvider",
+          "filename": "app/actions/loginProvider.ts"
+        }
+      },
+      "layer": {
+        "app/login/page": "rsc"
+      },
+      "filename": "app/actions/loginProvider.ts",
+      "exportedName": "loginProvider"
+    },
+    "40c184755c437f069ad84797b9d0bb67dad4ec4b59": {
+      "workers": {
+        "app/create-account/page": {
+          "moduleId": "[project]/.next-internal/server/app/create-account/page/actions.js { ACTIONS_MODULE0 => \"[project]/app/actions/createProvider.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false,
+          "exportedName": "createProvider",
+          "filename": "app/actions/createProvider.ts"
+        }
+      },
+      "layer": {
+        "app/create-account/page": "rsc"
+      },
+      "filename": "app/actions/createProvider.ts",
+      "exportedName": "createProvider"
+    }
+  },
+  "edge": {},
+  "encryptionKey": "mi/h6PY4rQVcxdNzQf97YZRUJwhfTGzvRw4wfQ+3h9I="
+}
