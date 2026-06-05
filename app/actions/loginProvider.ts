@@ -11,7 +11,14 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-export async function loginProvider(formData: FormData): Promise<void> {
+export type LoginState = {
+  error: string | null;
+};
+
+export async function loginProvider(
+  prevState: LoginState,
+  formData: FormData
+): Promise<LoginState> {
   const raw = {
     email: formData.get("email"),
     password: formData.get("password"),
@@ -19,8 +26,7 @@ export async function loginProvider(formData: FormData): Promise<void> {
 
   const parsed = loginSchema.safeParse(raw);
   if (!parsed.success) {
-    console.error(parsed.error.flatten());
-    return;
+    return { error: "Invalid email or password format" };
   }
 
   const email = parsed.data.email.trim().toLowerCase();
@@ -43,25 +49,21 @@ export async function loginProvider(formData: FormData): Promise<void> {
   // APPLICATION IS IN DEVELOPMENT MODE:
   // any syntactically valid email is allowed. No verification or domain check.
   if (!provider) {
-    console.error("Invalid credentials");
-    return;
+    return { error: "Invalid credentials" };
   }
 
   if (!provider.passwordHash) {
-    console.error("Use OAuth login for this account");
-    return;
+    return { error: "Please use Google OAuth to log in" };
   }
 
   const isValid = await bcrypt.compare(password, provider.passwordHash);
   if (!isValid) {
-    console.error("Invalid credentials");
-    return;
+    return { error: "Invalid credentials" };
   }
 
   const sessionRole = provider.role || provider.providerRole;
   if (!sessionRole) {
-    console.error("Provider role is missing");
-    return;
+    return { error: "Your account is not fully configured. Please contact support." };
   }
 
   await setSession({

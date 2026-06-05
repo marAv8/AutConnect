@@ -1,11 +1,18 @@
+"use client";
+
 import { loginProvider } from "@/app/actions/loginProvider";
 import OAuthButtons from "@/app/components/auth/OAuthButtons";
 import Link from "next/link";
+import { useActionState } from "react";
 
 export default function LoginPage() {
   const googleEnabled = Boolean(
-    process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
   );
+
+  const [state, formAction, isPending] = useActionState(loginProvider, {
+    error: null,
+  });
 
   return (
     <main className="auth-shell">
@@ -23,7 +30,13 @@ export default function LoginPage() {
 
             <div className="auth-separator">or</div>
 
-            <form action={loginProvider} className="auth-form">
+            <form action={formAction} className="auth-form">
+              {state.error && (
+                <div style={{ color: "red", marginBottom: "10px", fontSize: "14px" }}>
+                  {state.error}
+                </div>
+              )}
+
               <div className="auth-field">
                 <label htmlFor="email">Email</label>
                 <input id="email" type="email" name="email" required />
@@ -34,8 +47,8 @@ export default function LoginPage() {
                 <input id="password" type="password" name="password" required />
               </div>
 
-              <button type="submit" className="auth-button">
-                Login
+              <button type="submit" className="auth-button" disabled={isPending}>
+                {isPending ? "Logging in..." : "Login"}
               </button>
             </form>
 

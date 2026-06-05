@@ -8,12 +8,15 @@ type Props = {
 export default function OAuthButtons({ mode, googleEnabled }: Props) {
   const googleLabel = mode === "login" ? "Continue with Google" : "Sign up with Google";
 
+  if (!googleEnabled) {
+    return null;
+  }
+
   return (
     <div className="auth-oauth-stack">
       <button
         type="button"
         className="auth-button"
-        disabled={!googleEnabled}
         onClick={() => {
           window.location.assign("/api/auth/google/start");
         }}
