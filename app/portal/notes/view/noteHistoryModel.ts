@@ -7,10 +7,66 @@
  */
 
 import type {
+  CaretakerContextSection,
   NoteHistoryEntry,
   NoteHistoryItem,
   SupervisorObservation,
 } from "./noteHistoryTypes";
+
+/**
+ * Presents a caretaker's morning and evening records as one daily note while
+ * preserving the underlying entry IDs and section timestamps. Persistence and
+ * unread state continue to operate on the original database entries.
+ */
+export function groupCaretakerEntriesByDay(entries: NoteHistoryEntry[]) {
+  const contextEntriesByDay = new Map<string, NoteHistoryEntry[]>();
+
+  for (const entry of entries) {
+    if (!isCaretakerContextEntry(entry)) {
+      continue;
+    }
+
+    const key = caretakerDayKey(entry);
+    const existing = contextEntriesByDay.get(key) ?? [];
+    existing.push(entry);
+    contextEntriesByDay.set(key, existing);
+  }
+
+  const emittedDays = new Set<string>();
+
+  return entries.flatMap((entry) => {
+    if (!isCaretakerContextEntry(entry)) {
+      return [entry];
+    }
+
+    const key = caretakerDayKey(entry);
+    if (emittedDays.has(key)) {
+      return [];
+    }
+
+    emittedDays.add(key);
+    const dailyEntries = contextEntriesByDay.get(key) ?? [entry];
+    const caretakerContextSections = dailyEntries
+      .map(toCaretakerContextSection)
+      .sort((left, right) => contextSectionOrder(left) - contextSectionOrder(right));
+    const completedAt = latestTimestamp(
+      caretakerContextSections.map((section) => section.completedAt)
+    );
+
+    return [
+      {
+        ...entry,
+        id: `caretaker-day:${key}`,
+        note: caretakerContextSections.map((section) => section.note).join("\n\n"),
+        status: dailyEntries.every((candidate) => candidate.status === "COMPLETED")
+          ? "COMPLETED"
+          : "IN_PROGRESS",
+        completedAt,
+        caretakerContextSections,
+      },
+    ];
+  });
+}
 
 export function entryKindTitle(kind: NoteHistoryEntry["kind"]) {
   switch (kind) {
@@ -402,4 +458,39 @@ function educatorProfileForHistoryItem(item: NoteHistoryItem) {
   }
 
   return "SupportLevel";
+}
+
+function isCaretakerContextEntry(
+  entry: NoteHistoryEntry
+): entry is NoteHistoryEntry & { kind: "MorningContext" | "EveningContext" } {
+  return (
+    entry.providerRole === "Caretaker" &&
+    (entry.kind === "MorningContext" || entry.kind === "EveningContext")
+  );
+}
+
+function caretakerDayKey(entry: NoteHistoryEntry) {
+  return `${entry.providerName}:${entry.date.slice(0, 10)}`;
+}
+
+function toCaretakerContextSection(
+  entry: NoteHistoryEntry
+): CaretakerContextSection {
+  return {
+    entryId: entry.id,
+    kind: entry.kind === "EveningContext" ? "EveningContext" : "MorningContext",
+    note: entry.note,
+    contextData: entry.contextData,
+    completedAt: entry.completedAt ?? entry.date,
+  };
+}
+
+function contextSectionOrder(section: CaretakerContextSection) {
+  return section.kind === "MorningContext" ? 0 : 1;
+}
+
+function latestTimestamp(values: string[]) {
+  return values.reduce((latest, candidate) =>
+    new Date(candidate).getTime() > new Date(latest).getTime() ? candidate : latest
+  );
 }

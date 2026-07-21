@@ -7,7 +7,7 @@
  */
 
 import Link from "next/link";
-import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import OverlayContainer from "@/components/ui/OverlayContainer";
 import { formatClinicalDateTime } from "@/app/libs/dateTime";
 import type { NoteHistoryEntry, SupervisorObservation } from "./noteHistoryTypes";
@@ -19,6 +19,7 @@ import {
   getAbcObservation,
   getDomainScores,
   getItemPercent,
+  groupCaretakerEntriesByDay,
   parseSensoryObservations,
   parseSupervisorObservation,
 } from "./noteHistoryModel";
@@ -64,10 +65,11 @@ export default function NoteHistoryViewer({
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartXRef = useRef<number | null>(null);
+  const displayEntries = useMemo(() => groupCaretakerEntriesByDay(entries), [entries]);
 
-  const current = entries[index];
-  const olderEntry = index < entries.length - 1 ? entries[index + 1] : null;
-  const newerEntry = index > 0 ? entries[index - 1] : null;
+  const current = displayEntries[index];
+  const olderEntry = index < displayEntries.length - 1 ? displayEntries[index + 1] : null;
+  const newerEntry = index > 0 ? displayEntries[index - 1] : null;
   const canNavigateOlder = olderEntry !== null;
   const canNavigateNewer = newerEntry !== null;
   const canNavigate = canNavigateOlder || canNavigateNewer;
@@ -113,7 +115,7 @@ export default function NoteHistoryViewer({
   const isClinicalNoteEntry = current?.kind === "ClinicalNote";
   const supervisorObservations =
     current?.providerRole === "Supervisor"
-      ? entries
+      ? displayEntries
           .filter(
             (entry) =>
               entry.kind === "SupervisorObservation" &&
@@ -158,7 +160,7 @@ export default function NoteHistoryViewer({
       return;
     }
 
-    setIndex((value) => Math.min(entries.length - 1, value + 1));
+    setIndex((value) => Math.min(displayEntries.length - 1, value + 1));
   };
 
   const showNewer = () => {
@@ -377,7 +379,18 @@ export default function NoteHistoryViewer({
                 ) : null}
               </div>
 
-              {isEducatorClassroomProgress ? (
+              {current.caretakerContextSections?.length ? (
+                <>
+                  {current.caretakerContextSections.map((section) => (
+                    <CollapsibleRecordSection
+                      key={section.entryId}
+                      title={entryKindTitle(section.kind)}
+                    >
+                      <div style={{ whiteSpace: "pre-wrap" }}>{section.note}</div>
+                    </CollapsibleRecordSection>
+                  ))}
+                </>
+              ) : isEducatorClassroomProgress ? (
                 <>
                   <CollapsibleRecordSection title={progressSectionTitle}>
                     <div style={{ display: "grid", gap: 10 }}>

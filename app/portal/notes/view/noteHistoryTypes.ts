@@ -35,6 +35,15 @@ export type NoteHistoryEntry = {
   }>;
   sensoryObservations?: SensoryObservation[];
   communicationObservations?: SensoryObservation[];
+  caretakerContextSections?: CaretakerContextSection[];
+};
+
+export type CaretakerContextSection = {
+  entryId: string;
+  kind: "MorningContext" | "EveningContext";
+  note: string;
+  contextData?: unknown;
+  completedAt: string;
 };
 
 export type NoteHistoryItem = {
