@@ -222,29 +222,35 @@ function MatteDisc({
       </mesh>
 
       {showAdd ? (
-        <mesh position={[0, depth + 0.045, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
-          <torusGeometry args={[radius * 1.075, radius * 0.032, 16, 128]} />
-          <meshPhysicalMaterial
-            color={PROVIDER_SURFACE}
-            roughness={0.84}
-            metalness={0}
-            clearcoat={0.04}
-            clearcoatRoughness={0.88}
-          />
-        </mesh>
+        <>
+          <mesh position={[0, depth + 0.026, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[radius * 1.075, radius * 0.046, 16, 128]} />
+            <meshBasicMaterial color="#9d9f9c" transparent opacity={0.2} depthWrite={false} />
+          </mesh>
+          <mesh position={[0, depth + 0.062, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+            <torusGeometry args={[radius * 1.075, radius * 0.038, 16, 128]} />
+            <meshPhysicalMaterial
+              color="#ffffff"
+              roughness={0.9}
+              metalness={0}
+              clearcoat={0.025}
+              clearcoatRoughness={0.92}
+            />
+          </mesh>
+        </>
       ) : null}
 
       {showAdd ? (
-        <group position={[radius * 0.79, depth + 0.055, -radius * 0.67]}>
+        <group position={[radius * 0.5, depth + 0.025, -radius * 0.67]}>
           <mesh castShadow>
-            <cylinderGeometry args={[radius * 0.19, radius * 0.19, 0.055, 48]} />
+            <cylinderGeometry args={[radius * 0.3, radius * 0.3, 0.05, 48]} />
             <meshPhysicalMaterial color={PROVIDER_SURFACE} roughness={0.84} metalness={0} />
           </mesh>
-          <mesh position={[0, 0.04, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[radius * 0.19, radius * 0.025, 12, 64]} />
-            <meshStandardMaterial color="#deded9" roughness={0.9} />
+          <mesh position={[0, 0.034, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[radius * 0.3, radius * 0.027, 12, 64]} />
+            <meshStandardMaterial color="#fafaf8" roughness={0.92} />
           </mesh>
-          <Html center position={[0, 0.075, 0]} zIndexRange={[3, 0]}>
+          <Html center position={[0, 0.052, 0]} zIndexRange={[3, 0]}>
             <span className={styles.addIcon} aria-hidden="true">
               +
             </span>
@@ -307,7 +313,7 @@ function MaterialScene({
         <MatteDisc
           name="SuDo"
           radius={1.34}
-          depth={0.34}
+          depth={0.16}
           color={CLIENT_SURFACE}
           delay={0.05}
           position={[0, 0]}
@@ -321,7 +327,7 @@ function MaterialScene({
             name={provider.name}
             role={provider.role}
             radius={0.78}
-            depth={0.25}
+            depth={0.12}
             color={PROVIDER_SURFACE}
             delay={0.16 + index * 0.065}
             position={provider.position}
@@ -334,11 +340,11 @@ function MaterialScene({
 
       <ContactShadows
         position={[0, -0.03, 0]}
-        opacity={0.34}
-        scale={13}
-        blur={2.25}
-        far={4.5}
-        resolution={512}
+        opacity={0.62}
+        scale={10}
+        blur={0.42}
+        far={0.62}
+        resolution={1024}
         color="#11151a"
         frames={1}
       />
