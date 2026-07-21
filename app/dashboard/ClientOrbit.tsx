@@ -1,5 +1,10 @@
-//app/dashboard/ClientOrbit.tsx
 "use client";
+
+/**
+ * The central client-and-provider constellation shown inside the dashboard.
+ * It translates persisted note state into the client badge, provider controls,
+ * completion toruses, and callbacks that open each documentation overlay.
+ */
 
 import { completeSessionNote } from "@/app/actions/completeSessionNote";
 import type { CaretakerContextKind } from "@/app/libs/caretakerContext";

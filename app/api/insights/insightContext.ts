@@ -1,3 +1,8 @@
+/**
+ * Builds the supervisor's longitudinal clinical read model.
+ * Unlike the daily client handoff, this module gathers multi-session evidence for
+ * Insights questions about providers, goals, trends, ABC events, and context.
+ */
 import { AssessmentDomain, ComparisonType, MetricType, Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { normalizeItem } from "@/lib/sessionScoring";

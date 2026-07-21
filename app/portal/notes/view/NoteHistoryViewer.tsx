@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * Detailed provider-note reader opened from a provider badge.
+ * This is the evidence layer beneath the client handoff: it preserves authorship,
+ * provider-specific sections, recent-note navigation, and raw session details.
+ */
+
 import Link from "next/link";
 import { useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import OverlayContainer from "@/components/ui/OverlayContainer";

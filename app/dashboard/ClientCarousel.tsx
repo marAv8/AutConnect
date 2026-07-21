@@ -1,5 +1,10 @@
-//app/dashboard/ClientCarousel.tsx
 "use client";
+
+/**
+ * Dashboard controller for moving between assigned clients.
+ * It owns overlay selection and delegates the visible constellation to
+ * ClientOrbit; the overlays themselves remain focused presentation modules.
+ */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";

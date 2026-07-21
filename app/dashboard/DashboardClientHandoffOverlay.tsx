@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * Client-level handoff opened from the center badge in ClientOrbit.
+ * It presents the deterministic Today/Previous Day summary and groups source
+ * references by provider role so readers can open detailed notes only as needed.
+ */
+
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { formatClinicalShortDateTime } from "@/app/libs/dateTime";
 

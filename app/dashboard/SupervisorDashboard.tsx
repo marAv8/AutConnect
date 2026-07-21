@@ -1,5 +1,10 @@
-//app/dashboard/SupervisorDashboard.tsx
 "use client";
+
+/**
+ * Supervisor-only workspace controller.
+ * It coordinates client selection, orbit/grid modes, assignment management,
+ * and the longitudinal Insights overlay without owning provider note forms.
+ */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";

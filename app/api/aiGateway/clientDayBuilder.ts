@@ -1,3 +1,8 @@
+/**
+ * Server-side boundary for one client's interdisciplinary day.
+ * It loads completed notes, runs existing normalization and attention rules, and
+ * returns ClientDayContext for the central handoff without generating UI prose.
+ */
 import { db } from "@/lib/db";
 import {
   generateAttention,

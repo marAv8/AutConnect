@@ -6,6 +6,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Shared design tokens used by authentication, dashboards, overlays, and notes. */
 :root {
   --font-material-sans: "Avenir Next", Avenir, "Hiragino Sans", "Noto Sans",
     "Segoe UI", system-ui, sans-serif;
@@ -158,6 +159,7 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Browser defaults and reusable tactile surface primitives. */
 body {
   background: var(--background);
   color: var(--foreground);
@@ -324,6 +326,7 @@ textarea::placeholder {
   color: var(--foreground);
 }
 
+/* Authentication and account-creation screens. */
 .auth-shell {
   min-height: 100vh;
   padding: 24px 20px 48px;
@@ -516,6 +519,7 @@ textarea::placeholder {
   color: var(--negative) !important;
 }
 
+/* Provider note-entry overlay and its touch-first controls. */
 .add-note-shell {
   min-height: min(760px, calc(100vh - 96px));
   border: none;
@@ -588,6 +592,7 @@ textarea::placeholder {
 }
 
 .client-info-zone,
+/* Supervisor client/provider assignment forms. */
 .provider-selection-zone {
   box-sizing: border-box;
   padding: 16px;
@@ -736,6 +741,7 @@ textarea::placeholder {
   }
 }
 
+/* Client carousel, orbit, Team Focus, and responsive dashboard workspace. */
 .client-workspace-shell {
   position: relative;
   display: flex;
