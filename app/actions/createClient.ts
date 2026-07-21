@@ -13,7 +13,13 @@ export async function createClient(input: unknown) {
     };
   }
 
-  const { firstName, lastName, dateOfBirth, diagnosis } = parsed.data;
+  const {
+    firstName,
+    lastName,
+    dateOfBirth,
+    diagnosis,
+    receivesPrescribedMedication,
+  } = parsed.data;
 
   await db.client.create({
     data: {
@@ -21,6 +27,7 @@ export async function createClient(input: unknown) {
       lastName,
       dateOfBirth: dateOfBirth ?? null,
       diagnosis: diagnosis ?? null,
+      receivesPrescribedMedication,
     },
   });
 

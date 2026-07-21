@@ -23,6 +23,8 @@ model Provider {
 
   entries    Entry[]
   entryReads EntryRead[]
+  teamFocusItems TeamFocus[]
+  documentationDrafts DocumentationDraft[]
 
   @@index([createdAt])
 }
@@ -58,20 +60,65 @@ enum AssessmentDomain {
   Other
 }
 
+enum EntryKind {
+  SessionNote
+  MorningContext
+  EveningContext
+  SupervisorObservation
+  ClinicalNote
+  SensoryObservation
+  SpeechProgress
+  CommunicationObservation
+}
+
+enum EntryVisibility {
+  Private
+  Shared
+}
+
+enum EntryStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
 model Client {
-  id          String    @id @default(uuid())
-  firstName   String
-  lastName    String
-  dateOfBirth DateTime?
-  diagnosis   String?
-  createdAt   DateTime  @default(now())
+  id                            String    @id @default(uuid())
+  firstName                     String
+  lastName                      String
+  dateOfBirth                   DateTime?
+  diagnosis                     String?
+  receivesPrescribedMedication  Boolean   @default(false)
+  createdAt                     DateTime  @default(now())
 
   providerClients ProviderClient[]
   goalDefinitions GoalDefinition[]
 
   entries Entry[]
+  teamFocusItems TeamFocus[]
+  documentationDrafts DocumentationDraft[]
 
   @@index([createdAt])
+}
+
+model TeamFocus {
+  id String @id @default(uuid())
+
+  clientId String
+  authorId String
+
+  title   String?
+  content String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id])
+  author Provider @relation(fields: [authorId], references: [id])
+
+  @@index([clientId, isActive])
+  @@index([authorId])
+  @@index([updatedAt])
 }
 
 model ProviderClient {
@@ -95,6 +142,9 @@ model Entry {
   clientId   String
 
   date DateTime
+  kind EntryKind @default(SessionNote)
+  visibility EntryVisibility @default(Shared)
+  status EntryStatus @default(IN_PROGRESS)
 
   q1 Int?
   q2 Int?
@@ -104,21 +154,46 @@ model Entry {
   q6 Int?
   q7 Int?
 
-  note       String?
-  finalScore Int?
+  note               String?
+  clinicalReflection String?
+  contextData        Json?
+  finalScore         Int?
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  completedAt DateTime?
 
   provider Provider @relation(fields: [providerId], references: [id])
   client   Client   @relation(fields: [clientId], references: [id])
 
   items AssessmentItem[]
   reads EntryRead[]
+  abcObservations AbcObservation[]
 
-  @@unique([providerId, clientId, date])
+  @@unique([providerId, clientId, date, kind])
   @@index([clientId, date])
   @@index([clientId, providerId, date])
+  @@index([clientId, kind, date])
+  @@index([clientId, visibility, date])
   @@index([date])
+  @@index([updatedAt])
+}
+
+model AbcObservation {
+  id String @id @default(uuid())
+
+  entryId String
+
+  antecedent  String
+  behavior    String
+  consequence String
+
+  createdAt DateTime @default(now())
+
+  entry Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([entryId])
+  @@index([createdAt])
 }
 
 model AssessmentItem {
@@ -139,7 +214,7 @@ model AssessmentItem {
 
   createdAt DateTime @default(now())
 
-  entry          Entry           @relation(fields: [entryId], references: [id])
+  entry          Entry           @relation(fields: [entryId], references: [id], onDelete: Cascade)
   goalDefinition GoalDefinition? @relation(fields: [goalId], references: [id])
 
   @@index([entryId])
@@ -157,6 +232,7 @@ model GoalDefinition {
 
   metricType MetricType
   domain     AssessmentDomain?
+  measurementProfile String?
 
   targetValue Float?
   comparison  ComparisonType?
@@ -185,9 +261,28 @@ model EntryRead {
 
   readAt DateTime?
 
-  entry    Entry    @relation(fields: [entryId], references: [id])
+  entry    Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
   provider Provider @relation(fields: [providerId], references: [id])
 
   @@unique([entryId, providerId])
   @@index([providerId, entryId])
+}
+
+model DocumentationDraft {
+  id String @id @default(uuid())
+
+  providerId String
+  clientId   String
+  workflowKey String
+
+  data Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, clientId, workflowKey])
+  @@index([clientId, providerId])
+  @@index([updatedAt])
 }

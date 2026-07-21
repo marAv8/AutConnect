@@ -13,6 +13,8 @@ export async function createClientWithProviders(formData: FormData) {
 
   const fullName = formData.get("fullName");
   const fullNameValue = typeof fullName === "string" ? fullName.trim() : "";
+  const receivesPrescribedMedication =
+    formData.get("receivesPrescribedMedication") === "true";
 
   if (!fullNameValue) {
     throw new Error("Client name required");
@@ -33,7 +35,7 @@ export async function createClientWithProviders(formData: FormData) {
   await db.$transaction(async (tx) => {
     // 1. Create client
     const client = await tx.client.create({
-      data: { firstName, lastName },
+      data: { firstName, lastName, receivesPrescribedMedication },
     });
 
     // 2. Auto-assign supervisor (EXACTLY ONE)

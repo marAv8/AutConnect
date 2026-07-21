@@ -34,7 +34,7 @@ export default async function DashboardPage({
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const sevenDaysAgo = new Date(today);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
   const [provider, initialClients] = await Promise.all([
     db.provider.findUnique({
@@ -65,16 +65,54 @@ export default async function DashboardPage({
         entries: {
           where: {
             date: today,
+            OR: [
+              {
+                kind: {
+                  notIn: ["SupervisorObservation", "ClinicalNote"],
+                },
+              },
+              {
+                visibility: "Shared",
+              },
+              {
+                providerId: session.providerId,
+              },
+            ],
           },
           select: {
             id: true,
             providerId: true,
+            kind: true,
+            visibility: true,
+            status: true,
             reads: {
               where: {
                 providerId: session.providerId,
               },
               select: {
                 readAt: true,
+              },
+            },
+          },
+        },
+        teamFocusItems: {
+          where: {
+            isActive: true,
+          },
+          orderBy: {
+            updatedAt: "desc",
+          },
+          take: 1,
+          select: {
+            id: true,
+            title: true,
+            content: true,
+            updatedAt: true,
+            author: {
+              select: {
+                firstName: true,
+                lastName: true,
+                role: true,
               },
             },
           },
@@ -128,6 +166,21 @@ export default async function DashboardPage({
           },
           OR: [
             {
+              kind: {
+                notIn: ["SupervisorObservation", "ClinicalNote"],
+              },
+            },
+            {
+              visibility: "Shared",
+            },
+            {
+              providerId: session.providerId,
+            },
+          ],
+          AND: [
+            {
+          OR: [
+            {
               note: {
                 not: null,
               },
@@ -137,25 +190,35 @@ export default async function DashboardPage({
                 some: {},
               },
             },
+            {
+              abcObservations: {
+                some: {},
+              },
+            },
+          ],
+            },
           ],
         },
         select: {
           id: true,
           clientId: true,
           providerId: true,
+          kind: true,
+          status: true,
         },
       })
     : [];
 
   const recentEntriesByClientId = new Map<
     string,
-    Array<{ id: string; providerId: string }>
+    Array<{ id: string; providerId: string; status?: string }>
   >();
   for (const entry of recentEntries) {
     const existing = recentEntriesByClientId.get(entry.clientId);
     const recentEntry = {
       id: entry.id,
       providerId: entry.providerId,
+      status: entry.status,
     };
 
     if (existing) {

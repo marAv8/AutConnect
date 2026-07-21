@@ -52,7 +52,7 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div className="auth-link-row auth-link-row-blue">
+            <div className="auth-link-row">
               Need an account? <Link href="/create-account">Create Account</Link>
             </div>
           </div>

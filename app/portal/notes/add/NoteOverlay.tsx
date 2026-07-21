@@ -3,6 +3,11 @@
 import Link from "next/link";
 import OverlayContainer from "@/components/ui/OverlayContainer";
 import EntryForm from "./EntryForm";
+import type {
+  CaretakerContextCard,
+  CaretakerContextKind,
+} from "@/app/libs/caretakerContext";
+import type { NoteEntryKind } from "@/app/libs/entryKinds";
 
 type Props = {
   clientId: string;
@@ -14,6 +19,8 @@ type Props = {
   mode?: "create" | "edit";
   initialValues?: {
     note: string;
+    contextValues?: Record<string, string>;
+    contextComment?: string;
     items: {
       goalId: string;
       target: string;
@@ -30,10 +37,36 @@ type Props = {
         | "";
       rawValue: string;
       supportLevel: string;
+      measurementProfile?: string | null;
     }[];
   };
+  draft?: {
+    data: unknown;
+    updatedAt: string;
+  } | null;
+  draftWorkflowKey?: string;
+  targetOptions?: ComponentTargetOption[];
+  noteKind?: NoteEntryKind;
+  contextKind?: CaretakerContextKind;
+  contextCards?: CaretakerContextCard[];
   onClose?: () => void;
   onSubmitted?: () => void;
+  educatorMode?: "classroomProgress" | "addTarget";
+};
+
+type ComponentTargetOption = {
+  value: string;
+  label: string;
+  recommendedMetricType: "Percentage" | "Frequency" | "Duration" | "Subjective";
+  defaultDomain:
+    | "Behavior"
+    | "SkillAcquisition"
+    | "Communication"
+    | "Adaptive"
+    | "Regulation"
+    | "Other";
+  description?: string;
+  tags?: string[];
 };
 
 export default function NoteOverlay({
@@ -45,8 +78,15 @@ export default function NoteOverlay({
   providerRole,
   mode = "create",
   initialValues,
+  draft,
+  draftWorkflowKey,
+  targetOptions,
+  noteKind,
+  contextKind,
+  contextCards,
   onClose,
   onSubmitted,
+  educatorMode,
 }: Props) {
   const today = new Date().toLocaleDateString();
   const backLabel = role === "Caregiver" ? "Back to Children" : "Back to Client";
@@ -90,7 +130,15 @@ export default function NoteOverlay({
             providerRole={providerRole}
             todayLabel={today}
             initialValues={initialValues}
+            draft={draft}
+            draftWorkflowKey={draftWorkflowKey}
+            targetOptions={targetOptions}
+            noteKind={noteKind}
+            contextKind={contextKind}
+            contextCards={contextCards}
+            educatorMode={educatorMode}
             onSubmitted={onSubmitted}
+            onCancel={onClose}
           />
         </div>
       </div>

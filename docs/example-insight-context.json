@@ -1,0 +1,1179 @@
+{
+  "client": {
+    "id": "client-001",
+    "firstName": "Alex",
+    "lastName": "Rivera",
+    "dateOfBirth": "2018-04-12T00:00:00.000Z",
+    "diagnosis": "Autism Spectrum Disorder"
+  },
+  "query": {
+    "intent": "summary",
+    "context": [
+      "debug-preview"
+    ]
+  },
+  "careTeam": [
+    {
+      "providerId": "provider-aba",
+      "providerName": "Maya Chen",
+      "accountRole": "BehaviorTherapist",
+      "assignmentRole": "BehaviorTherapist"
+    },
+    {
+      "providerId": "provider-slp",
+      "providerName": "Noah Patel",
+      "accountRole": "SpeechPathologist",
+      "assignmentRole": "SpeechPathologist"
+    },
+    {
+      "providerId": "provider-caregiver",
+      "providerName": "Elena Rivera",
+      "accountRole": "Caregiver",
+      "assignmentRole": "Caregiver"
+    }
+  ],
+  "providerAssignments": [
+    {
+      "assignmentId": "assignment-aba",
+      "providerId": "provider-aba",
+      "clientId": "client-001",
+      "assignmentRole": "BehaviorTherapist",
+      "provider": {
+        "firstName": "Maya",
+        "lastName": "Chen",
+        "role": "BehaviorTherapist"
+      }
+    },
+    {
+      "assignmentId": "assignment-slp",
+      "providerId": "provider-slp",
+      "clientId": "client-001",
+      "assignmentRole": "SpeechPathologist",
+      "provider": {
+        "firstName": "Noah",
+        "lastName": "Patel",
+        "role": "SpeechPathologist"
+      }
+    },
+    {
+      "assignmentId": "assignment-caregiver",
+      "providerId": "provider-caregiver",
+      "clientId": "client-001",
+      "assignmentRole": "Caregiver",
+      "provider": {
+        "firstName": "Elena",
+        "lastName": "Rivera",
+        "role": "Caregiver"
+      }
+    }
+  ],
+  "activeGoals": [
+    {
+      "goalId": "goal-functional-requesting",
+      "providerId": "provider-slp",
+      "providerName": "Noah Patel",
+      "target": "Functional Communication",
+      "goal": "Requests preferred item using AAC or speech in 4 of 5 opportunities.",
+      "metricType": "Percentage",
+      "domain": "Communication",
+      "targetValue": 80,
+      "comparison": "GreaterThan",
+      "weight": 1,
+      "isMastered": false
+    },
+    {
+      "goalId": "goal-transition",
+      "providerId": "provider-aba",
+      "providerName": "Maya Chen",
+      "target": "Transitioning",
+      "goal": "Transitions within 2 minutes with no more than one prompt.",
+      "metricType": "Duration",
+      "domain": "Adaptive",
+      "targetValue": 120,
+      "comparison": "LessThan",
+      "weight": 1,
+      "isMastered": false
+    }
+  ],
+  "sessions": [
+    {
+      "id": "session-2026-06-01-aba",
+      "date": "2026-06-01T00:00:00.000Z",
+      "createdAt": "2026-06-01T18:10:00.000Z",
+      "note": "Transition practice and frequency recording completed.",
+      "finalScore": 7,
+      "providerId": "provider-aba",
+      "provider": {
+        "firstName": "Maya",
+        "lastName": "Chen",
+        "role": "BehaviorTherapist"
+      },
+      "items": [
+        {
+          "id": "item-transition-001",
+          "goalId": "goal-transition",
+          "target": "Transitioning",
+          "goal": "Transitions within 2 minutes with no more than one prompt.",
+          "score": null,
+          "metricType": "Duration",
+          "domain": "Adaptive",
+          "rawValue": 210,
+          "supportLevel": 2,
+          "normalizedScore": 5.7,
+          "goalDefinition": {
+            "id": "goal-transition",
+            "target": "Transitioning",
+            "goal": "Transitions within 2 minutes with no more than one prompt.",
+            "metricType": "Duration",
+            "domain": "Adaptive",
+            "targetValue": 120,
+            "comparison": "LessThan",
+            "weight": 1,
+            "providerId": "provider-aba"
+          },
+          "changeFromBaseline": null,
+          "changeFromPrevious": null,
+          "trendDirection": "insufficientData",
+          "lowData": true,
+          "clinicallySmallButPositiveChange": false
+        },
+        {
+          "id": "item-aggression-001",
+          "goalId": null,
+          "target": "Aggression",
+          "goal": "Frequency count",
+          "score": null,
+          "metricType": "Frequency",
+          "domain": "Behavior",
+          "rawValue": 4,
+          "supportLevel": null,
+          "normalizedScore": 6,
+          "goalDefinition": null,
+          "changeFromBaseline": null,
+          "changeFromPrevious": null,
+          "trendDirection": "insufficientData",
+          "lowData": true,
+          "clinicallySmallButPositiveChange": false
+        }
+      ]
+    },
+    {
+      "id": "session-2026-06-03-slp",
+      "date": "2026-06-03T00:00:00.000Z",
+      "createdAt": "2026-06-03T15:30:00.000Z",
+      "note": "AAC requesting opportunities measured.",
+      "finalScore": 6,
+      "providerId": "provider-slp",
+      "provider": {
+        "firstName": "Noah",
+        "lastName": "Patel",
+        "role": "SpeechPathologist"
+      },
+      "items": [
+        {
+          "id": "item-communication-001",
+          "goalId": "goal-functional-requesting",
+          "target": "Functional Communication",
+          "goal": "Requests preferred item using AAC or speech in 4 of 5 opportunities.",
+          "score": null,
+          "metricType": "Percentage",
+          "domain": "Communication",
+          "rawValue": 50,
+          "supportLevel": 2,
+          "normalizedScore": 5,
+          "goalDefinition": {
+            "id": "goal-functional-requesting",
+            "target": "Functional Communication",
+            "goal": "Requests preferred item using AAC or speech in 4 of 5 opportunities.",
+            "metricType": "Percentage",
+            "domain": "Communication",
+            "targetValue": 80,
+            "comparison": "GreaterThan",
+            "weight": 1,
+            "providerId": "provider-slp"
+          },
+          "changeFromBaseline": null,
+          "changeFromPrevious": null,
+          "trendDirection": "insufficientData",
+          "lowData": true,
+          "clinicallySmallButPositiveChange": false
+        }
+      ]
+    },
+    {
+      "id": "session-2026-06-15-aba",
+      "date": "2026-06-15T00:00:00.000Z",
+      "createdAt": "2026-06-15T18:00:00.000Z",
+      "note": "Transition duration decreased and aggression frequency reduced.",
+      "finalScore": 9,
+      "providerId": "provider-aba",
+      "provider": {
+        "firstName": "Maya",
+        "lastName": "Chen",
+        "role": "BehaviorTherapist"
+      },
+      "items": [
+        {
+          "id": "item-transition-002",
+          "goalId": "goal-transition",
+          "target": "Transitioning",
+          "goal": "Transitions within 2 minutes with no more than one prompt.",
+          "score": null,
+          "metricType": "Duration",
+          "domain": "Adaptive",
+          "rawValue": 135,
+          "supportLevel": 1,
+          "normalizedScore": 8.9,
+          "goalDefinition": {
+            "id": "goal-transition",
+            "target": "Transitioning",
+            "goal": "Transitions within 2 minutes with no more than one prompt.",
+            "metricType": "Duration",
+            "domain": "Adaptive",
+            "targetValue": 120,
+            "comparison": "LessThan",
+            "weight": 1,
+            "providerId": "provider-aba"
+          },
+          "changeFromBaseline": 3.2,
+          "changeFromPrevious": 3.2,
+          "trendDirection": "up",
+          "lowData": true,
+          "clinicallySmallButPositiveChange": false
+        },
+        {
+          "id": "item-aggression-002",
+          "goalId": null,
+          "target": "Aggression",
+          "goal": "Frequency count",
+          "score": null,
+          "metricType": "Frequency",
+          "domain": "Behavior",
+          "rawValue": 1,
+          "supportLevel": null,
+          "normalizedScore": 9,
+          "goalDefinition": null,
+          "changeFromBaseline": 3,
+          "changeFromPrevious": 3,
+          "trendDirection": "up",
+          "lowData": true,
+          "clinicallySmallButPositiveChange": false
+        }
+      ]
+    }
+  ],
+  "assessmentItems": [
+    {
+      "itemId": "item-transition-001",
+      "sessionId": "session-2026-06-01-aba",
+      "providerId": "provider-aba",
+      "goalId": "goal-transition",
+      "target": "Transitioning",
+      "goal": "Transitions within 2 minutes with no more than one prompt.",
+      "metricType": "Duration",
+      "domain": "Adaptive",
+      "rawValue": 210,
+      "score": null,
+      "normalizedScore": 5.7,
+      "date": "2026-06-01T00:00:00.000Z",
+      "changeFromBaseline": null,
+      "changeFromPrevious": null,
+      "trendDirection": "insufficientData",
+      "lowData": true,
+      "clinicallySmallButPositiveChange": false
+    },
+    {
+      "itemId": "item-communication-001",
+      "sessionId": "session-2026-06-03-slp",
+      "providerId": "provider-slp",
+      "goalId": "goal-functional-requesting",
+      "target": "Functional Communication",
+      "goal": "Requests preferred item using AAC or speech in 4 of 5 opportunities.",
+      "metricType": "Percentage",
+      "domain": "Communication",
+      "rawValue": 50,
+      "score": null,
+      "normalizedScore": 5,
+      "date": "2026-06-03T00:00:00.000Z",
+      "changeFromBaseline": null,
+      "changeFromPrevious": null,
+      "trendDirection": "insufficientData",
+      "lowData": true,
+      "clinicallySmallButPositiveChange": false
+    }
+  ],
+  "providerGoalSeries": [
+    {
+      "providerId": "provider-aba",
+      "providerName": "Maya Chen",
+      "goalKey": "goal-transition",
+      "goalId": "goal-transition",
+      "target": "Transitioning",
+      "goal": "Transitions within 2 minutes with no more than one prompt.",
+      "domain": "Adaptive",
+      "metricType": "Duration",
+      "trend": "up",
+      "sessions": [
+        {
+          "sessionId": "session-2026-06-01-aba",
+          "date": "2026-06-01T00:00:00.000Z",
+          "rawValue": 210,
+          "score": null,
+          "normalizedScore": 5.7,
+          "changeFromBaseline": null,
+          "changeFromPrevious": null,
+          "trendDirection": "insufficientData",
+          "lowData": true,
+          "clinicallySmallButPositiveChange": false
+        },
+        {
+          "sessionId": "session-2026-06-15-aba",
+          "date": "2026-06-15T00:00:00.000Z",
+          "rawValue": 135,
+          "score": null,
+          "normalizedScore": 8.9,
+          "changeFromBaseline": 3.2,
+          "changeFromPrevious": 3.2,
+          "trendDirection": "up",
+          "lowData": true,
+          "clinicallySmallButPositiveChange": false
+        }
+      ]
+    }
+  ],
+  "providerDomainSeries": [
+    {
+      "providerId": "provider-aba",
+      "providerName": "Maya Chen",
+      "domain": "Behavior",
+      "trend": "up",
+      "sessions": [
+        {
+          "sessionId": "session-2026-06-01-aba",
+          "date": "2026-06-01T00:00:00.000Z",
+          "averageScore": 6,
+          "itemCount": 1
+        },
+        {
+          "sessionId": "session-2026-06-15-aba",
+          "date": "2026-06-15T00:00:00.000Z",
+          "averageScore": 9,
+          "itemCount": 1
+        }
+      ]
+    }
+  ],
+  "performanceTrends": [
+    {
+      "providerId": "provider-aba",
+      "providerName": "Maya Chen",
+      "trend": "up",
+      "sessions": 2,
+      "firstAverage": 5.85,
+      "secondAverage": 8.95
+    }
+  ],
+  "abcEvents": [],
+  "clinicalEvents": [],
+  "relationshipMetrics": {
+    "providerPairs": [
+      {
+        "providerAId": "provider-aba",
+        "providerBId": "provider-slp",
+        "sharedTargets": [],
+        "sharedGoals": []
+      }
+    ],
+    "providerCoverage": [
+      {
+        "providerId": "provider-aba",
+        "providerName": "Maya Chen",
+        "sessions": 2,
+        "domains": [
+          "Adaptive",
+          "Behavior"
+        ],
+        "goals": [
+          "Transitions within 2 minutes with no more than one prompt.",
+          "Frequency count"
+        ]
+      }
+    ]
+  },
+  "clinicalPicture": {
+    "behavior": {
+      "activeTargets": [],
+      "recentlyMeasuredGoals": [
+        {
+          "goalKey": "aggression|frequency count",
+          "goalId": null,
+          "target": "Aggression",
+          "goal": "Frequency count",
+          "domain": "Behavior",
+          "metricType": "Frequency",
+          "providers": [
+            {
+              "providerId": "provider-aba",
+              "providerName": "Maya Chen",
+              "role": "BehaviorTherapist"
+            }
+          ],
+          "sessionCount": 2,
+          "lastMeasuredAt": "2026-06-15T00:00:00.000Z",
+          "trend": "up",
+          "averagePerformance": 7.5
+        }
+      ],
+      "improvingGoals": [],
+      "decliningGoals": [],
+      "stableGoals": [],
+      "newlyIntroducedGoals": [],
+      "inactiveGoals": [],
+      "lowDataGoals": [
+        {
+          "goalKey": "aggression|frequency count",
+          "goalId": null,
+          "target": "Aggression",
+          "goal": "Frequency count",
+          "domain": "Behavior",
+          "metricType": "Frequency",
+          "providers": [
+            {
+              "providerId": "provider-aba",
+              "providerName": "Maya Chen",
+              "role": "BehaviorTherapist"
+            }
+          ],
+          "sessionCount": 2,
+          "lastMeasuredAt": "2026-06-15T00:00:00.000Z",
+          "trend": "up",
+          "averagePerformance": 7.5
+        }
+      ]
+    },
+    "communication": {
+      "activeTargets": [
+        "Functional Communication"
+      ],
+      "recentlyMeasuredGoals": [],
+      "improvingGoals": [],
+      "decliningGoals": [],
+      "stableGoals": [],
+      "newlyIntroducedGoals": [
+        {
+          "goalKey": "goal-functional-requesting",
+          "goalId": "goal-functional-requesting",
+          "target": "Functional Communication",
+          "goal": "Requests preferred item using AAC or speech in 4 of 5 opportunities.",
+          "domain": "Communication",
+          "metricType": "Percentage",
+          "providers": [
+            {
+              "providerId": "provider-slp",
+              "providerName": "Noah Patel",
+              "role": "SpeechPathologist"
+            }
+          ],
+          "sessionCount": 1,
+          "lastMeasuredAt": "2026-06-03T00:00:00.000Z",
+          "averagePerformance": 5
+        }
+      ],
+      "inactiveGoals": [],
+      "lowDataGoals": [
+        {
+          "goalKey": "goal-functional-requesting",
+          "goalId": "goal-functional-requesting",
+          "target": "Functional Communication",
+          "goal": "Requests preferred item using AAC or speech in 4 of 5 opportunities.",
+          "domain": "Communication",
+          "metricType": "Percentage",
+          "providers": [
+            {
+              "providerId": "provider-slp",
+              "providerName": "Noah Patel",
+              "role": "SpeechPathologist"
+            }
+          ],
+          "sessionCount": 1,
+          "lastMeasuredAt": "2026-06-03T00:00:00.000Z",
+          "averagePerformance": 5
+        }
+      ]
+    },
+    "occupational": {
+      "activeTargets": [
+        "Transitioning"
+      ],
+      "recentlyMeasuredGoals": [],
+      "improvingGoals": [],
+      "decliningGoals": [],
+      "stableGoals": [],
+      "newlyIntroducedGoals": [],
+      "inactiveGoals": [],
+      "lowDataGoals": []
+    },
+    "education": {
+      "activeTargets": [],
+      "recentlyMeasuredGoals": [],
+      "improvingGoals": [],
+      "decliningGoals": [],
+      "stableGoals": [],
+      "newlyIntroducedGoals": [],
+      "inactiveGoals": [],
+      "lowDataGoals": []
+    },
+    "caregiver": {
+      "activeTargets": [],
+      "recentlyMeasuredGoals": [],
+      "improvingGoals": [],
+      "decliningGoals": [],
+      "stableGoals": [],
+      "newlyIntroducedGoals": [],
+      "inactiveGoals": [],
+      "lowDataGoals": []
+    }
+  },
+  "providerRelationships": [
+    {
+      "providerId": "provider-aba",
+      "providerName": "Maya Chen",
+      "accountRole": "BehaviorTherapist",
+      "assignmentRole": "BehaviorTherapist",
+      "totalSessions": 2,
+      "activeGoals": [
+        {
+          "goalKey": "goal-transition",
+          "goalId": "goal-transition",
+          "target": "Transitioning",
+          "goal": "Transitions within 2 minutes with no more than one prompt.",
+          "domain": "Adaptive",
+          "metricType": "Duration",
+          "providers": [
+            {
+              "providerId": "provider-aba",
+              "providerName": "Maya Chen",
+              "role": "BehaviorTherapist"
+            }
+          ],
+          "sessionCount": 2,
+          "lastMeasuredAt": "2026-06-15T00:00:00.000Z",
+          "trend": "up",
+          "averagePerformance": 7.3
+        }
+      ],
+      "domainsWorked": [
+        "Adaptive",
+        "Behavior"
+      ],
+      "averageNormalizedPerformance": 7.4,
+      "strongestDomains": [
+        "Behavior"
+      ],
+      "weakestDomains": [
+        "Adaptive"
+      ],
+      "consistency": 8.58,
+      "trend": "up",
+      "coverage": {
+        "goalCount": 1,
+        "domainCount": 2,
+        "sessionCount": 2,
+        "recentSessionCount": 2,
+        "firstSessionAt": "2026-06-01T00:00:00.000Z",
+        "lastSessionAt": "2026-06-15T00:00:00.000Z",
+        "hasSessions": true,
+        "hasActiveGoals": true,
+        "daysSinceLastSession": 0,
+        "domainsCovered": [
+          "Adaptive",
+          "Behavior"
+        ],
+        "goalsCovered": [
+          "Transitions within 2 minutes with no more than one prompt.",
+          "Frequency count"
+        ]
+      }
+    }
+  ],
+  "providerOverlap": [
+    {
+      "providerAId": "provider-aba",
+      "providerAName": "Maya Chen",
+      "providerBId": "provider-slp",
+      "providerBName": "Noah Patel",
+      "sharedGoals": [],
+      "sharedTargets": [],
+      "sharedDomains": [],
+      "exactSharedGoals": [],
+      "relatedTargets": [],
+      "relatedDomains": [],
+      "relationshipMatches": [],
+      "overlappingSessions": [],
+      "uniqueGoals": {
+        "providerA": [
+          {
+            "goalKey": "goal-transition",
+            "goalId": "goal-transition",
+            "target": "Transitioning",
+            "goal": "Transitions within 2 minutes with no more than one prompt.",
+            "domain": "Adaptive",
+            "metricType": "Duration",
+            "providers": [
+              {
+                "providerId": "provider-aba",
+                "providerName": "Maya Chen",
+                "role": "BehaviorTherapist"
+              }
+            ],
+            "sessionCount": 2,
+            "lastMeasuredAt": "2026-06-15T00:00:00.000Z",
+            "trend": "up",
+            "averagePerformance": 7.3
+          }
+        ],
+        "providerB": []
+      },
+      "uniqueDomains": {
+        "providerA": [
+          "Adaptive",
+          "Behavior"
+        ],
+        "providerB": [
+          "Communication"
+        ]
+      }
+    }
+  ],
+  "goalRelationships": [
+    {
+      "goalKey": "goal-transition",
+      "goalId": "goal-transition",
+      "target": "Transitioning",
+      "goal": "Transitions within 2 minutes with no more than one prompt.",
+      "metricType": "Duration",
+      "domains": [
+        "Adaptive"
+      ],
+      "providers": [
+        {
+          "providerId": "provider-aba",
+          "providerName": "Maya Chen",
+          "role": "BehaviorTherapist"
+        }
+      ],
+      "sessions": [
+        {
+          "sessionId": "session-2026-06-01-aba",
+          "providerId": "provider-aba",
+          "providerName": "Maya Chen",
+          "date": "2026-06-01T00:00:00.000Z",
+          "normalizedScore": 5.7,
+          "rawValue": 210,
+          "score": null
+        },
+        {
+          "sessionId": "session-2026-06-15-aba",
+          "providerId": "provider-aba",
+          "providerName": "Maya Chen",
+          "date": "2026-06-15T00:00:00.000Z",
+          "normalizedScore": 8.9,
+          "rawValue": 135,
+          "score": null
+        }
+      ],
+      "averagePerformance": 7.3,
+      "trend": "up",
+      "currentStatus": "active"
+    }
+  ],
+  "domainRelationships": [
+    {
+      "domain": "Behavior",
+      "providersInvolved": [
+        {
+          "providerId": "provider-aba",
+          "providerName": "Maya Chen",
+          "role": "BehaviorTherapist"
+        }
+      ],
+      "activeGoals": [],
+      "averageTrend": "up",
+      "recentActivity": {
+        "lastMeasuredAt": "2026-06-15T00:00:00.000Z",
+        "recentSessionCount": 2,
+        "recentGoalCount": 1
+      },
+      "sessionCount": 2
+    },
+    {
+      "domain": "Speech",
+      "providersInvolved": [
+        {
+          "providerId": "provider-slp",
+          "providerName": "Noah Patel",
+          "role": "SpeechPathologist"
+        }
+      ],
+      "activeGoals": [
+        {
+          "goalKey": "goal-functional-requesting",
+          "goalId": "goal-functional-requesting",
+          "target": "Functional Communication",
+          "goal": "Requests preferred item using AAC or speech in 4 of 5 opportunities.",
+          "domain": "Communication",
+          "metricType": "Percentage",
+          "providers": [
+            {
+              "providerId": "provider-slp",
+              "providerName": "Noah Patel",
+              "role": "SpeechPathologist"
+            }
+          ],
+          "sessionCount": 1,
+          "lastMeasuredAt": "2026-06-03T00:00:00.000Z",
+          "averagePerformance": 5
+        }
+      ],
+      "recentActivity": {
+        "lastMeasuredAt": "2026-06-03T00:00:00.000Z",
+        "recentSessionCount": 1,
+        "recentGoalCount": 1
+      },
+      "sessionCount": 1
+    }
+  ],
+  "behaviorRelationships": [
+    {
+      "target": "Aggression",
+      "sessionsObserved": 2,
+      "providersObserving": [
+        {
+          "providerId": "provider-aba",
+          "providerName": "Maya Chen",
+          "role": "BehaviorTherapist"
+        }
+      ],
+      "averageFrequency": 2.5,
+      "trend": "up",
+      "associatedABCEvents": []
+    }
+  ],
+  "collaborationMetrics": {
+    "providersWorkingOnCommonGoals": [],
+    "providersWorkingIndependently": [
+      {
+        "providerId": "provider-aba",
+        "providerName": "Maya Chen",
+        "independentGoals": [
+          {
+            "goalKey": "goal-transition",
+            "goalId": "goal-transition",
+            "target": "Transitioning",
+            "goal": "Transitions within 2 minutes with no more than one prompt.",
+            "domain": "Adaptive",
+            "metricType": "Duration",
+            "providers": [
+              {
+                "providerId": "provider-aba",
+                "providerName": "Maya Chen",
+                "role": "BehaviorTherapist"
+              }
+            ],
+            "sessionCount": 2,
+            "lastMeasuredAt": "2026-06-15T00:00:00.000Z",
+            "trend": "up",
+            "averagePerformance": 7.3
+          }
+        ],
+        "independentDomains": [
+          "Adaptive"
+        ]
+      }
+    ],
+    "goalsSpanningMultipleProfessions": [],
+    "goalsIsolatedToOneProvider": [
+      {
+        "goalKey": "goal-transition",
+        "goalId": "goal-transition",
+        "target": "Transitioning",
+        "goal": "Transitions within 2 minutes with no more than one prompt.",
+        "domain": "Adaptive",
+        "metricType": "Duration",
+        "providers": [
+          {
+            "providerId": "provider-aba",
+            "providerName": "Maya Chen",
+            "role": "BehaviorTherapist"
+          }
+        ],
+        "sessionCount": 2,
+        "lastMeasuredAt": "2026-06-15T00:00:00.000Z",
+        "trend": "up",
+        "averagePerformance": 7.3
+      }
+    ],
+    "exactSharedGoals": [],
+    "relatedTargets": [],
+    "relatedDomains": [],
+    "careTeamCoverage": [
+      {
+        "providerId": "provider-aba",
+        "providerName": "Maya Chen",
+        "assigned": true,
+        "hasSessions": true,
+        "hasActiveGoals": true,
+        "daysSinceLastSession": 0,
+        "domains": [
+          "Adaptive",
+          "Behavior"
+        ],
+        "domainsCovered": [
+          "Adaptive",
+          "Behavior"
+        ],
+        "goalsCovered": [
+          "Transitions within 2 minutes with no more than one prompt.",
+          "Frequency count"
+        ],
+        "sessionCount": 2
+      },
+      {
+        "providerId": "provider-caregiver",
+        "providerName": "Elena Rivera",
+        "assigned": true,
+        "hasSessions": false,
+        "hasActiveGoals": false,
+        "daysSinceLastSession": null,
+        "domains": [],
+        "domainsCovered": [],
+        "goalsCovered": [],
+        "sessionCount": 0
+      }
+    ],
+    "missingProviderParticipation": [
+      {
+        "providerId": "provider-caregiver",
+        "providerName": "Elena Rivera",
+        "reason": "no_sessions"
+      }
+    ]
+  },
+  "continuityMetrics": {
+    "daysBetweenSessions": [
+      {
+        "providerId": null,
+        "providerName": null,
+        "fromSessionId": "session-2026-06-01-aba",
+        "toSessionId": "session-2026-06-03-slp",
+        "days": 2
+      },
+      {
+        "providerId": null,
+        "providerName": null,
+        "fromSessionId": "session-2026-06-03-slp",
+        "toSessionId": "session-2026-06-15-aba",
+        "days": 12
+      }
+    ],
+    "providerGaps": [
+      {
+        "providerId": "provider-aba",
+        "providerName": "Maya Chen",
+        "maxDaysBetweenSessions": 14,
+        "daysSinceLastSession": 0
+      }
+    ],
+    "goalContinuity": [
+      {
+        "goalKey": "goal-transition",
+        "goalId": "goal-transition",
+        "target": "Transitioning",
+        "goal": "Transitions within 2 minutes with no more than one prompt.",
+        "sessionCount": 2,
+        "maxDaysBetweenMeasurements": 14,
+        "daysSinceLastMeasurement": 0,
+        "providers": [
+          "provider-aba"
+        ]
+      }
+    ],
+    "providerTransitions": [
+      {
+        "fromProviderId": "provider-aba",
+        "fromProviderName": "Maya Chen",
+        "toProviderId": "provider-slp",
+        "toProviderName": "Noah Patel",
+        "fromSessionId": "session-2026-06-01-aba",
+        "toSessionId": "session-2026-06-03-slp",
+        "daysBetween": 2
+      }
+    ],
+    "missingFollowUp": []
+  },
+  "relationshipSummary": {
+    "totalProviders": 3,
+    "exactSharedGoals": 0,
+    "relatedTargets": 0,
+    "relatedDomains": 0,
+    "isolatedGoals": 3,
+    "collaborativeGoals": 0,
+    "activeDomains": [
+      "Behavior",
+      "Communication",
+      "Adaptive"
+    ],
+    "recentBehaviorTargets": [
+      "Aggression"
+    ],
+    "providerCoverage": [
+      {
+        "providerId": "provider-aba",
+        "providerName": "Maya Chen",
+        "sessionCount": 2,
+        "domainCount": 2,
+        "activeGoalCount": 1
+      }
+    ],
+    "continuityScore": 100
+  },
+  "precomputedStatistics": {
+    "sessionCount": 3,
+    "assessmentItemCount": 4,
+    "activeGoalCount": 2,
+    "providersWithSessions": 2
+  },
+  "clientSignalScore": {
+    "normalizedTotalScore": 74,
+    "trendDirection": "up",
+    "confidence": "medium",
+    "contributingDomains": [
+      "Adaptive",
+      "Behavior",
+      "Communication"
+    ],
+    "contributingProviders": [
+      {
+        "providerId": "provider-aba",
+        "providerName": "Maya Chen"
+      },
+      {
+        "providerId": "provider-slp",
+        "providerName": "Noah Patel"
+      }
+    ],
+    "lowDataWarning": true,
+    "lastUpdatedAt": "2026-06-15T00:00:00.000Z"
+  },
+  "domainContributions": [
+    {
+      "providerId": "provider-aba",
+      "providerName": "Maya Chen",
+      "providerRole": "BehaviorTherapist",
+      "domain": "Adaptive",
+      "assessmentCount": 2,
+      "sessionCount": 2,
+      "normalizedAverage": 7.3,
+      "goalsCovered": [
+        "Transitions within 2 minutes with no more than one prompt."
+      ],
+      "targetsCovered": [
+        "Transitioning"
+      ],
+      "lastContributionDate": "2026-06-15T00:00:00.000Z"
+    },
+    {
+      "providerId": "provider-aba",
+      "providerName": "Maya Chen",
+      "providerRole": "BehaviorTherapist",
+      "domain": "Behavior",
+      "assessmentCount": 2,
+      "sessionCount": 2,
+      "normalizedAverage": 7.5,
+      "goalsCovered": [
+        "Frequency count"
+      ],
+      "targetsCovered": [
+        "Aggression"
+      ],
+      "lastContributionDate": "2026-06-15T00:00:00.000Z"
+    },
+    {
+      "providerId": "provider-slp",
+      "providerName": "Noah Patel",
+      "providerRole": "SpeechPathologist",
+      "domain": "Communication",
+      "assessmentCount": 1,
+      "sessionCount": 1,
+      "normalizedAverage": 5,
+      "goalsCovered": [
+        "Requests preferred item using AAC or speech in 4 of 5 opportunities."
+      ],
+      "targetsCovered": [
+        "Functional Communication"
+      ],
+      "lastContributionDate": "2026-06-03T00:00:00.000Z"
+    }
+  ],
+  "questionContributors": [
+    {
+      "providerId": "provider-aba",
+      "providerName": "Maya Chen",
+      "providerRole": "BehaviorTherapist",
+      "domain": "Adaptive",
+      "assessmentCount": 2,
+      "sessionCount": 2,
+      "normalizedAverage": 7.3,
+      "goalsCovered": [
+        "Transitions within 2 minutes with no more than one prompt."
+      ],
+      "targetsCovered": [
+        "Transitioning"
+      ],
+      "lastContributionDate": "2026-06-15T00:00:00.000Z",
+      "relevanceScore": 27.3,
+      "matchedDomains": [
+        "Adaptive"
+      ],
+      "evidenceWeight": {
+        "assessmentCount": 2,
+        "sessionCount": 2,
+        "recencyScore": 10,
+        "domainCoverage": 1
+      }
+    },
+    {
+      "providerId": "provider-aba",
+      "providerName": "Maya Chen",
+      "providerRole": "BehaviorTherapist",
+      "domain": "Behavior",
+      "assessmentCount": 2,
+      "sessionCount": 2,
+      "normalizedAverage": 7.5,
+      "goalsCovered": [
+        "Frequency count"
+      ],
+      "targetsCovered": [
+        "Aggression"
+      ],
+      "lastContributionDate": "2026-06-15T00:00:00.000Z",
+      "relevanceScore": 26.5,
+      "matchedDomains": [
+        "Behavior"
+      ],
+      "evidenceWeight": {
+        "assessmentCount": 2,
+        "sessionCount": 2,
+        "recencyScore": 9,
+        "domainCoverage": 1
+      }
+    },
+    {
+      "providerId": "provider-slp",
+      "providerName": "Noah Patel",
+      "providerRole": "SpeechPathologist",
+      "domain": "Communication",
+      "assessmentCount": 1,
+      "sessionCount": 1,
+      "normalizedAverage": 5,
+      "goalsCovered": [
+        "Requests preferred item using AAC or speech in 4 of 5 opportunities."
+      ],
+      "targetsCovered": [
+        "Functional Communication"
+      ],
+      "lastContributionDate": "2026-06-03T00:00:00.000Z",
+      "relevanceScore": 18,
+      "matchedDomains": [
+        "Communication"
+      ],
+      "evidenceWeight": {
+        "assessmentCount": 1,
+        "sessionCount": 1,
+        "recencyScore": 8,
+        "domainCoverage": 1
+      }
+    }
+  ],
+  "primaryContributors": [
+    {
+      "providerId": "provider-aba",
+      "providerName": "Maya Chen",
+      "providerRole": "BehaviorTherapist",
+      "domain": "Adaptive",
+      "assessmentCount": 2,
+      "sessionCount": 2,
+      "normalizedAverage": 7.3,
+      "goalsCovered": [
+        "Transitions within 2 minutes with no more than one prompt."
+      ],
+      "targetsCovered": [
+        "Transitioning"
+      ],
+      "lastContributionDate": "2026-06-15T00:00:00.000Z",
+      "relevanceScore": 27.3,
+      "matchedDomains": [
+        "Adaptive"
+      ],
+      "evidenceWeight": {
+        "assessmentCount": 2,
+        "sessionCount": 2,
+        "recencyScore": 10,
+        "domainCoverage": 1
+      }
+    },
+    {
+      "providerId": "provider-aba",
+      "providerName": "Maya Chen",
+      "providerRole": "BehaviorTherapist",
+      "domain": "Behavior",
+      "assessmentCount": 2,
+      "sessionCount": 2,
+      "normalizedAverage": 7.5,
+      "goalsCovered": [
+        "Frequency count"
+      ],
+      "targetsCovered": [
+        "Aggression"
+      ],
+      "lastContributionDate": "2026-06-15T00:00:00.000Z",
+      "relevanceScore": 26.5,
+      "matchedDomains": [
+        "Behavior"
+      ],
+      "evidenceWeight": {
+        "assessmentCount": 2,
+        "sessionCount": 2,
+        "recencyScore": 9,
+        "domainCoverage": 1
+      }
+    },
+    {
+      "providerId": "provider-slp",
+      "providerName": "Noah Patel",
+      "providerRole": "SpeechPathologist",
+      "domain": "Communication",
+      "assessmentCount": 1,
+      "sessionCount": 1,
+      "normalizedAverage": 5,
+      "goalsCovered": [
+        "Requests preferred item using AAC or speech in 4 of 5 opportunities."
+      ],
+      "targetsCovered": [
+        "Functional Communication"
+      ],
+      "lastContributionDate": "2026-06-03T00:00:00.000Z",
+      "relevanceScore": 18,
+      "matchedDomains": [
+        "Communication"
+      ],
+      "evidenceWeight": {
+        "assessmentCount": 1,
+        "sessionCount": 1,
+        "recencyScore": 8,
+        "domainCoverage": 1
+      }
+    }
+  ],
+  "secondaryContributors": []
+}

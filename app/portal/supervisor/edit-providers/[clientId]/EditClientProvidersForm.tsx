@@ -14,6 +14,7 @@ type Props = {
   clientId: string;
   onSubmit: (formData: FormData) => void | Promise<void>;
   initialFullName: string;
+  initialReceivesPrescribedMedication: boolean;
   providers: ProviderRow[];
   initiallyAssignedProviderIds: string[];
   roleOrder: string[];
@@ -25,11 +26,14 @@ export default function EditClientProvidersForm({
   clientId,
   onSubmit,
   initialFullName,
+  initialReceivesPrescribedMedication,
   providers,
   initiallyAssignedProviderIds,
   roleOrder,
 }: Props) {
   const [fullName, setFullName] = useState(initialFullName);
+  const [receivesPrescribedMedication, setReceivesPrescribedMedication] =
+    useState(initialReceivesPrescribedMedication);
   const [selectedIds, setSelectedIds] = useState<string[]>(
     initiallyAssignedProviderIds
   );
@@ -77,6 +81,11 @@ export default function EditClientProvidersForm({
     <form action={onSubmit} className="provider-assignment-form" style={{ height: "100%" }}>
       <input type="hidden" name="clientId" value={clientId} />
       <input type="hidden" name="fullName" value={fullName} />
+      <input
+        type="hidden"
+        name="receivesPrescribedMedication"
+        value={receivesPrescribedMedication ? "true" : "false"}
+      />
       {selectedIds.map((providerId) => (
         <input
           key={providerId}
@@ -121,6 +130,43 @@ export default function EditClientProvidersForm({
               }}
             />
           </label>
+
+          <section style={{ display: "grid", gap: 10, marginBottom: 8 }}>
+            <div style={{ fontWeight: 600, color: "rgb(0 0 0 / 76%)" }}>
+              Client Context
+            </div>
+            <fieldset
+              style={{
+                border: "none",
+                padding: 0,
+                margin: 0,
+                display: "grid",
+                gap: 8,
+              }}
+            >
+              <legend style={{ padding: 0, marginBottom: 2 }}>
+                Does the client receive prescribed medication?
+              </legend>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input
+                  type="radio"
+                  name="medicationChoice"
+                  checked={receivesPrescribedMedication}
+                  onChange={() => setReceivesPrescribedMedication(true)}
+                />
+                <span>Yes</span>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input
+                  type="radio"
+                  name="medicationChoice"
+                  checked={!receivesPrescribedMedication}
+                  onChange={() => setReceivesPrescribedMedication(false)}
+                />
+                <span>No</span>
+              </label>
+            </fieldset>
+          </section>
 
           {selectedProviders.length === 0 && (
             <div style={{ opacity: 0.6 }}>No providers selected yet.</div>

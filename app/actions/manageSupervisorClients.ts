@@ -60,6 +60,8 @@ export async function updateClientAssignments(formData: FormData): Promise<void>
 
   const clientId = formData.get("clientId")?.toString();
   const fullNameValue = formData.get("fullName")?.toString().trim() ?? "";
+  const receivesPrescribedMedication =
+    formData.get("receivesPrescribedMedication") === "true";
   if (!clientId) {
     throw new Error("Missing client id");
   }
@@ -95,7 +97,7 @@ export async function updateClientAssignments(formData: FormData): Promise<void>
   await db.$transaction(async (tx) => {
     await tx.client.update({
       where: { id: clientId },
-      data: { firstName, lastName },
+      data: { firstName, lastName, receivesPrescribedMedication },
     });
 
     const existing = await tx.providerClient.findMany({

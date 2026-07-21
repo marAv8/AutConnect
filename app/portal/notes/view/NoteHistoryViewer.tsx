@@ -1,42 +1,39 @@
 "use client";
 
-import Link from "next/link";
-import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import OverlayContainer from "@/components/ui/OverlayContainer";
+/**
+ * Detailed provider-note reader opened from a provider badge.
+ * This is the evidence layer beneath the client handoff: it preserves authorship,
+ * provider-specific sections, recent-note navigation, and raw session details.
+ */
 
-type EntryItem = {
-  id: string;
-  note: string;
-  date: string;
-  finalScore: number | null;
-  providerName: string;
-  providerRole: string;
-  items: Array<{
-    target: string;
-    goal: string;
-    score: number | null;
-    metricType: "Percentage" | "Frequency" | "Duration" | "Subjective" | null;
-    domain:
-      | "Behavior"
-      | "SkillAcquisition"
-      | "Communication"
-      | "Adaptive"
-      | "Regulation"
-      | "Other"
-      | null;
-    rawValue: number | null;
-    supportLevel: number | null;
-    goalDefinition: {
-      targetValue: number | null;
-      comparison: "LessThan" | "GreaterThan" | "Equal" | null;
-    } | null;
-  }>;
-};
+import Link from "next/link";
+import { useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import OverlayContainer from "@/components/ui/OverlayContainer";
+import { formatClinicalDateTime } from "@/app/libs/dateTime";
+import type { NoteHistoryEntry, SupervisorObservation } from "./noteHistoryTypes";
+import {
+  entryKindTitle,
+  formatDomain,
+  formatEducatorResponse,
+  formatMetricValue,
+  getAbcObservation,
+  getDomainScores,
+  getItemPercent,
+  groupCaretakerEntriesByDay,
+  parseSensoryObservations,
+  parseSupervisorObservation,
+} from "./noteHistoryModel";
+import {
+  CollapsibleRecordSection,
+  NotePreviewCard,
+  SensoryObservationSection,
+  SupervisorObservationSection,
+} from "./NoteHistorySections";
 
 type Props = {
   clientId: string;
   clientInitials: string;
-  entries: EntryItem[];
+  entries: NoteHistoryEntry[];
   variant?: "page" | "overlay";
   backLabel?: string;
   onClose?: () => void;
@@ -68,10 +65,11 @@ export default function NoteHistoryViewer({
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartXRef = useRef<number | null>(null);
+  const displayEntries = useMemo(() => groupCaretakerEntriesByDay(entries), [entries]);
 
-  const current = entries[index];
-  const olderEntry = index < entries.length - 1 ? entries[index + 1] : null;
-  const newerEntry = index > 0 ? entries[index - 1] : null;
+  const current = displayEntries[index];
+  const olderEntry = index < displayEntries.length - 1 ? displayEntries[index + 1] : null;
+  const newerEntry = index > 0 ? displayEntries[index - 1] : null;
   const canNavigateOlder = olderEntry !== null;
   const canNavigateNewer = newerEntry !== null;
   const canNavigate = canNavigateOlder || canNavigateNewer;
@@ -99,6 +97,62 @@ export default function NoteHistoryViewer({
     overallPercent !== null ||
     domainScores.length > 0 ||
     scoreRange !== null;
+  const hasTargets = current?.items.length > 0;
+  const noteAbcObservation = getAbcObservation(current?.note ?? "");
+  const sensoryObservations =
+    current?.sensoryObservations?.length
+      ? current.sensoryObservations
+      : current?.kind === "SensoryObservation"
+      ? parseSensoryObservations(current.contextData)
+      : [];
+  const communicationObservations =
+    current?.communicationObservations?.length
+      ? current.communicationObservations
+      : current?.kind === "CommunicationObservation"
+        ? parseSensoryObservations(current.contextData)
+        : [];
+  const isSupervisorObservationEntry = current?.kind === "SupervisorObservation";
+  const isClinicalNoteEntry = current?.kind === "ClinicalNote";
+  const supervisorObservations =
+    current?.providerRole === "Supervisor"
+      ? displayEntries
+          .filter(
+            (entry) =>
+              entry.kind === "SupervisorObservation" &&
+              entry.providerName === current.providerName &&
+              entry.date.slice(0, 10) === current.date.slice(0, 10)
+          )
+          .map((entry) =>
+            parseSupervisorObservation(
+              entry.contextData,
+              entry.note,
+              entry.date,
+              entry.providerName
+            )
+          )
+          .filter((entry): entry is SupervisorObservation => entry !== null)
+      : [];
+  const isSensoryObservationEntry = current?.kind === "SensoryObservation";
+  const isCommunicationObservationEntry = current?.kind === "CommunicationObservation";
+  const isEducatorClassroomProgress =
+    (current?.providerRole === "Educator" ||
+      current?.providerRole === "Behavior Technician" ||
+      current?.providerRole === "Occupational Therapist" ||
+      current?.providerRole === "Speech Pathologist") &&
+    ((current.kind ?? "SessionNote") === "SessionNote" ||
+      current.kind === "SpeechProgress") &&
+    current.items.length > 0;
+  const isBehaviorTechnicianProgress = current?.providerRole === "Behavior Technician";
+  const isOtProgress = current?.providerRole === "Occupational Therapist";
+  const isSpeechProgress = current?.providerRole === "Speech Pathologist";
+  const progressSectionTitle = isSpeechProgress
+    ? "Speech Progress"
+    : isOtProgress
+      ? "Therapy Progress"
+      : isBehaviorTechnicianProgress
+        ? "Session Progress"
+        : "Classroom Progress";
+  const isInProgressNote = current?.status && current.status !== "COMPLETED";
 
   const showOlder = () => {
     setDragOffset(0);
@@ -106,7 +160,7 @@ export default function NoteHistoryViewer({
       return;
     }
 
-    setIndex((value) => Math.min(entries.length - 1, value + 1));
+    setIndex((value) => Math.min(displayEntries.length - 1, value + 1));
   };
 
   const showNewer = () => {
@@ -120,6 +174,11 @@ export default function NoteHistoryViewer({
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (!canNavigate) {
+      return;
+    }
+
+    const target = event.target as HTMLElement;
+    if (target.closest("button, a, input, textarea, select, summary, details")) {
       return;
     }
 
@@ -313,68 +372,220 @@ export default function NoteHistoryViewer({
                   {current.providerName} -- {current.providerRole}
                 </div>
                 <div>{new Date(current.date).toLocaleDateString()}</div>
+                {isInProgressNote ? (
+                  <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600 }}>
+                    In progress
+                  </div>
+                ) : null}
               </div>
 
-              {hasComment ? (
-                <div
-                  style={{
-                    whiteSpace: "pre-wrap",
-                    border: "none",
-                    borderRadius: 14,
-                    padding: 12,
-                    marginBottom: 16,
-                    minHeight: 64,
-                    flex: "0 0 auto",
-                    boxShadow:
-                      "inset 0 2px 3px rgb(0 0 0 / 10%), inset 0 1px 1px rgb(0 0 0 / 5%), inset 0 -2px 2px rgb(255 255 255 / 42%)",
-                  }}
-                >
-                  {current.note}
-                </div>
+              {current.caretakerContextSections?.length ? (
+                <>
+                  {current.caretakerContextSections.map((section) => (
+                    <CollapsibleRecordSection
+                      key={section.entryId}
+                      title={entryKindTitle(section.kind)}
+                    >
+                      <div style={{ whiteSpace: "pre-wrap" }}>{section.note}</div>
+                    </CollapsibleRecordSection>
+                  ))}
+                </>
+              ) : isEducatorClassroomProgress ? (
+                <>
+                  <CollapsibleRecordSection title={progressSectionTitle}>
+                    <div style={{ display: "grid", gap: 10 }}>
+                      {current.items.map((item) => (
+                        <div key={`${item.target}-${item.goal}`}>
+                          <div style={{ fontWeight: 600 }}>{item.target}</div>
+                          <div style={{ opacity: 0.76 }}>{item.goal}</div>
+                          <div style={{ opacity: 0.72 }}>
+                            {formatEducatorResponse(
+                              item,
+                              isOtProgress,
+                              isSpeechProgress,
+                              isBehaviorTechnicianProgress
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CollapsibleRecordSection>
+
+                  {isOtProgress && sensoryObservations.length > 0 ? (
+                    <SensoryObservationSection
+                      title="Sensory Observation Summary"
+                      observations={sensoryObservations}
+                      fallbackDate={current.date}
+                      fallbackAuthor={current.providerName}
+                    />
+                  ) : null}
+
+                  {isSpeechProgress && communicationObservations.length > 0 ? (
+                    <SensoryObservationSection
+                      title="Communication Observations"
+                      observations={communicationObservations}
+                      fallbackDate={current.date}
+                      fallbackAuthor={current.providerName}
+                    />
+                  ) : null}
+
+                  {hasComment ? (
+                    <CollapsibleRecordSection title="Provider Note">
+                      <div style={{ whiteSpace: "pre-wrap" }}>{current.note}</div>
+                    </CollapsibleRecordSection>
+                  ) : null}
+                </>
+              ) : isSupervisorObservationEntry ? (
+                supervisorObservations.length > 0 ? (
+                  <SupervisorObservationSection
+                    title="Observation"
+                    observations={supervisorObservations}
+                    fallbackDate={current.date}
+                    fallbackAuthor={current.providerName}
+                  />
+                ) : hasComment ? (
+                  <CollapsibleRecordSection title="Observation">
+                    <div style={{ whiteSpace: "pre-wrap" }}>{current.note}</div>
+                  </CollapsibleRecordSection>
+                ) : null
+              ) : isClinicalNoteEntry ? (
+                <>
+                  {supervisorObservations.length > 0 ? (
+                    <SupervisorObservationSection
+                      title="Observation"
+                      observations={supervisorObservations}
+                      fallbackDate={current.date}
+                      fallbackAuthor={current.providerName}
+                    />
+                  ) : null}
+                  {hasComment ? (
+                    <CollapsibleRecordSection title="Clinical Note">
+                      <div style={{ whiteSpace: "pre-wrap" }}>{current.note}</div>
+                    </CollapsibleRecordSection>
+                  ) : null}
+                </>
+              ) : isSensoryObservationEntry ? (
+                sensoryObservations.length > 0 ? (
+                  <SensoryObservationSection
+                    title="Sensory Observation Summary"
+                    observations={sensoryObservations}
+                    fallbackDate={current.date}
+                    fallbackAuthor={current.providerName}
+                  />
+                ) : (
+                  <CollapsibleRecordSection title="Sensory Observation Summary">
+                    <div style={{ whiteSpace: "pre-wrap" }}>{current.note}</div>
+                  </CollapsibleRecordSection>
+                )
+              ) : isCommunicationObservationEntry ? (
+                communicationObservations.length > 0 ? (
+                  <SensoryObservationSection
+                    title="Communication Observations"
+                    observations={communicationObservations}
+                    fallbackDate={current.date}
+                    fallbackAuthor={current.providerName}
+                  />
+                ) : (
+                  <CollapsibleRecordSection title="Communication Observations">
+                    <div style={{ whiteSpace: "pre-wrap" }}>{current.note}</div>
+                  </CollapsibleRecordSection>
+                )
+              ) : hasComment ? (
+                <CollapsibleRecordSection title={entryKindTitle(current.kind)}>
+                  <div style={{ whiteSpace: "pre-wrap" }}>{current.note}</div>
+                </CollapsibleRecordSection>
               ) : null}
 
-              {hasSummary ? (
-                <div
-                  style={{
-                    marginBottom: 16,
-                    flex: "1 1 auto",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: hasComment ? "flex-start" : "center",
-                  }}
-                >
-                  <div style={{ marginBottom: 10, fontWeight: 600 }}>Summary</div>
-                  <div
-                    style={{
-                      border: "none",
-                      borderRadius: 14,
-                      padding: 12,
-                      display: "grid",
-                      gap: 8,
-                      boxShadow:
-                        "inset 0 2px 3px rgb(0 0 0 / 10%), inset 0 1px 1px rgb(0 0 0 / 5%), inset 0 -2px 2px rgb(255 255 255 / 42%)",
-                    }}
-                  >
+              {!isEducatorClassroomProgress &&
+              !isSupervisorObservationEntry &&
+              !isClinicalNoteEntry &&
+              !isSensoryObservationEntry &&
+              !isCommunicationObservationEntry &&
+              hasSummary ? (
+                <CollapsibleRecordSection title="Assessment Summary">
+                  <div style={{ display: "grid", gap: 8 }}>
                     {highestScore !== null ? <div>Highest: {highestScore}%</div> : null}
                     {lowestScore !== null ? <div>Lowest: {lowestScore}%</div> : null}
                     {overallPercent !== null ? <div>Overall: {overallPercent}%</div> : null}
-                    {domainScores.length > 0 ? (
-                      <div style={{ display: "grid", gap: 4 }}>
-                        {domainScores.map((domainScore) => (
-                          <div key={domainScore.domain}>
-                            {formatDomain(domainScore.domain)}: {domainScore.percent}%
-                          </div>
-                        ))}
+                    {domainScores.map((domainScore) => (
+                      <div key={domainScore.domain}>
+                        {formatDomain(domainScore.domain)}: {domainScore.percent}%
                       </div>
-                    ) : null}
+                    ))}
                     {scoreRange !== null ? (
                       <div style={{ marginTop: 4, opacity: 0.72 }}>
                         Spread: {scoreRange} points between the highest and lowest entries.
                       </div>
                     ) : null}
                   </div>
-                </div>
+                </CollapsibleRecordSection>
               ) : null}
+
+              {current.clinicalReflection ? (
+                <CollapsibleRecordSection title="Clinical Reflection">
+                  <div style={{ display: "grid", gap: 8, whiteSpace: "pre-wrap" }}>
+                    {current.clinicalReflection}
+                  </div>
+                </CollapsibleRecordSection>
+              ) : null}
+
+              {!isEducatorClassroomProgress &&
+              !isSupervisorObservationEntry &&
+              !isClinicalNoteEntry &&
+              !isSensoryObservationEntry &&
+              !isCommunicationObservationEntry &&
+              hasTargets ? (
+                <CollapsibleRecordSection title="Targets">
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {current.items.map((item) => {
+                      const percent = getItemPercent(item);
+                      return (
+                        <div key={`${item.target}-${item.goal}`}>
+                          <div style={{ fontWeight: 600 }}>{item.target}</div>
+                          <div style={{ opacity: 0.76 }}>{item.goal}</div>
+                          <div style={{ opacity: 0.72 }}>
+                            {formatMetricValue(item, percent)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CollapsibleRecordSection>
+              ) : null}
+
+              {current.abcObservations.length > 0 || noteAbcObservation ? (
+                <CollapsibleRecordSection title="A-B-C Data">
+                  {current.abcObservations.length > 0 ? (
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {current.abcObservations.map((observation, observationIndex) => (
+                      <div key={observation.id} style={{ display: "grid", gap: 4 }}>
+                        {current.abcObservations.length > 1 ? (
+                          <div style={{ fontWeight: 600 }}>Observation {observationIndex + 1}</div>
+                        ) : null}
+                        <div>
+                          <span style={{ fontWeight: 600 }}>Antecedent: </span>
+                          {observation.antecedent}
+                        </div>
+                        <div>
+                          <span style={{ fontWeight: 600 }}>Behavior: </span>
+                          {observation.behavior}
+                        </div>
+                        <div>
+                          <span style={{ fontWeight: 600 }}>Consequence: </span>
+                          {observation.consequence}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  ) : (
+                    <div style={{ whiteSpace: "pre-wrap" }}>{noteAbcObservation}</div>
+                  )}
+                </CollapsibleRecordSection>
+              ) : null}
+
+              <CollapsibleRecordSection title="Timestamp">
+                <div>{formatClinicalDateTime(current.completedAt ?? current.date)}</div>
+              </CollapsibleRecordSection>
             </div>
           </div>
 
@@ -431,148 +642,4 @@ export default function NoteHistoryViewer({
   }
 
   return content;
-}
-
-function NotePreviewCard({
-  entry,
-  side,
-  variant,
-  transform,
-  transition,
-}: {
-  entry: EntryItem | null;
-  side: "left" | "right";
-  variant: "page" | "overlay";
-  transform: string;
-  transition: string;
-}) {
-  if (!entry) {
-    return <div aria-hidden="true" />;
-  }
-
-  const overallPercent =
-    entry.finalScore !== null && entry.finalScore !== undefined ? entry.finalScore * 10 : null;
-
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        justifySelf: side === "left" ? "end" : "start",
-        width: 220,
-        height: 320,
-        boxSizing: "border-box",
-        overflow: "hidden",
-        padding: 24,
-        border:
-          variant === "overlay"
-            ? "1px solid rgb(0 0 0 / 14%)"
-            : "1px solid rgb(0 0 0 / 12%)",
-        borderRadius: 18,
-        background: "var(--surface-raised)",
-        color: "rgb(0 0 0 / 76%)",
-        opacity: variant === "overlay" ? undefined : 0.42,
-        position: "relative",
-        zIndex: 1,
-        transform,
-        transition,
-        pointerEvents: "none",
-        boxShadow: "var(--shadow-soft), var(--inset-paper)",
-        willChange: "transform",
-      }}
-    >
-      <div style={{ marginBottom: 16, fontSize: 13, opacity: 0.72 }}>
-        <div>{entry.providerName}</div>
-        <div>{entry.providerRole}</div>
-        <div>{new Date(entry.date).toLocaleDateString()}</div>
-      </div>
-      <div
-        style={{
-          whiteSpace: "pre-wrap",
-          fontSize: 13,
-          lineHeight: 1.4,
-          maxHeight: 160,
-          overflow: "hidden",
-          marginBottom: 14,
-        }}
-      >
-        {entry.note || "No comment."}
-      </div>
-      <div style={{ fontSize: 13, fontWeight: 600 }}>
-        Overall: {overallPercent !== null ? `${overallPercent}%` : "Not enough data"}
-      </div>
-    </div>
-  );
-}
-
-function getItemPercent(item: EntryItem["items"][number]) {
-  if (item.metricType === "Percentage" && typeof item.rawValue === "number") {
-    return clampPercent(item.rawValue);
-  }
-
-  if (item.metricType === "Subjective" && typeof item.score === "number") {
-    return clampPercent(item.score * 10);
-  }
-
-  if (
-    (item.metricType === "Frequency" || item.metricType === "Duration") &&
-    typeof item.rawValue === "number" &&
-    item.rawValue > 0 &&
-    typeof item.goalDefinition?.targetValue === "number" &&
-    item.goalDefinition.targetValue > 0
-  ) {
-    switch (item.goalDefinition.comparison) {
-      case "LessThan":
-        return clampPercent((item.goalDefinition.targetValue / item.rawValue) * 100);
-      case "GreaterThan":
-        return clampPercent((item.rawValue / item.goalDefinition.targetValue) * 100);
-      case "Equal":
-        return clampPercent(
-          (1 -
-            Math.abs(item.rawValue - item.goalDefinition.targetValue) /
-              item.goalDefinition.targetValue) *
-            100
-        );
-      default:
-        return null;
-    }
-  }
-
-  return null;
-}
-
-function clampPercent(value: number) {
-  return Math.max(0, Math.min(100, Math.round(value)));
-}
-
-function getDomainScores(items: EntryItem["items"]) {
-  const groups = new Map<string, number[]>();
-
-  for (const item of items) {
-    if (!item.domain) {
-      continue;
-    }
-
-    const percent = getItemPercent(item);
-    if (percent === null) {
-      continue;
-    }
-
-    const existing = groups.get(item.domain) ?? [];
-    existing.push(percent);
-    groups.set(item.domain, existing);
-  }
-
-  return Array.from(groups.entries()).map(([domain, scores]) => ({
-    domain,
-    percent: Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length),
-  }));
-}
-
-function formatDomain(domain: string) {
-  switch (domain) {
-    case "SkillAcquisition":
-      return "Skill acquisition";
-    default:
-      return domain;
-  }
 }

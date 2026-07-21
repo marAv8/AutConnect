@@ -1,51 +1,33 @@
 import ClientCarousel from "./ClientCarousel";
 import ModeContentFrame from "./ModeContentFrame";
-
-type ProviderClient = {
-  role: string;
-  provider: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
-};
-
-type EntryState = {
-  id: string;
-  providerId: string;
-  reads?: { readAt: Date | string | null }[];
-};
-
-type RecentEntryState = {
-  id: string;
-  providerId: string;
-};
-
-type Client = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  providerClients: ProviderClient[];
-  entries?: EntryState[];
-  recentEntries?: RecentEntryState[];
-};
+import type { DashboardClient, DashboardTeamFocus } from "./dashboardClientTypes";
 
 type Props = {
-  clients: Client[];
+  clients: DashboardClient[];
   currentProviderId: string;
+  viewerRole?: string;
   activeClientId?: string;
   onActiveClientChange: (clientId: string) => void;
   onEntryRead?: (clientId: string, authorProviderId: string) => void;
-  onEntrySaved?: (clientId: string, authorProviderId: string, entryId: string) => void;
+  onEntrySaved?: (
+    clientId: string,
+    authorProviderId: string,
+    entryId: string,
+    visibility?: "Private" | "Shared",
+    status?: string
+  ) => void;
+  onTeamFocusSaved?: (clientId: string, teamFocus: DashboardTeamFocus) => void;
 };
 
 export default function OrbitView({
   clients,
   currentProviderId,
+  viewerRole,
   activeClientId,
   onActiveClientChange,
   onEntryRead,
   onEntrySaved,
+  onTeamFocusSaved,
 }: Props) {
   if (clients.length === 0) return null;
 
@@ -55,10 +37,12 @@ export default function OrbitView({
         key={activeClientId ?? "orbit"}
         clients={clients}
         currentProviderId={currentProviderId}
+        viewerRole={viewerRole}
         initialClientId={activeClientId}
         onActiveClientChange={onActiveClientChange}
         onEntryRead={onEntryRead}
         onEntrySaved={onEntrySaved}
+        onTeamFocusSaved={onTeamFocusSaved}
       />
     </ModeContentFrame>
   );

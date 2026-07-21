@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
+import { EntryKind } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export async function updateSupervisorNote(formData: FormData) {
@@ -30,10 +31,11 @@ export async function updateSupervisorNote(formData: FormData) {
 
   const existingEntry = await db.entry.findUnique({
     where: {
-      providerId_clientId_date: {
+      providerId_clientId_date_kind: {
         providerId: session.providerId,
         clientId,
         date: today,
+        kind: EntryKind.SessionNote,
       },
     },
     select: { id: true },
