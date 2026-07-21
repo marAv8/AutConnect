@@ -1,54 +1,9 @@
 import ClientCarousel from "./ClientCarousel";
 import ModeContentFrame from "./ModeContentFrame";
-
-type ProviderClient = {
-  role: string;
-  provider: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
-};
-
-type EntryState = {
-  id: string;
-  providerId: string;
-  kind?: string;
-  visibility?: string;
-  status?: string;
-  reads?: { readAt: Date | string | null }[];
-};
-
-type RecentEntryState = {
-  id: string;
-  providerId: string;
-  status?: string;
-};
-
-type Client = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  providerClients: ProviderClient[];
-  entries?: EntryState[];
-  recentEntries?: RecentEntryState[];
-  teamFocusItems?: TeamFocusData[];
-};
-
-type TeamFocusData = {
-  id: string;
-  title?: string | null;
-  content: string;
-  updatedAt: Date | string;
-  author: {
-    firstName: string;
-    lastName: string;
-    role: string;
-  };
-};
+import type { DashboardClient, DashboardTeamFocus } from "./dashboardClientTypes";
 
 type Props = {
-  clients: Client[];
+  clients: DashboardClient[];
   currentProviderId: string;
   viewerRole?: string;
   activeClientId?: string;
@@ -61,7 +16,7 @@ type Props = {
     visibility?: "Private" | "Shared",
     status?: string
   ) => void;
-  onTeamFocusSaved?: (clientId: string, teamFocus: TeamFocusData) => void;
+  onTeamFocusSaved?: (clientId: string, teamFocus: DashboardTeamFocus) => void;
 };
 
 export default function OrbitView({

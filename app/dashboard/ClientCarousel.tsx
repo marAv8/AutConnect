@@ -15,6 +15,13 @@ import DashboardAbcDataOverlay from "./DashboardAbcDataOverlay";
 import DashboardClientHandoffOverlay from "./DashboardClientHandoffOverlay";
 import DashboardNoteOverlay from "./DashboardNoteOverlay";
 import DashboardTeamFocusOverlay from "./DashboardTeamFocusOverlay";
+import { ClientCarouselNavigation } from "./ClientCarouselNavigation";
+import { applyDashboardEntryMutations } from "./clientCarouselModel";
+import type {
+  DashboardClient,
+  DashboardEntryMutation,
+  DashboardTeamFocus,
+} from "./dashboardClientTypes";
 
 type OverlayType =
   | "view"
@@ -27,48 +34,8 @@ type OverlayType =
   | "educatorTarget"
   | null;
 
-type TeamFocusData = {
-  id: string;
-  title?: string | null;
-  content: string;
-  updatedAt: Date | string;
-  author: {
-    firstName: string;
-    lastName: string;
-    role: string;
-  };
-};
-
-type CarouselClient = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  providerClients: {
-    role: string;
-    provider: {
-      id: string;
-      firstName: string;
-      lastName: string;
-    };
-  }[];
-  entries?: {
-    id: string;
-    providerId: string;
-    kind?: string;
-    visibility?: string;
-    status?: string;
-    reads?: { readAt: Date | string | null }[];
-  }[];
-  recentEntries?: {
-    id: string;
-    providerId: string;
-    status?: string;
-  }[];
-  teamFocusItems?: TeamFocusData[];
-};
-
 type ClientCarouselProps = {
-  clients: CarouselClient[];
+  clients: DashboardClient[];
   currentProviderId: string;
   viewerRole?: string;
   initialClientId?: string;
@@ -81,24 +48,11 @@ type ClientCarouselProps = {
     visibility?: "Private" | "Shared",
     status?: string
   ) => void;
-  onTeamFocusSaved?: (clientId: string, teamFocus: TeamFocusData) => void;
+  onTeamFocusSaved?: (clientId: string, teamFocus: DashboardTeamFocus) => void;
 };
 
-type EntryMutation =
-  | {
-      type: "read";
-      clientId: string;
-      authorProviderId: string;
-    }
-  | {
-      type: "saved";
-      clientId: string;
-      authorProviderId: string;
-      entryId: string;
-      kind?: string;
-      visibility?: string;
-      status?: string;
-    };
+const SCENE_WIDTH = 980;
+const SCENE_SIDE_PADDING = 24;
 
 export default function ClientCarousel({
   clients,
@@ -110,33 +64,9 @@ export default function ClientCarousel({
   onEntrySaved,
   onTeamFocusSaved,
 }: ClientCarouselProps) {
-  const SCENE_WIDTH = 980;
-  const SCENE_SIDE_PADDING = 24;
-  const NAV_BUTTON_SIZE = 44;
-
-  const [entryMutations, setEntryMutations] = useState<EntryMutation[]>([]);
+  const [entryMutations, setEntryMutations] = useState<DashboardEntryMutation[]>([]);
   const visibleClients = useMemo(
-    () =>
-      entryMutations.reduce((currentClients, mutation) => {
-        if (mutation.type === "read") {
-          return updateClientEntriesReadState(
-            currentClients,
-            mutation.clientId,
-            mutation.authorProviderId
-          );
-        }
-
-        return updateClientEntrySavedState(
-          currentClients,
-        mutation.clientId,
-        mutation.authorProviderId,
-        mutation.entryId,
-        mutation.kind,
-        mutation.visibility,
-        mutation.status,
-        currentProviderId
-      );
-      }, clients),
+    () => applyDashboardEntryMutations(clients, entryMutations, currentProviderId),
     [clients, currentProviderId, entryMutations]
   );
   const initialIndex = (() => {
@@ -329,69 +259,13 @@ export default function ClientCarousel({
           height: "100%",
         }}
       >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: `${NAV_BUTTON_SIZE}px minmax(72px, auto) ${NAV_BUTTON_SIZE}px`,
-            alignItems: "center",
-            justifyContent: "center",
-            columnGap: 24,
-            color: "rgb(0 0 0 / 64%)",
-            fontSize: 16,
-            fontWeight: 500,
-            lineHeight: 1,
-          }}
-        >
-          <button
-            type="button"
-            onClick={prev}
-            disabled={visibleClients.length <= 1}
-            style={{
-              width: NAV_BUTTON_SIZE,
-              height: NAV_BUTTON_SIZE,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 36,
-              lineHeight: 1,
-              background: "none",
-              border: "none",
-              cursor: visibleClients.length > 1 ? "pointer" : "default",
-              color: "rgb(0 0 0 / 60%)",
-              opacity: visibleClients.length > 1 ? 1 : 0,
-            }}
-            aria-label="Previous client"
-          >
-            ‹
-          </button>
-
-          <div style={{ textAlign: "center" }}>
-            {shouldShowPosition ? `${safeIndex + 1} of ${visibleClients.length}` : null}
-          </div>
-
-          <button
-            type="button"
-            onClick={next}
-            disabled={visibleClients.length <= 1}
-            style={{
-              width: NAV_BUTTON_SIZE,
-              height: NAV_BUTTON_SIZE,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 36,
-              lineHeight: 1,
-              background: "none",
-              border: "none",
-              cursor: visibleClients.length > 1 ? "pointer" : "default",
-              color: "rgb(0 0 0 / 60%)",
-              opacity: visibleClients.length > 1 ? 1 : 0,
-            }}
-            aria-label="Next client"
-          >
-            ›
-          </button>
-        </div>
+        <ClientCarouselNavigation
+          currentIndex={safeIndex}
+          clientCount={visibleClients.length}
+          showPosition={shouldShowPosition}
+          onPrevious={prev}
+          onNext={next}
+        />
 
         <ClientOrbit
           key={client.id}
@@ -501,7 +375,7 @@ function TeamFocusReadOverlay({
   teamFocus,
   onClose,
 }: {
-  teamFocus: TeamFocusData | null;
+  teamFocus: DashboardTeamFocus | null;
   onClose: () => void;
 }) {
   const authorName = teamFocus
@@ -583,96 +457,4 @@ function teamFocusRoleLabel(role: string) {
     default:
       return role;
   }
-}
-
-function updateClientEntriesReadState(
-  clients: CarouselClient[],
-  clientId: string,
-  authorProviderId: string
-) {
-  const readAt = new Date();
-
-  return clients.map((client) => {
-    if (client.id !== clientId) return client;
-
-    return {
-      ...client,
-      entries: client.entries?.map((entry) =>
-        entry.providerId === authorProviderId
-          ? {
-              ...entry,
-              reads: [{ readAt }],
-            }
-          : entry
-      ),
-    };
-  });
-}
-
-function updateClientEntrySavedState(
-  clients: CarouselClient[],
-  clientId: string,
-  authorProviderId: string,
-  entryId: string,
-  kind: string | undefined,
-  visibility: string | undefined,
-  status: string | undefined,
-  currentProviderId: string
-) {
-  return clients.map((client) => {
-    if (client.id !== clientId) return client;
-
-    const entries = client.entries ?? [];
-    const hasEntry = entries.some((entry) => entry.id === entryId);
-    const nextEntry = {
-      id: entryId,
-      providerId: authorProviderId,
-      kind,
-      visibility,
-      status,
-      reads: visibility === "Private" ? [] : [{ readAt: null }],
-    };
-
-    return {
-      ...client,
-      entries: hasEntry
-        ? entries.map((entry) =>
-            entry.id === entryId
-              ? {
-                  ...entry,
-                  providerId: authorProviderId,
-                  kind: kind ?? entry.kind,
-                  visibility: visibility ?? entry.visibility,
-                  status: status ?? entry.status,
-                  reads:
-                    visibility === "Private"
-                      ? []
-                      : authorProviderId === currentProviderId
-                        ? [{ readAt: null }]
-                        : entry.reads,
-                }
-              : entry
-          )
-        : [...entries, nextEntry],
-      recentEntries: mergeRecentEntry(
-        client.recentEntries ?? [],
-        entryId,
-        authorProviderId,
-        status
-      ),
-    };
-  });
-}
-
-function mergeRecentEntry(
-  recentEntries: NonNullable<CarouselClient["recentEntries"]>,
-  entryId: string,
-  providerId: string,
-  status?: string
-) {
-  if (recentEntries.some((entry) => entry.id === entryId)) {
-    return recentEntries;
-  }
-
-  return [...recentEntries, { id: entryId, providerId, status }];
 }

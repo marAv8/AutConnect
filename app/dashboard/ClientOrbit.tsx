@@ -10,36 +10,11 @@ import { completeSessionNote } from "@/app/actions/completeSessionNote";
 import type { CaretakerContextKind } from "@/app/libs/caretakerContext";
 import type { DashboardEntryKind, NoteEntryKind } from "@/app/libs/entryKinds";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-
-type ProviderClient = {
-  role: string;
-  provider: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
-};
+import { CLIENT_ORBIT_LAYOUT, providerOrbitPoint } from "./clientOrbitLayout";
+import type { DashboardClient, DashboardEntryState } from "./dashboardClientTypes";
 
 type ClientOrbitProps = {
-  client: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    providerClients: ProviderClient[];
-    entries?: {
-      id: string;
-      providerId: string;
-      kind?: string;
-      visibility?: string;
-      status?: string;
-      reads?: { readAt: Date | string | null }[];
-    }[];
-    recentEntries?: {
-      id: string;
-      providerId: string;
-      status?: string;
-    }[];
-  };
+  client: DashboardClient;
   currentProviderId: string;
   viewerRole?: string;
   onOpenNotes: (providerId: string) => void;
@@ -100,10 +75,7 @@ const readableEntryKinds = new Set<DashboardEntryKind>([
   "EveningContext",
 ]);
 
-type EntryReadState = {
-  visibility?: string;
-  reads?: { readAt: Date | string | null }[];
-};
+type EntryReadState = Pick<DashboardEntryState, "visibility" | "reads">;
 
 function isReadableEntryKind(kind?: string) {
   return readableEntryKinds.has((kind ?? "SessionNote") as DashboardEntryKind);
@@ -119,75 +91,6 @@ function isUnreadForViewer(entry: EntryReadState) {
     entry.reads.length === 0 ||
     entry.reads.some((read) => read.readAt === null)
   );
-}
-
-function providerOrbitPoint(index: number, count: number, distance: number) {
-  const layouts: Record<number, Array<[number, number]>> = {
-    1: [[0, -1]],
-    2: [
-      [-1, 0],
-      [1, 0],
-    ],
-    3: [
-      [0, -1],
-      [0.88, 0.56],
-      [-0.88, 0.56],
-    ],
-    4: [
-      [0, -1],
-      [1, 0],
-      [0, 1],
-      [-1, 0],
-    ],
-    5: [
-      [0, -1],
-      [0.95, -0.3],
-      [0.62, 0.82],
-      [-0.62, 0.82],
-      [-0.95, -0.3],
-    ],
-    6: [
-      [0, -1],
-      [0.88, -0.5],
-      [0.88, 0.5],
-      [0, 1],
-      [-0.88, 0.5],
-      [-0.88, -0.5],
-    ],
-    7: [
-      [0, -1],
-      [0.78, -0.62],
-      [1, 0.16],
-      [0.44, 0.9],
-      [-0.44, 0.9],
-      [-1, 0.16],
-      [-0.78, -0.62],
-    ],
-    8: [
-      [0, -1],
-      [0.72, -0.72],
-      [1, 0],
-      [0.72, 0.72],
-      [0, 1],
-      [-0.72, 0.72],
-      [-1, 0],
-      [-0.72, -0.72],
-    ],
-  };
-
-  const point = layouts[count]?.[index];
-  if (point) {
-    return {
-      x: point[0] * distance,
-      y: point[1] * distance,
-    };
-  }
-
-  const angle = -Math.PI / 2 + (index / count) * 2 * Math.PI;
-  return {
-    x: Math.cos(angle) * distance,
-    y: Math.sin(angle) * distance,
-  };
 }
 
 export default function ClientOrbit({
@@ -227,11 +130,13 @@ export default function ClientOrbit({
     }
   };
 
-  const providerDistance = 144;
-  const orbitSize = 430;
-  const centerSize = 150;
-  const spokeSize = 88;
-  const badgeSize = 28;
+  const {
+    providerDistance,
+    orbitSize,
+    clientBadgeSize: centerSize,
+    providerBadgeSize: spokeSize,
+    actionBadgeSize: badgeSize,
+  } = CLIENT_ORBIT_LAYOUT;
 
   const providers = client.providerClients;
   const dismissOwnNotesPrompt = useCallback(() => {
@@ -289,6 +194,7 @@ export default function ClientOrbit({
   }, [dismissOwnNotesPrompt, menuProviderId]);
 
   return (
+    // This relative root is the containing block for every absolute orbit item.
     <div
       ref={orbitRef}
       onPointerDown={(event) => {
