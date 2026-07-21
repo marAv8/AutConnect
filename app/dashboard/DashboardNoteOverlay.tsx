@@ -1,10 +1,15 @@
 "use client";
 
 import { useEffect, useState, type ComponentProps } from "react";
+import type {
+  CaretakerContextCard,
+  CaretakerContextKind,
+} from "@/app/libs/caretakerContext";
+import type { NoteEntryKind } from "@/app/libs/entryKinds";
 import EntryForm from "@/app/portal/notes/add/EntryForm";
 import NoteHistoryViewer from "@/app/portal/notes/view/NoteHistoryViewer";
 
-type OverlayType = "view" | "add" | "update";
+type OverlayType = "view" | "add" | "update" | "educatorTarget";
 
 type EntryFormItem = {
   goalId: string;
@@ -20,9 +25,10 @@ type EntryFormItem = {
     | "Regulation"
     | "Other"
     | "";
-  rawValue: string;
-  supportLevel: string;
-};
+    rawValue: string;
+    supportLevel: string;
+    measurementProfile?: string | null;
+  };
 
 type FormOverlayData = {
   clientId: string;
@@ -31,11 +37,38 @@ type FormOverlayData = {
   clientName: string;
   providerName: string;
   providerRole: string;
+  targetOptions: TargetOption[];
+  noteKind?: NoteEntryKind;
+  contextKind?: CaretakerContextKind;
+  contextCards?: CaretakerContextCard[];
   mode: "create" | "edit";
   initialValues?: {
     note: string;
     items: EntryFormItem[];
+    visibility?: "Private" | "Shared";
+    contextValues?: Record<string, string>;
+    contextComment?: string;
   };
+  draft?: {
+    data: unknown;
+    updatedAt: string;
+  } | null;
+  draftWorkflowKey: string;
+};
+
+type TargetOption = {
+  value: string;
+  label: string;
+  recommendedMetricType: "Percentage" | "Frequency" | "Duration" | "Subjective";
+  defaultDomain:
+    | "Behavior"
+    | "SkillAcquisition"
+    | "Communication"
+    | "Adaptive"
+    | "Regulation"
+    | "Other";
+  description?: string;
+  tags?: string[];
 };
 
 type HistoryOverlayData = {
@@ -49,18 +82,29 @@ type Props = {
   overlayType: OverlayType;
   clientId: string;
   providerId: string;
+  noteKind?: NoteEntryKind | null;
+  contextKind?: CaretakerContextKind | null;
   onClose: () => void;
   onRead?: (authorProviderId: string) => void;
-  onSaved?: (authorProviderId: string, entryId: string) => void;
+  onSaved?: (
+    authorProviderId: string,
+    entryId: string,
+    visibility?: "Private" | "Shared",
+    status?: string
+  ) => void;
+  onReturnToProgress?: () => void;
 };
 
 export default function DashboardNoteOverlay({
   overlayType,
   clientId,
   providerId,
+  noteKind,
+  contextKind,
   onClose,
   onRead,
   onSaved,
+  onReturnToProgress,
 }: Props) {
   const [formData, setFormData] = useState<FormOverlayData | null>(null);
   const [historyData, setHistoryData] = useState<HistoryOverlayData | null>(null);
@@ -79,6 +123,15 @@ export default function DashboardNoteOverlay({
         const params = new URLSearchParams({ clientId });
         if (overlayType === "view") {
           params.set("authorProviderId", providerId);
+        } else if (overlayType === "educatorTarget") {
+          params.set("noteKind", noteKind ?? "SessionNote");
+          params.set("workflowKey", `${noteKind ?? "SessionNote"}:addTarget`);
+        } else if (contextKind) {
+          params.set("contextKind", contextKind);
+          params.set("workflowKey", contextKind);
+        } else if (noteKind) {
+          params.set("noteKind", noteKind);
+          params.set("workflowKey", noteKind);
         }
 
         const endpoint =
@@ -128,7 +181,7 @@ export default function DashboardNoteOverlay({
       isMounted = false;
       controller.abort();
     };
-  }, [clientId, onRead, overlayType, providerId]);
+  }, [clientId, contextKind, noteKind, onRead, overlayType, providerId]);
 
   if (status === "loading") {
     return (
@@ -173,7 +226,12 @@ export default function DashboardNoteOverlay({
     );
   }
 
-  if ((overlayType === "add" || overlayType === "update") && formData) {
+  if (
+    (overlayType === "add" ||
+      overlayType === "update" ||
+      overlayType === "educatorTarget") &&
+    formData
+  ) {
     return (
       <div>
         <div className="mb-6 flex items-center">
@@ -185,7 +243,8 @@ export default function DashboardNoteOverlay({
             {formData.role === "Caregiver" ? "Children" : "Client"}
           </button>
         </div>
-        <EntryForm
+          <EntryForm
+          key={`${overlayType}-${formData.noteKind ?? "SessionNote"}-${formData.clientId}-${formData.providerId}`}
           clientId={formData.clientId}
           providerId={formData.providerId}
           role={formData.role}
@@ -195,8 +254,19 @@ export default function DashboardNoteOverlay({
           providerRole={formData.providerRole}
           todayLabel={new Date().toLocaleDateString()}
           initialValues={formData.initialValues}
-          onSaved={(entryId) => onSaved?.(formData.providerId, entryId)}
+          draft={formData.draft}
+          draftWorkflowKey={formData.draftWorkflowKey}
+          targetOptions={formData.targetOptions}
+          noteKind={formData.noteKind}
+          contextKind={formData.contextKind}
+          contextCards={formData.contextCards}
+          educatorMode={overlayType === "educatorTarget" ? "addTarget" : undefined}
+          onSaved={(entryId, visibility, status) =>
+            onSaved?.(formData.providerId, entryId, visibility, status)
+          }
           onSubmitted={onClose}
+          onCancel={onClose}
+          onCancelToProgress={onReturnToProgress}
         />
       </div>
     );

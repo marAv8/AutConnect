@@ -32,7 +32,11 @@ export default async function EditClientProvidersPage({
 
   const client = await db.client.findUnique({
     where: { id: clientId },
-    select: { firstName: true, lastName: true },
+    select: {
+      firstName: true,
+      lastName: true,
+      receivesPrescribedMedication: true,
+    },
   });
   if (!client) {
     redirect("/portal/supervisor/edit-providers");
@@ -107,6 +111,7 @@ export default async function EditClientProvidersPage({
               clientId={clientId}
               onSubmit={updateClientAssignments}
               initialFullName={`${client.firstName} ${client.lastName}`}
+              initialReceivesPrescribedMedication={client.receivesPrescribedMedication}
               providers={providers}
               initiallyAssignedProviderIds={assignedProviderIds}
               roleOrder={roleOrder}

@@ -28,6 +28,8 @@ export type EntryItemDraft = {
   score: string;
   rawValue: string;
   supportLevel: string;
+  measurementType?: string;
+  measurementProfile?: string | null;
   isNewDraft?: boolean;
 };
 
@@ -126,7 +128,7 @@ export function isCompleteMetricInput(metricType: MetricType | "", value: string
 
   if (metricType === MetricType.Subjective) {
     const score = Number(trimmedValue);
-    return Number.isInteger(score) && score >= 1 && score <= 10;
+    return Number.isInteger(score) && score >= 0 && score <= 10;
   }
 
   return false;
@@ -180,7 +182,7 @@ export function normalizeItems(draftItems: EntryItemDraft[]): NormalizedEntryIte
         const subjectiveScore = Number(item.score);
         score =
           Number.isInteger(subjectiveScore) &&
-          subjectiveScore >= 1 &&
+          subjectiveScore >= 0 &&
           subjectiveScore <= 10
             ? subjectiveScore
             : null;
@@ -240,27 +242,57 @@ export function buildPayload({
   note,
   items,
   canSubmitCommentOnly,
+  kind = "SessionNote",
+  contextData,
+  visibility,
 }: {
   clientId: string;
   note: string;
   items: EntryItemDraft[];
   canSubmitCommentOnly: boolean;
+  kind?:
+    | "SessionNote"
+    | "MorningContext"
+    | "EveningContext"
+    | "SupervisorObservation"
+    | "ClinicalNote"
+    | "SensoryObservation"
+    | "SpeechProgress"
+    | "CommunicationObservation";
+  contextData?: unknown;
+  visibility?: "Private" | "Shared";
 }): EntryPayload {
   const normalizedItems = normalizeItems(items);
   const noteForSave = noteWithSubjectiveText(note, items);
   const hasComment = noteForSave.trim().length > 0;
+  const isContextEntry =
+    kind === "MorningContext" ||
+    kind === "EveningContext" ||
+    kind === "SupervisorObservation" ||
+    kind === "ClinicalNote" ||
+    kind === "SensoryObservation" ||
+    kind === "CommunicationObservation";
 
   if (
     normalizedItems.some((item) => "invalid" in item) ||
-    (normalizedItems.length === 0 && (!canSubmitCommentOnly || !hasComment))
+    (!isContextEntry &&
+      normalizedItems.length === 0 &&
+      (!canSubmitCommentOnly || !hasComment))
   ) {
     return { ok: false, noteForSave };
   }
 
   const formData = new FormData();
   formData.append("clientId", clientId);
+  formData.append("kind", kind);
+  if (visibility) {
+    formData.append("visibility", visibility);
+  }
   formData.append("note", noteForSave);
   formData.append("items", JSON.stringify(normalizedItems));
+  if (contextData !== undefined) {
+    formData.append("contextData", JSON.stringify(contextData));
+  }
 
   return {
     ok: true,

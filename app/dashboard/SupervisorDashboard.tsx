@@ -27,12 +27,16 @@ type ProviderClient = {
 type EntryState = {
   id: string;
   providerId: string;
+  kind?: string;
+  visibility?: string;
+  status?: string;
   reads?: { readAt: Date | string | null }[];
 };
 
 type RecentEntryState = {
   id: string;
   providerId: string;
+  status?: string;
 };
 
 type AssignedClient = {
@@ -42,6 +46,19 @@ type AssignedClient = {
   providerClients: ProviderClient[];
   entries?: EntryState[];
   recentEntries?: RecentEntryState[];
+  teamFocusItems?: TeamFocusData[];
+};
+
+type TeamFocusData = {
+  id: string;
+  title?: string | null;
+  content: string;
+  updatedAt: Date | string;
+  author: {
+    firstName: string;
+    lastName: string;
+    role: string;
+  };
 };
 
 type AvailableClient = {
@@ -343,7 +360,13 @@ export default function SupervisorDashboard({
   );
 
   const handleEntrySaved = useCallback(
-    (clientId: string, authorProviderId: string, entryId: string) => {
+    (
+      clientId: string,
+      authorProviderId: string,
+      entryId: string,
+      visibility?: "Private" | "Shared",
+      status?: string
+    ) => {
       setAssignedClientState((currentClients) =>
         currentClients.map((client) => {
           if (client.id !== clientId) return client;
@@ -359,8 +382,12 @@ export default function SupervisorDashboard({
                     ? {
                         ...entry,
                         providerId: authorProviderId,
+                        visibility: visibility ?? entry.visibility,
+                        status: status ?? entry.status,
                         reads:
-                          authorProviderId === currentProviderId
+                          visibility === "Private"
+                            ? []
+                            : authorProviderId === currentProviderId
                             ? [{ readAt: null }]
                             : entry.reads,
                       }
@@ -371,14 +398,16 @@ export default function SupervisorDashboard({
                   {
                     id: entryId,
                     providerId: authorProviderId,
-                    reads: [{ readAt: null }],
+                    visibility,
+                    status,
+                    reads: visibility === "Private" ? [] : [{ readAt: null }],
                   },
                 ],
             recentEntries: client.recentEntries?.some((entry) => entry.id === entryId)
               ? client.recentEntries
               : [
                   ...(client.recentEntries ?? []),
-                  { id: entryId, providerId: authorProviderId },
+                  { id: entryId, providerId: authorProviderId, status },
                 ],
           };
         })
@@ -442,10 +471,23 @@ export default function SupervisorDashboard({
         <OrbitView
           clients={assignedClientState}
           currentProviderId={currentProviderId}
+          viewerRole="Supervisor"
           activeClientId={activeClientId}
           onActiveClientChange={handleActiveClientChange}
           onEntryRead={handleEntryRead}
           onEntrySaved={handleEntrySaved}
+          onTeamFocusSaved={(clientId, teamFocus) => {
+            setAssignedClientState((currentClients) =>
+              currentClients.map((client) =>
+                client.id === clientId
+                  ? {
+                      ...client,
+                      teamFocusItems: [teamFocus],
+                    }
+                  : client
+              )
+            );
+          }}
         />
         {activeClient ? (
           <InsightsOverlay

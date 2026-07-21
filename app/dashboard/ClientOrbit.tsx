@@ -1,6 +1,9 @@
 //app/dashboard/ClientOrbit.tsx
 "use client";
 
+import { completeSessionNote } from "@/app/actions/completeSessionNote";
+import type { CaretakerContextKind } from "@/app/libs/caretakerContext";
+import type { DashboardEntryKind, NoteEntryKind } from "@/app/libs/entryKinds";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
 type ProviderClient = {
@@ -21,16 +24,29 @@ type ClientOrbitProps = {
     entries?: {
       id: string;
       providerId: string;
+      kind?: string;
+      visibility?: string;
+      status?: string;
       reads?: { readAt: Date | string | null }[];
     }[];
     recentEntries?: {
       id: string;
       providerId: string;
+      status?: string;
     }[];
   };
   currentProviderId: string;
+  viewerRole?: string;
   onOpenNotes: (providerId: string) => void;
-  onOpenEntryForm: (providerId: string, overlayType: "add" | "update") => void;
+  onOpenEntryForm: (
+    providerId: string,
+    overlayType: "add" | "update",
+    entryKind?: CaretakerContextKind | NoteEntryKind
+  ) => void;
+  onOpenAbcData: (providerId: string) => void;
+  onOpenTeamFocus: () => void;
+  onOpenClientHandoff: () => void;
+  onOpenEducatorTarget: (progressKind?: NoteEntryKind) => void;
 };
 
 const providerActionMenuStyle: CSSProperties = {
@@ -61,6 +77,44 @@ const providerActionLinkStyle: CSSProperties = {
   background: "transparent",
   textAlign: "center",
 };
+
+const abcDataRoles = new Set([
+  "Supervisor",
+  "BehaviorTherapist",
+  "Caregiver",
+]);
+
+const readableEntryKinds = new Set<DashboardEntryKind>([
+  "SessionNote",
+  "SupervisorObservation",
+  "ClinicalNote",
+  "SensoryObservation",
+  "SpeechProgress",
+  "CommunicationObservation",
+  "MorningContext",
+  "EveningContext",
+]);
+
+type EntryReadState = {
+  visibility?: string;
+  reads?: { readAt: Date | string | null }[];
+};
+
+function isReadableEntryKind(kind?: string) {
+  return readableEntryKinds.has((kind ?? "SessionNote") as DashboardEntryKind);
+}
+
+function isUnreadForViewer(entry: EntryReadState) {
+  if (entry.visibility === "Private") {
+    return false;
+  }
+
+  return (
+    !entry.reads ||
+    entry.reads.length === 0 ||
+    entry.reads.some((read) => read.readAt === null)
+  );
+}
 
 function providerOrbitPoint(index: number, count: number, distance: number) {
   const layouts: Record<number, Array<[number, number]>> = {
@@ -134,10 +188,21 @@ function providerOrbitPoint(index: number, count: number, distance: number) {
 export default function ClientOrbit({
   client,
   currentProviderId,
+  viewerRole,
   onOpenNotes,
   onOpenEntryForm,
+  onOpenAbcData,
+  onOpenTeamFocus,
+  onOpenClientHandoff,
+  onOpenEducatorTarget,
 }: ClientOrbitProps) {
   const [menuProviderId, setMenuProviderId] = useState<string | null>(null);
+  const [completionStatus, setCompletionStatus] = useState<
+    Record<string, "idle" | "saving" | "error">
+  >({});
+  const [completedProviderIds, setCompletedProviderIds] = useState<Set<string>>(
+    () => new Set()
+  );
   const orbitRef = useRef<HTMLDivElement | null>(null);
 
   const roleLabel = (role: string) => {
@@ -167,6 +232,33 @@ export default function ClientOrbit({
   const dismissOwnNotesPrompt = useCallback(() => {
     setMenuProviderId(null);
   }, []);
+  const completeProviderSessionNote = async (providerId: string) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to submit this session note?\n\nThis will mark the provider communication as complete."
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setCompletionStatus((current) => ({ ...current, [providerId]: "saving" }));
+
+    const formData = new FormData();
+    formData.append("clientId", client.id);
+    const result = await completeSessionNote(formData);
+
+    if (result.ok) {
+      setCompletedProviderIds((current) => {
+        const next = new Set(current);
+        next.add(providerId);
+        return next;
+      });
+      setCompletionStatus((current) => ({ ...current, [providerId]: "idle" }));
+      dismissOwnNotesPrompt();
+      return;
+    }
+
+    setCompletionStatus((current) => ({ ...current, [providerId]: "error" }));
+  };
   useEffect(() => {
     if (!menuProviderId) return;
 
@@ -225,7 +317,10 @@ export default function ClientOrbit({
 
       `}</style>
       {/* CENTER CLIENT */}
-      <div
+      <button
+        type="button"
+        aria-label="Open Client Handoff"
+        onClick={onOpenClientHandoff}
         style={{
           position: "absolute",
           top: "50%",
@@ -242,11 +337,12 @@ export default function ClientOrbit({
           justifyContent: "center",
           fontWeight: 600,
           fontSize: 28,
+          cursor: "pointer",
         }}
       >
         {client.firstName.slice(0, 2)}
         {client.lastName.slice(0, 2)}
-      </div>
+      </button>
 
       {/* PROVIDERS */}
       {providers.map((pc, index) => {
@@ -258,22 +354,85 @@ export default function ClientOrbit({
 
         const isMe = pc.provider.id === currentProviderId;
         const entryForProvider = client.entries?.find(
-          (entry) => entry.providerId === pc.provider.id
+          (entry) =>
+            entry.providerId === pc.provider.id &&
+            (entry.kind ?? "SessionNote") === "SessionNote"
+        );
+        const speechProgressEntry = client.entries?.find(
+          (entry) =>
+            entry.providerId === pc.provider.id &&
+            entry.kind === "SpeechProgress"
+        );
+        const readableEntriesForProvider = (client.entries ?? []).filter(
+          (entry) =>
+            entry.providerId === pc.provider.id &&
+            isReadableEntryKind(entry.kind)
+        );
+        const hasCompletedSessionNote =
+          completedProviderIds.has(pc.provider.id) ||
+          readableEntriesForProvider.some((entry) => entry.status === "COMPLETED");
+        const unreadEntryForProvider =
+          readableEntriesForProvider
+            .filter((entry) => entry.status === "COMPLETED")
+            .find(isUnreadForViewer);
+        const observationEntry = client.entries?.find(
+          (entry) =>
+            entry.providerId === pc.provider.id &&
+            entry.kind === "SupervisorObservation"
+        );
+        const sensoryObservationEntry = client.entries?.find(
+          (entry) =>
+            entry.providerId === pc.provider.id &&
+            entry.kind === "SensoryObservation"
+        );
+        const communicationObservationEntry = client.entries?.find(
+          (entry) =>
+            entry.providerId === pc.provider.id &&
+            entry.kind === "CommunicationObservation"
+        );
+        const clinicalNoteEntry = client.entries?.find(
+          (entry) =>
+            entry.providerId === pc.provider.id &&
+            entry.kind === "ClinicalNote"
+        );
+        const morningContextEntry = client.entries?.find(
+          (entry) =>
+            entry.providerId === pc.provider.id &&
+            entry.kind === "MorningContext"
+        );
+        const eveningContextEntry = client.entries?.find(
+          (entry) =>
+            entry.providerId === pc.provider.id &&
+            entry.kind === "EveningContext"
         );
         const hasEntry = !!entryForProvider;
+        const hasOwnAnyEntry =
+          isMe &&
+          (hasEntry ||
+            !!morningContextEntry ||
+            !!eveningContextEntry ||
+            !!observationEntry ||
+            !!sensoryObservationEntry ||
+            !!communicationObservationEntry ||
+            !!speechProgressEntry ||
+            !!clinicalNoteEntry);
+        const hasOwnInProgressDocumentation =
+          hasOwnAnyEntry && !hasCompletedSessionNote;
         const hasRecentProviderNotes = client.recentEntries?.some(
           (entry) => entry.providerId === pc.provider.id
         );
-        const hasViewableProviderNotes = hasEntry || !!hasRecentProviderNotes;
-        const hasUnreadForMe =
-          hasEntry &&
-          (
-            !entryForProvider?.reads ||
-            entryForProvider.reads.length === 0 ||
-            entryForProvider.reads.some((read) => read.readAt === null)
-          );
+        const hasViewableProviderNotes =
+          readableEntriesForProvider.length > 0 || !!hasRecentProviderNotes;
+        const hasUnreadForMe = !!unreadEntryForProvider;
         const isSupervisorProvider = pc.role === "Supervisor";
-        const showOwnSignal = isMe && hasUnreadForMe;
+        const canUseAbcData = abcDataRoles.has(pc.role);
+        const isCaregiverProvider = pc.role === "Caregiver";
+        const isEducatorProvider = pc.role === "Educator";
+        const isBehaviorTechnicianProvider = pc.role === "BehaviorTherapist";
+        const isOccupationalTherapistProvider = pc.role === "OccupationalTherapist";
+        const isSpeechPathologistProvider = pc.role === "SpeechPathologist";
+        const isSupervisorViewer = viewerRole === "Supervisor";
+        const showOwnSignal = isMe && hasCompletedSessionNote;
         const showProviderUnreadSignal = !isMe && hasUnreadForMe;
         const showAction = isMe || showProviderUnreadSignal;
         const showOwnMenu =
@@ -343,7 +502,7 @@ export default function ClientOrbit({
             }}
             aria-label={
               isMe
-                ? hasEntry
+                ? hasOwnAnyEntry
                   ? "Edit your note"
                   : "Add your note"
                 : "View provider note"
@@ -359,7 +518,7 @@ export default function ClientOrbit({
               background: "rgb(248 248 248 / 94%)",
               boxShadow: "var(--shadow-dashboard-badge)",
               cursor: "pointer",
-              fontSize: hasEntry && !isSupervisorProvider ? 15 : 18,
+              fontSize: hasCompletedSessionNote && !isSupervisorProvider ? 15 : 18,
               lineHeight: "26px",
               zIndex: 23,
             }}
@@ -377,6 +536,269 @@ export default function ClientOrbit({
             data-own-note-menu="true"
             style={providerActionMenuStyle}
           >
+            {isSupervisorViewer && isSupervisorProvider ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    dismissOwnNotesPrompt();
+                    onOpenEntryForm(
+                      currentProviderId,
+                      observationEntry ? "update" : "add",
+                      "SupervisorObservation"
+                    );
+                  }}
+                  style={{
+                    ...providerActionLinkStyle,
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  Observation
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    dismissOwnNotesPrompt();
+                    onOpenEntryForm(
+                      currentProviderId,
+                      clinicalNoteEntry ? "update" : "add",
+                      "ClinicalNote"
+                    );
+                  }}
+                  style={{
+                    ...providerActionLinkStyle,
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  Clinical Note
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    dismissOwnNotesPrompt();
+                    onOpenTeamFocus();
+                  }}
+                  style={{
+                    ...providerActionLinkStyle,
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  Team Focus
+                </button>
+              </>
+            ) : isCaregiverProvider ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    dismissOwnNotesPrompt();
+                    onOpenEntryForm(
+                      currentProviderId,
+                      morningContextEntry ? "update" : "add",
+                      "MorningContext"
+                    );
+                  }}
+                  style={{
+                    ...providerActionLinkStyle,
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  {morningContextEntry ? "Update Note" : "Morning Context"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    dismissOwnNotesPrompt();
+                    onOpenEntryForm(
+                      currentProviderId,
+                      eveningContextEntry ? "update" : "add",
+                      "EveningContext"
+                    );
+                  }}
+                  style={{
+                    ...providerActionLinkStyle,
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  {eveningContextEntry ? "Update Note" : "Evening Context"}
+                </button>
+              </>
+            ) : isBehaviorTechnicianProvider ||
+              isEducatorProvider ||
+              isOccupationalTherapistProvider ||
+              isSpeechPathologistProvider ? (
+              <>
+                {isBehaviorTechnicianProvider ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dismissOwnNotesPrompt();
+                      onOpenAbcData(currentProviderId);
+                    }}
+                    style={{
+                      ...providerActionLinkStyle,
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    A-B-C Data
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    dismissOwnNotesPrompt();
+                    onOpenEntryForm(
+                      currentProviderId,
+                      isSpeechPathologistProvider
+                        ? speechProgressEntry
+                          ? "update"
+                          : "add"
+                        : hasEntry
+                          ? "update"
+                          : "add",
+                      isSpeechPathologistProvider ? "SpeechProgress" : "SessionNote"
+                    );
+                  }}
+                  style={{
+                    ...providerActionLinkStyle,
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  {isSpeechPathologistProvider
+                    ? "Speech Progress"
+                    : isOccupationalTherapistProvider
+                      ? "Therapy Progress"
+                      : isBehaviorTechnicianProvider
+                        ? "Session Progress"
+                        : "Classroom Progress"}
+                </button>
+                {isOccupationalTherapistProvider || isSpeechPathologistProvider ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dismissOwnNotesPrompt();
+                      onOpenEntryForm(
+                        currentProviderId,
+                        isSpeechPathologistProvider
+                          ? communicationObservationEntry
+                            ? "update"
+                            : "add"
+                          : sensoryObservationEntry
+                            ? "update"
+                            : "add",
+                        isSpeechPathologistProvider
+                          ? "CommunicationObservation"
+                          : "SensoryObservation"
+                      );
+                    }}
+                    style={{
+                      ...providerActionLinkStyle,
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {isSpeechPathologistProvider
+                      ? "Communication Observation"
+                      : "Sensory Observation"}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    dismissOwnNotesPrompt();
+                    onOpenEducatorTarget(
+                      isSpeechPathologistProvider ? "SpeechProgress" : "SessionNote"
+                    );
+                  }}
+                  style={{
+                    ...providerActionLinkStyle,
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  Add Target
+                </button>
+              </>
+            ) : canUseAbcData ? (
+              <button
+                type="button"
+                onClick={() => {
+                  dismissOwnNotesPrompt();
+                  onOpenAbcData(currentProviderId);
+                }}
+                style={{
+                  ...providerActionLinkStyle,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                A-B-C Data
+              </button>
+            ) : null}
+            {!isCaregiverProvider &&
+            !isBehaviorTechnicianProvider &&
+            !isEducatorProvider &&
+            !isOccupationalTherapistProvider &&
+            !isSpeechPathologistProvider &&
+            !(isSupervisorViewer && isSupervisorProvider) ? (
+              <button
+                type="button"
+                onClick={() => {
+                  dismissOwnNotesPrompt();
+                  onOpenEntryForm(currentProviderId, hasEntry ? "update" : "add");
+                }}
+                style={{
+                  ...providerActionLinkStyle,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Session Note
+              </button>
+            ) : null}
+            {hasOwnInProgressDocumentation ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void completeProviderSessionNote(pc.provider.id);
+                  }}
+                  disabled={completionStatus[pc.provider.id] === "saving"}
+                  style={{
+                    ...providerActionLinkStyle,
+                    border: "none",
+                    cursor:
+                      completionStatus[pc.provider.id] === "saving"
+                        ? "default"
+                        : "pointer",
+                    opacity: completionStatus[pc.provider.id] === "saving" ? 0.62 : 1,
+                  }}
+                >
+                  {completionStatus[pc.provider.id] === "saving"
+                    ? "Completing..."
+                    : "Complete Session Note"}
+                </button>
+                {completionStatus[pc.provider.id] === "error" ? (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      lineHeight: 1.35,
+                      opacity: 0.68,
+                      textAlign: "center",
+                    }}
+                  >
+                    Save at least one section first.
+                  </div>
+                ) : null}
+              </>
+            ) : null}
             <button
               type="button"
               onClick={() => {
@@ -390,20 +812,6 @@ export default function ClientOrbit({
               }}
             >
               View Notes
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                dismissOwnNotesPrompt();
-                onOpenEntryForm(currentProviderId, hasEntry ? "update" : "add");
-              }}
-              style={{
-                ...providerActionLinkStyle,
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              {hasEntry ? "Update Note" : "Add Note"}
             </button>
           </div>
         )}

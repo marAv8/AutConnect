@@ -5,6 +5,7 @@ import { getSession } from "@/lib/session";
 import { createEntrySchema } from "@/app/libs/schemas/entry";
 import { parseAssessmentItems } from "@/app/libs/entryItems";
 import { calculateSessionScore } from "@/lib/sessionScoring";
+import { EntryKind, EntryVisibility, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export async function updateOwnEntry(formData: FormData) {
@@ -14,6 +15,17 @@ export async function updateOwnEntry(formData: FormData) {
   }
 
   const clientId = formData.get("clientId")?.toString();
+  const kindValue = formData.get("kind")?.toString() ?? EntryKind.SessionNote;
+  const kind =
+    kindValue === EntryKind.MorningContext ||
+    kindValue === EntryKind.EveningContext ||
+    kindValue === EntryKind.SupervisorObservation ||
+    kindValue === EntryKind.ClinicalNote ||
+    kindValue === EntryKind.SensoryObservation ||
+    kindValue === EntryKind.SpeechProgress ||
+    kindValue === EntryKind.CommunicationObservation
+      ? kindValue
+      : EntryKind.SessionNote;
   const note = formData.get("note")?.toString();
 
   if (!clientId) {
@@ -25,10 +37,11 @@ export async function updateOwnEntry(formData: FormData) {
 
   const existingEntry = await db.entry.findUnique({
     where: {
-      providerId_clientId_date: {
+      providerId_clientId_date_kind: {
         providerId: session.providerId,
         clientId,
         date: today,
+        kind,
       },
     },
     select: { id: true },
@@ -47,6 +60,12 @@ export async function updateOwnEntry(formData: FormData) {
 
   const parsed = createEntrySchema.safeParse({
     clientId,
+    kind,
+    visibility:
+      formData.get("visibility")?.toString() ??
+      (kind === EntryKind.SupervisorObservation || kind === EntryKind.ClinicalNote
+        ? EntryVisibility.Private
+        : EntryVisibility.Shared),
     note: note ?? "",
     items: parseAssessmentItems(formData.get("items")),
   });
@@ -56,42 +75,71 @@ export async function updateOwnEntry(formData: FormData) {
   }
   const canSubmitCommentOnly =
     session.role === "Supervisor" || session.role === "Caregiver";
+  const isCaretakerContext =
+    parsed.data.kind === EntryKind.MorningContext ||
+    parsed.data.kind === EntryKind.EveningContext;
+  const isSupervisorDocumentation =
+    parsed.data.kind === EntryKind.SupervisorObservation ||
+    parsed.data.kind === EntryKind.ClinicalNote;
+  const visibility = isSupervisorDocumentation
+    ? parsed.data.visibility
+    : EntryVisibility.Shared;
+  const isSensoryObservation =
+    parsed.data.kind === EntryKind.SensoryObservation;
+  const isSpeechProgress =
+    parsed.data.kind === EntryKind.SpeechProgress;
+  const isCommunicationObservation =
+    parsed.data.kind === EntryKind.CommunicationObservation;
+  if (isCaretakerContext && session.role !== "Caregiver") {
+    return { ok: false, reason: "forbidden" as const };
+  }
+  if (isSupervisorDocumentation && session.role !== "Supervisor") {
+    return { ok: false, reason: "forbidden" as const };
+  }
+  if (isSensoryObservation && session.role !== "OccupationalTherapist") {
+    return { ok: false, reason: "forbidden" as const };
+  }
   if (
+    (isSpeechProgress || isCommunicationObservation) &&
+    session.role !== "SpeechPathologist"
+  ) {
+    return { ok: false, reason: "forbidden" as const };
+  }
+  if (
+    !isCaretakerContext &&
+    !isSensoryObservation &&
+    !isCommunicationObservation &&
     parsed.data.items.length === 0 &&
     (!canSubmitCommentOnly || parsed.data.note.trim().length === 0)
   ) {
     return { ok: false, reason: "invalid_data" as const };
   }
 
-  if (parsed.data.items.length === 0) {
+  const shouldStoreContextData =
+    isCaretakerContext ||
+    isSupervisorDocumentation ||
+    isSensoryObservation ||
+    isCommunicationObservation;
+
+  if (shouldStoreContextData || parsed.data.items.length === 0) {
     await db.entry.update({
       where: { id: existingEntry.id },
       data: {
         note: parsed.data.note || null,
+        visibility,
+        status: "IN_PROGRESS",
+        completedAt: null,
+        clinicalReflection: null,
+        contextData: shouldStoreContextData
+          ? parseContextData(formData.get("contextData")) ?? Prisma.JsonNull
+          : undefined,
       },
     });
 
-    if (providerIds.length > 0) {
-      await db.entryRead.deleteMany({
-        where: {
-          entryId: existingEntry.id,
-          providerId: {
-            in: providerIds,
-          },
-        },
-      });
-
-      await db.entryRead.createMany({
-        data: providerIds.map((providerId) => ({
-          entryId: existingEntry.id,
-          providerId,
-          readAt: null,
-        })),
-      });
-    }
+    await resetEntryReads(existingEntry.id, providerIds, visibility);
 
     revalidatePath("/dashboard");
-    return { ok: true };
+    return { ok: true, status: "IN_PROGRESS" as const };
   }
 
   const goalIds = [
@@ -136,6 +184,10 @@ export async function updateOwnEntry(formData: FormData) {
     where: { id: existingEntry.id },
     data: {
       note: parsed.data.note || null,
+      visibility,
+      status: "IN_PROGRESS",
+      completedAt: null,
+      clinicalReflection: null,
       finalScore,
       items: {
         deleteMany: {},
@@ -155,25 +207,60 @@ export async function updateOwnEntry(formData: FormData) {
     },
   });
 
-  if (providerIds.length > 0) {
+  await resetEntryReads(existingEntry.id, providerIds, visibility);
+
+  revalidatePath("/dashboard");
+  return { ok: true, status: "IN_PROGRESS" as const };
+}
+
+async function resetEntryReads(
+  entryId: string,
+  providerIds: string[],
+  visibility: EntryVisibility = EntryVisibility.Shared
+) {
+  if (visibility === EntryVisibility.Private) {
     await db.entryRead.deleteMany({
+      where: { entryId },
+    });
+    return;
+  }
+
+  if (providerIds.length === 0) {
+    return;
+  }
+
+  await db.$transaction([
+    db.entryRead.deleteMany({
       where: {
-        entryId: existingEntry.id,
+        entryId,
         providerId: {
           in: providerIds,
         },
       },
-    });
-
-    await db.entryRead.createMany({
+    }),
+    db.entryRead.createMany({
       data: providerIds.map((providerId) => ({
-        entryId: existingEntry.id,
+        entryId,
         providerId,
         readAt: null,
       })),
-    });
+    }),
+  ]);
+}
+
+function parseContextData(value: FormDataEntryValue | null) {
+  if (!value || typeof value !== "string") {
+    return null;
   }
 
-  revalidatePath("/dashboard");
-  return { ok: true };
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+
+    return parsed as Prisma.InputJsonValue;
+  } catch {
+    return null;
+  }
 }

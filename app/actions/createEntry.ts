@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { type AssessmentItemInput, createEntrySchema } from "@/app/libs/schemas/entry";
 import { parseAssessmentItems } from "@/app/libs/entryItems";
-import { Prisma } from "@prisma/client";
+import { EntryKind, EntryVisibility, Prisma } from "@prisma/client";
 import { calculateSessionScore, normalizeItem } from "@/lib/sessionScoring";
 import { revalidatePath } from "next/cache";
 
@@ -26,8 +26,16 @@ export async function createEntry(formData: FormData) {
   today.setHours(0, 0, 0, 0);
 
   try {
+    const kindValue = formData.get("kind")?.toString() ?? EntryKind.SessionNote;
+    const defaultVisibility =
+      kindValue === EntryKind.SupervisorObservation ||
+      kindValue === EntryKind.ClinicalNote
+        ? EntryVisibility.Private
+        : EntryVisibility.Shared;
     const raw = {
       clientId,
+      kind: kindValue,
+      visibility: formData.get("visibility")?.toString() ?? defaultVisibility,
       note: formData.get("note")?.toString() ?? "",
       items: parseAssessmentItems(formData.get("items")),
     };
@@ -38,26 +46,71 @@ export async function createEntry(formData: FormData) {
     }
     const canSubmitCommentOnly =
       session.role === "Supervisor" || session.role === "Caregiver";
+    const isCaretakerContext =
+      parsed.data.kind === EntryKind.MorningContext ||
+      parsed.data.kind === EntryKind.EveningContext;
+    const isSupervisorDocumentation =
+      parsed.data.kind === EntryKind.SupervisorObservation ||
+      parsed.data.kind === EntryKind.ClinicalNote;
+    const visibility = isSupervisorDocumentation
+      ? parsed.data.visibility
+      : EntryVisibility.Shared;
+    const isSensoryObservation =
+      parsed.data.kind === EntryKind.SensoryObservation;
+    const isSpeechProgress =
+      parsed.data.kind === EntryKind.SpeechProgress;
+    const isCommunicationObservation =
+      parsed.data.kind === EntryKind.CommunicationObservation;
+    if (isCaretakerContext && session.role !== "Caregiver") {
+      return { ok: false, reason: "forbidden" as const };
+    }
+    if (isSupervisorDocumentation && session.role !== "Supervisor") {
+      return { ok: false, reason: "forbidden" as const };
+    }
+    if (isSensoryObservation && session.role !== "OccupationalTherapist") {
+      return { ok: false, reason: "forbidden" as const };
+    }
     if (
+      (isSpeechProgress || isCommunicationObservation) &&
+      session.role !== "SpeechPathologist"
+    ) {
+      return { ok: false, reason: "forbidden" as const };
+    }
+    if (
+      !isCaretakerContext &&
+      !isSupervisorDocumentation &&
+      !isSensoryObservation &&
+      !isCommunicationObservation &&
       parsed.data.items.length === 0 &&
       (!canSubmitCommentOnly || parsed.data.note.trim().length === 0)
     ) {
       return { ok: false, reason: "invalid_data" as const };
     }
 
-    const itemsWithGoals = await ensureGoalDefinitions(
-      parsed.data.clientId,
-      session.providerId,
-      parsed.data.items
-    );
+    const shouldStoreContextData =
+      isCaretakerContext ||
+      isSupervisorDocumentation ||
+      isSensoryObservation ||
+      isCommunicationObservation;
+    const contextData = shouldStoreContextData
+      ? parseContextData(formData.get("contextData")) ?? Prisma.JsonNull
+      : undefined;
+    const itemsWithGoals = shouldStoreContextData
+      ? []
+      : await ensureGoalDefinitions(
+          parsed.data.clientId,
+          session.providerId,
+          parsed.data.items
+        );
 
-    if (itemsWithGoals.length === 0) {
+    if (!shouldStoreContextData && itemsWithGoals.length === 0) {
       const existingEntry = await db.entry.findUnique({
         where: {
-          providerId_clientId_date: {
+          providerId_clientId_date_kind: {
             providerId: session.providerId,
             clientId: parsed.data.clientId,
             date: today,
+            kind: parsed.data.kind,
           },
         },
         select: { id: true },
@@ -69,16 +122,20 @@ export async function createEntry(formData: FormData) {
             where: { id: existingEntry.id },
             data: {
               note: parsed.data.note || null,
+              visibility,
+              status: "IN_PROGRESS",
+              completedAt: null,
+              clinicalReflection: null,
             },
             select: { id: true },
           }),
           getAssignedProviderIds(parsed.data.clientId),
         ]);
 
-        await resetEntryReads(entry.id, providerIds);
+        await resetEntryReads(entry.id, providerIds, visibility);
 
         revalidatePath("/dashboard");
-        return { ok: true, entryId: entry.id };
+        return { ok: true, entryId: entry.id, visibility, status: "IN_PROGRESS" as const };
       }
     }
 
@@ -122,7 +179,12 @@ export async function createEntry(formData: FormData) {
 
     const entryData = {
       note: parsed.data.note || null,
-      finalScore,
+      visibility,
+      status: "IN_PROGRESS" as const,
+      completedAt: null,
+      clinicalReflection: null,
+      finalScore: shouldStoreContextData ? null : finalScore,
+      contextData: shouldStoreContextData ? contextData : undefined,
       items:
         itemsWithGoals.length > 0
           ? {
@@ -144,16 +206,18 @@ export async function createEntry(formData: FormData) {
 
     const entry = await db.entry.upsert({
       where: {
-        providerId_clientId_date: {
+        providerId_clientId_date_kind: {
           providerId: session.providerId,
           clientId: parsed.data.clientId,
           date: today,
+          kind: parsed.data.kind,
         },
       },
       create: {
         providerId: session.providerId,
         clientId: parsed.data.clientId,
         date: today,
+        kind: parsed.data.kind,
         ...entryData,
       },
       update: {
@@ -166,15 +230,14 @@ export async function createEntry(formData: FormData) {
       select: { id: true },
     });
 
-    await Promise.all([
-      updateMasteredGoals(parsed.data.clientId, session.providerId, goalIds),
-      getAssignedProviderIds(parsed.data.clientId).then((providerIds) =>
-        resetEntryReads(entry.id, providerIds)
-      ),
-    ]);
+    if (!shouldStoreContextData) {
+      await updateMasteredGoals(parsed.data.clientId, session.providerId, goalIds);
+    }
+    const providerIds = await getAssignedProviderIds(parsed.data.clientId);
+    await resetEntryReads(entry.id, providerIds, visibility);
 
     revalidatePath("/dashboard");
-    return { ok: true, entryId: entry.id };
+    return { ok: true, entryId: entry.id, visibility, status: "IN_PROGRESS" as const };
   } catch (error) {
     // Keep the response stable if a concurrent save hits the same daily entry.
     if (
@@ -188,6 +251,23 @@ export async function createEntry(formData: FormData) {
   }
 }
 
+function parseContextData(value: FormDataEntryValue | null) {
+  if (!value || typeof value !== "string") {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+
+    return parsed as Prisma.InputJsonValue;
+  } catch {
+    return null;
+  }
+}
+
 async function getAssignedProviderIds(clientId: string) {
   const providerClients = await db.providerClient.findMany({
     where: { clientId },
@@ -197,7 +277,18 @@ async function getAssignedProviderIds(clientId: string) {
   return providerClients.map((pc) => pc.providerId);
 }
 
-async function resetEntryReads(entryId: string, providerIds: string[]) {
+async function resetEntryReads(
+  entryId: string,
+  providerIds: string[],
+  visibility: EntryVisibility = EntryVisibility.Shared
+) {
+  if (visibility === EntryVisibility.Private) {
+    await db.entryRead.deleteMany({
+      where: { entryId },
+    });
+    return;
+  }
+
   if (providerIds.length === 0) {
     return;
   }
@@ -296,6 +387,8 @@ async function updateMasteredGoals(
     select: {
       id: true,
       metricType: true,
+      target: true,
+      goal: true,
       targetValue: true,
       comparison: true,
       weight: true,
@@ -308,6 +401,8 @@ async function updateMasteredGoals(
         take: 3,
         select: {
           metricType: true,
+          target: true,
+          goal: true,
           score: true,
           rawValue: true,
         },
@@ -324,6 +419,8 @@ async function updateMasteredGoals(
       normalizeItem(
         {
           metricType: item.metricType,
+          target: item.target,
+          goal: item.goal,
           score: item.score,
           rawValue: item.rawValue,
         },

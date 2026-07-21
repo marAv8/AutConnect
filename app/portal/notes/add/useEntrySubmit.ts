@@ -9,6 +9,17 @@ type SubmitEntryData = {
   note: string;
   items: EntryItemDraft[];
   canSubmitCommentOnly: boolean;
+  kind?:
+    | "SessionNote"
+    | "MorningContext"
+    | "EveningContext"
+    | "SupervisorObservation"
+    | "ClinicalNote"
+    | "SensoryObservation"
+    | "SpeechProgress"
+    | "CommunicationObservation";
+  contextData?: unknown;
+  visibility?: "Private" | "Shared";
   redirectOnSuccess?: boolean;
 };
 
@@ -23,6 +34,9 @@ export function useEntrySubmit() {
       note,
       items,
       canSubmitCommentOnly,
+      kind,
+      contextData,
+      visibility,
       redirectOnSuccess = false,
     }: SubmitEntryData): Promise<SubmitEntryResult> => {
       const payload = buildPayload({
@@ -30,6 +44,9 @@ export function useEntrySubmit() {
         note,
         items,
         canSubmitCommentOnly,
+        kind,
+        contextData,
+        visibility,
       });
 
       if (!payload.ok) {

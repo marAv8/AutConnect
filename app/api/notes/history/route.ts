@@ -16,9 +16,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Missing clientId" }, { status: 400 });
   }
 
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setHours(0, 0, 0, 0);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgo = sevenDayWindowStart();
 
   const client = await db.client.findFirst({
     where: {
@@ -45,26 +43,55 @@ export async function GET(request: Request) {
       },
       OR: [
         {
-          note: {
-            not: null,
+          kind: {
+            notIn: ["SupervisorObservation", "ClinicalNote"],
           },
         },
         {
-          items: {
-            some: {},
-          },
+          visibility: "Shared",
+        },
+        {
+          providerId: session.providerId,
+        },
+      ],
+      AND: [
+        {
+          OR: [
+            {
+              note: {
+                not: null,
+              },
+            },
+            {
+              items: {
+                some: {},
+              },
+            },
+            {
+              abcObservations: {
+                some: {},
+              },
+            },
+          ],
         },
       ],
     },
     orderBy: {
       date: "desc",
     },
-    take: 7,
     select: {
       id: true,
       providerId: true,
+      kind: true,
+      visibility: true,
+      status: true,
       note: true,
+      clinicalReflection: true,
+      contextData: true,
       date: true,
+      createdAt: true,
+      updatedAt: true,
+      completedAt: true,
       finalScore: true,
       items: {
         orderBy: {
@@ -82,8 +109,20 @@ export async function GET(request: Request) {
             select: {
               targetValue: true,
               comparison: true,
+              measurementProfile: true,
             },
           },
+        },
+      },
+      abcObservations: {
+        orderBy: {
+          createdAt: "asc",
+        },
+        select: {
+          id: true,
+          antecedent: true,
+          behavior: true,
+          consequence: true,
         },
       },
       provider: {
@@ -98,43 +137,308 @@ export async function GET(request: Request) {
 
   if (entries.length > 0) {
     const readAt = new Date();
+    const sharedEntries = entries.filter((entry) => entry.visibility === "Shared");
 
-    await Promise.all([
-      db.entryRead.createMany({
-        data: entries.map((entry) => ({
-          entryId: entry.id,
-          providerId: session.providerId,
-          readAt,
-        })),
-        skipDuplicates: true,
-      }),
-      db.entryRead.updateMany({
-        where: {
-          providerId: session.providerId,
-          entryId: {
-            in: entries.map((entry) => entry.id),
+    if (sharedEntries.length > 0) {
+      await Promise.all([
+        db.entryRead.createMany({
+          data: sharedEntries.map((entry) => ({
+            entryId: entry.id,
+            providerId: session.providerId,
+            readAt,
+          })),
+          skipDuplicates: true,
+        }),
+        db.entryRead.updateMany({
+          where: {
+            providerId: session.providerId,
+            entryId: {
+              in: sharedEntries.map((entry) => entry.id),
+            },
+            readAt: null,
           },
-          readAt: null,
-        },
-        data: {
-          readAt,
-        },
-      }),
-    ]);
+          data: {
+            readAt,
+          },
+        }),
+      ]);
+    }
   }
 
   return NextResponse.json({
     clientId,
     clientInitials: `${client.firstName.slice(0, 2)}${client.lastName.slice(0, 2)}`,
     backLabel: session.role === "Caregiver" ? "Back to Children" : "Back to Client",
-    entries: entries.map((entry) => ({
+    entries: consolidateEntries(entries),
+  });
+}
+
+function sevenDayWindowStart() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - 6);
+  return start;
+}
+
+function consolidateEntries(entries: Array<{
+  id: string;
+  providerId: string;
+  kind: string;
+  visibility: string;
+  status: string;
+  note: string | null;
+  clinicalReflection: string | null;
+  contextData: unknown;
+  date: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt: Date | null;
+  finalScore: number | null;
+  provider: {
+    firstName: string;
+    lastName: string;
+    role: string;
+  };
+  items: Array<{
+    target: string;
+    goal: string;
+    score: number | null;
+    metricType: "Percentage" | "Frequency" | "Duration" | "Subjective";
+    domain:
+      | "Behavior"
+      | "SkillAcquisition"
+      | "Communication"
+      | "Adaptive"
+      | "Regulation"
+      | "Other"
+      | null;
+    rawValue: number | null;
+    supportLevel: number | null;
+    goalDefinition: {
+      targetValue: number | null;
+      comparison: "LessThan" | "GreaterThan" | "Equal" | null;
+      measurementProfile: string | null;
+    } | null;
+  }>;
+  abcObservations: Array<{
+    id: string;
+    antecedent: string;
+    behavior: string;
+    consequence: string;
+  }>;
+}>) {
+  const formatted = entries.map((entry) => {
+    const providerName = `${entry.provider.firstName} ${entry.provider.lastName}`;
+
+    return {
       id: entry.id,
+      kind: entry.kind,
+      status: entry.status,
       note: entry.note ?? "",
+      clinicalReflection: entry.clinicalReflection,
+      contextData: entry.contextData,
       date: entry.date.toISOString(),
+      completedAt: (entry.completedAt ?? entry.updatedAt).toISOString(),
       finalScore: entry.finalScore,
-      providerName: `${entry.provider.firstName} ${entry.provider.lastName}`,
+      providerName,
       providerRole: formatRole(entry.provider.role),
       items: entry.items,
-    })),
+      abcObservations: entry.abcObservations,
+      sensoryObservations: extractSensoryObservations(
+        entry.contextData,
+        entry.createdAt,
+        providerName
+      ),
+      communicationObservations: extractCommunicationObservations(
+        entry.contextData,
+        entry.createdAt,
+        providerName
+      ),
+    };
   });
+
+  const sensoryByDay = new Map<string, (typeof formatted)[number]["sensoryObservations"]>();
+  const communicationByDay = new Map<
+    string,
+    (typeof formatted)[number]["communicationObservations"]
+  >();
+  const inProgressSensoryDays = new Set<string>();
+  const inProgressCommunicationDays = new Set<string>();
+  for (const entry of formatted) {
+    const key = entryDayKey(entry);
+    if (entry.kind === "SensoryObservation") {
+      const existing = sensoryByDay.get(key) ?? [];
+      sensoryByDay.set(key, [...existing, ...entry.sensoryObservations]);
+      if (entry.status !== "COMPLETED") {
+        inProgressSensoryDays.add(key);
+      }
+    }
+    if (entry.kind === "CommunicationObservation") {
+      const existing = communicationByDay.get(key) ?? [];
+      communicationByDay.set(key, [...existing, ...entry.communicationObservations]);
+      if (entry.status !== "COMPLETED") {
+        inProgressCommunicationDays.add(key);
+      }
+    }
+  }
+
+  const daysWithTherapyProgress = new Set(
+    formatted
+      .filter(
+        (entry) =>
+          entry.kind === "SessionNote" &&
+          entry.providerRole === "Occupational Therapist"
+      )
+      .map(entryDayKey)
+  );
+  const daysWithSpeechProgress = new Set(
+    formatted
+      .filter(
+        (entry) =>
+          entry.kind === "SpeechProgress" &&
+          entry.providerRole === "Speech Pathologist"
+      )
+      .map(entryDayKey)
+  );
+
+  return formatted
+    .filter((entry) => {
+      if (entry.kind === "SensoryObservation") {
+        return !daysWithTherapyProgress.has(entryDayKey(entry));
+      }
+      if (entry.kind === "CommunicationObservation") {
+        return !daysWithSpeechProgress.has(entryDayKey(entry));
+      }
+      return true;
+    })
+    .map((entry) => {
+      if (
+        entry.kind !== "SessionNote" ||
+        entry.providerRole !== "Occupational Therapist"
+      ) {
+        return entry;
+      }
+
+      return {
+        ...entry,
+        status: inProgressSensoryDays.has(entryDayKey(entry))
+          ? "IN_PROGRESS"
+          : entry.status,
+        sensoryObservations: sensoryByDay.get(entryDayKey(entry)) ?? [],
+      };
+    })
+    .map((entry) => {
+      if (
+        entry.kind !== "SpeechProgress" ||
+        entry.providerRole !== "Speech Pathologist"
+      ) {
+        return entry;
+      }
+
+      return {
+        ...entry,
+        status: inProgressCommunicationDays.has(entryDayKey(entry))
+          ? "IN_PROGRESS"
+          : entry.status,
+        communicationObservations: communicationByDay.get(entryDayKey(entry)) ?? [],
+      };
+    });
+}
+
+function entryDayKey(entry: { date: string }) {
+  return entry.date.slice(0, 10);
+}
+
+function extractSensoryObservations(
+  value: unknown,
+  createdAt: Date,
+  author: string
+) {
+  if (!value || typeof value !== "object" || !("observations" in value)) {
+    return [];
+  }
+
+  const observations = (value as { observations?: unknown }).observations;
+  if (!Array.isArray(observations)) {
+    return [];
+  }
+
+  return observations
+    .map((item) => ({
+      category:
+        typeof item === "object" &&
+        item !== null &&
+        "category" in item &&
+        typeof item.category === "string"
+          ? item.category
+          : "",
+      observation:
+        typeof item === "object" &&
+        item !== null &&
+        "observation" in item &&
+        typeof item.observation === "string"
+          ? item.observation
+          : "",
+      recommendation:
+        typeof item === "object" &&
+        item !== null &&
+        "recommendation" in item &&
+        typeof item.recommendation === "string"
+          ? item.recommendation
+          : "",
+      timestamp: createdAt.toISOString(),
+      author,
+    }))
+    .filter((item) => item.category && item.observation);
+}
+
+function extractCommunicationObservations(
+  value: unknown,
+  createdAt: Date,
+  author: string
+) {
+  return extractObservationItems(value, createdAt, author);
+}
+
+function extractObservationItems(
+  value: unknown,
+  createdAt: Date,
+  author: string
+) {
+  if (!value || typeof value !== "object" || !("observations" in value)) {
+    return [];
+  }
+
+  const observations = (value as { observations?: unknown }).observations;
+  if (!Array.isArray(observations)) {
+    return [];
+  }
+
+  return observations
+    .map((item) => ({
+      category:
+        typeof item === "object" &&
+        item !== null &&
+        "category" in item &&
+        typeof item.category === "string"
+          ? item.category
+          : "",
+      observation:
+        typeof item === "object" &&
+        item !== null &&
+        "observation" in item &&
+        typeof item.observation === "string"
+          ? item.observation
+          : "",
+      recommendation:
+        typeof item === "object" &&
+        item !== null &&
+        "recommendation" in item &&
+        typeof item.recommendation === "string"
+          ? item.recommendation
+          : "",
+      timestamp: createdAt.toISOString(),
+      author,
+    }))
+    .filter((item) => item.category && item.observation);
 }

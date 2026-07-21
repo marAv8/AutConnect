@@ -1,0 +1,4 @@
+ALTER TABLE "Entry"
+  ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+CREATE INDEX "Entry_updatedAt_idx" ON "Entry"("updatedAt");

@@ -1,10 +1,11 @@
 import { AssessmentDomain, MetricType, Role } from "@prisma/client";
-import { db } from "@/lib/db";
 import { normalizeItem } from "@/lib/sessionScoring";
+import { buildInsightContext, type InsightContext } from "./insightContext";
 
 export type ParsedInsightQuestion = {
   providerRole?: string;
   metricType?: "Percentage" | "Frequency" | "Duration" | "Subjective";
+  domainFocus?: Array<"Behavior" | "SkillAcquisition" | "Communication" | "Adaptive" | "Regulation" | "Other">;
   dateRange?: { from: Date; to: Date };
   threshold?: number;
   comparison?: "above" | "below";
@@ -36,7 +37,7 @@ type InsightResult = {
   };
 };
 
-type InsightEntry = Awaited<ReturnType<typeof fetchInsightEntries>>[number];
+type InsightEntry = InsightContext["sessions"][number];
 type ProviderInsight = NonNullable<
   NonNullable<InsightResult["supportingData"]>["providers"]
 >[number];
@@ -90,6 +91,26 @@ export function parseQuestion(question: string): ParsedInsightQuestion {
   const metricType = Object.values(MetricType).find((type) =>
     normalized.includes(type.toLowerCase())
   );
+  const domainFocus = [
+    /\b(behavior|aggression|elopement|self[-\s]?injury|tantrum|meltdown|safety)\b/.test(normalized)
+      ? AssessmentDomain.Behavior
+      : null,
+    /\b(communication|speech|language|aac|mand|manding|request|intraverbal|conversation|pragmatic|articulation|intelligibility)\b/.test(normalized)
+      ? AssessmentDomain.Communication
+      : null,
+    /\b(sensory|regulation|tolerance|attention|self[-\s]?regulation)\b/.test(normalized)
+      ? AssessmentDomain.Regulation
+      : null,
+    /\b(adaptive|daily living|adl|toilet|toileting|feeding|dressing|transition|routine|independence)\b/.test(normalized)
+      ? AssessmentDomain.Adaptive
+      : null,
+    /\b(education|academic|reading|writing|math|classroom|homework|skill acquisition|learning)\b/.test(normalized)
+      ? AssessmentDomain.SkillAcquisition
+      : null,
+    /\b(supervision|fidelity|training|clinical review|program integrity)\b/.test(normalized)
+      ? AssessmentDomain.Other
+      : null,
+  ].filter((value): value is AssessmentDomain => Boolean(value));
   const thresholdMatch = normalized.match(/\b(above|over|greater than|below|under|less than)\s+(\d+(?:\.\d+)?)\s*%?/);
   const thresholdValue = thresholdMatch ? Number(thresholdMatch[2]) : undefined;
   const comparison = thresholdMatch
@@ -118,6 +139,7 @@ export function parseQuestion(question: string): ParsedInsightQuestion {
   return {
     providerRole: role,
     metricType,
+    domainFocus: domainFocus.length ? Array.from(new Set(domainFocus)) : undefined,
     dateRange: parseDateRange(question),
     threshold: thresholdValue,
     comparison,
@@ -141,6 +163,8 @@ function normalizeScore(item: InsightEntry["items"][number]) {
   const success = normalizeItem(
     {
       metricType: item.metricType,
+      target: item.target,
+      goal: item.goal,
       score: item.score,
       rawValue: item.rawValue,
       goalDefinition: item.goalDefinition,
@@ -182,71 +206,6 @@ function entryMatchesContext(entry: InsightEntry, parsed: ParsedInsightQuestion)
     .toLowerCase();
 
   return parsed.context.some((token) => searchText.includes(token));
-}
-
-async function fetchInsightEntries(clientId: string, parsed: ParsedInsightQuestion) {
-  return db.entry.findMany({
-    where: {
-      clientId,
-      ...(parsed.providerRole
-        ? {
-            provider: {
-              role: parsed.providerRole as Role,
-            },
-          }
-        : {}),
-      ...(parsed.dateRange
-        ? {
-            createdAt: {
-              gte: parsed.dateRange.from,
-              lt: parsed.dateRange.to,
-            },
-          }
-        : {}),
-      ...(parsed.metricType
-        ? {
-            items: {
-              some: {
-                metricType: parsed.metricType as MetricType,
-              },
-            },
-          }
-        : {}),
-    },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      date: true,
-      createdAt: true,
-      note: true,
-      providerId: true,
-      provider: {
-        select: {
-          firstName: true,
-          lastName: true,
-          role: true,
-        },
-      },
-      items: {
-        select: {
-          target: true,
-          goal: true,
-          score: true,
-          metricType: true,
-          domain: true,
-          rawValue: true,
-          goalDefinition: {
-            select: {
-              metricType: true,
-              targetValue: true,
-              comparison: true,
-              weight: true,
-            },
-          },
-        },
-      },
-    },
-  });
 }
 
 function providerSummaries(entries: InsightEntry[], parsed: ParsedInsightQuestion) {
@@ -562,7 +521,8 @@ function formatRankingObservation({
 
 export async function buildInsight(clientId: string, question: string): Promise<InsightResult> {
   const parsed = parseQuestion(question);
-  const rawEntries = await fetchInsightEntries(clientId, parsed);
+  const insightContext = await buildInsightContext(clientId, parsed);
+  const rawEntries = insightContext?.sessions ?? [];
   const entries = rawEntries.filter((entry) => entryMatchesContext(entry, parsed));
 
   if (entries.length === 0) {
