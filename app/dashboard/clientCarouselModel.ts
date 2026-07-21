@@ -16,14 +16,14 @@ export function applyDashboardEntryMutations(
 ) {
   return mutations.reduce((currentClients, mutation) => {
     if (mutation.type === "read") {
-      return updateClientEntriesReadState(
+      return markDashboardProviderEntriesRead(
         currentClients,
         mutation.clientId,
         mutation.authorProviderId
       );
     }
 
-    return updateClientEntrySavedState(
+    return projectDashboardEntrySaved(
       currentClients,
       mutation.clientId,
       mutation.authorProviderId,
@@ -36,7 +36,7 @@ export function applyDashboardEntryMutations(
   }, clients);
 }
 
-function updateClientEntriesReadState(
+export function markDashboardProviderEntriesRead(
   clients: DashboardClient[],
   clientId: string,
   authorProviderId: string
@@ -57,7 +57,7 @@ function updateClientEntriesReadState(
   });
 }
 
-function updateClientEntrySavedState(
+export function projectDashboardEntrySaved(
   clients: DashboardClient[],
   clientId: string,
   authorProviderId: string,

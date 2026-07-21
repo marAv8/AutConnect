@@ -7,7 +7,6 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import {
   addSupervisorClient,
   removeSupervisorClient,
@@ -19,52 +18,12 @@ import AddClientView from "./AddClientView";
 import RemoveClientView from "./RemoveClientView";
 import FirstClientEmptyState from "./FirstClientEmptyState";
 import InsightsOverlay from "./InsightsOverlay";
-
-type ProviderClient = {
-  role: string;
-  provider: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
-};
-
-type EntryState = {
-  id: string;
-  providerId: string;
-  kind?: string;
-  visibility?: string;
-  status?: string;
-  reads?: { readAt: Date | string | null }[];
-};
-
-type RecentEntryState = {
-  id: string;
-  providerId: string;
-  status?: string;
-};
-
-type AssignedClient = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  providerClients: ProviderClient[];
-  entries?: EntryState[];
-  recentEntries?: RecentEntryState[];
-  teamFocusItems?: TeamFocusData[];
-};
-
-type TeamFocusData = {
-  id: string;
-  title?: string | null;
-  content: string;
-  updatedAt: Date | string;
-  author: {
-    firstName: string;
-    lastName: string;
-    role: string;
-  };
-};
+import SupervisorDashboardMenu from "./SupervisorDashboardMenu";
+import type { DashboardClient } from "./dashboardClientTypes";
+import {
+  markDashboardProviderEntriesRead,
+  projectDashboardEntrySaved,
+} from "./clientCarouselModel";
 
 type AvailableClient = {
   id: string;
@@ -73,7 +32,7 @@ type AvailableClient = {
 };
 
 type Props = {
-  assignedClients: AssignedClient[];
+  assignedClients: DashboardClient[];
   availableClients: AvailableClient[];
   currentProviderId: string;
   initialClientId?: string;
@@ -95,87 +54,6 @@ const palette = [
 const initialsOf = (firstName: string, lastName: string) =>
   `${firstName.slice(0, 2)}${lastName.slice(0, 2)}`;
 
-const menuStackStyle: React.CSSProperties = {
-  position: "relative",
-  width: 58,
-  height: 58,
-};
-
-const menuPanelStyle: React.CSSProperties = {
-  position: "absolute",
-  left: 0,
-  bottom: "calc(100% + 16px)",
-  display: "grid",
-  gap: 12,
-  minWidth: 154,
-  padding: 0,
-  justifyItems: "center",
-  background: "transparent",
-  border: "none",
-  boxShadow: "none",
-};
-
-const menuActionStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: "100%",
-  minHeight: 42,
-  border: "none",
-  borderRadius: 14,
-  background: "var(--note-neo-surface)",
-  textAlign: "center",
-  textDecoration: "none",
-  padding: "0 16px",
-  cursor: "pointer",
-  fontSize: 13,
-  fontWeight: 650,
-  color: "rgb(0 0 0 / 82%)",
-  boxShadow: "var(--note-neo-control)",
-};
-
-const menuButtonStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: 58,
-  height: 58,
-  borderRadius: "50%",
-  border: "none",
-  background: "var(--note-neo-surface)",
-  color: "var(--foreground)",
-  fontSize: 28,
-  lineHeight: 1,
-  cursor: "pointer",
-  boxShadow: "var(--note-neo-control)",
-};
-
-const menuDotRowStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 6,
-  height: 10,
-};
-
-const menuDotStyle: React.CSSProperties = {
-  width: 5,
-  height: 5,
-  borderRadius: "50%",
-  background: "currentColor",
-  display: "block",
-};
-
-function MenuDots() {
-  return (
-    <span aria-hidden="true" style={menuDotRowStyle}>
-      <span style={menuDotStyle} />
-      <span style={menuDotStyle} />
-      <span style={menuDotStyle} />
-    </span>
-  );
-}
-
 export default function SupervisorDashboard({
   assignedClients,
   availableClients,
@@ -190,7 +68,7 @@ export default function SupervisorDashboard({
     assignedClients.some((client) => client.id === initialClientId);
 
   const [assignedClientState, setAssignedClientState] =
-    useState<AssignedClient[]>(assignedClients);
+    useState<DashboardClient[]>(assignedClients);
   const [availableClientState, setAvailableClientState] =
     useState<AvailableClient[]>(availableClients);
   const [mode, setMode] = useState<Mode>(canOpenOrbit ? "orbit" : "grid");
@@ -344,21 +222,7 @@ export default function SupervisorDashboard({
   const handleEntryRead = useCallback(
     (clientId: string, authorProviderId: string) => {
       setAssignedClientState((currentClients) =>
-        currentClients.map((client) => {
-          if (client.id !== clientId) return client;
-
-          return {
-            ...client,
-            entries: client.entries?.map((entry) =>
-              entry.providerId === authorProviderId
-                ? {
-                    ...entry,
-                    reads: [{ readAt: new Date() }],
-                  }
-                : entry
-            ),
-          };
-        })
+        markDashboardProviderEntriesRead(currentClients, clientId, authorProviderId)
       );
     },
     []
@@ -373,49 +237,16 @@ export default function SupervisorDashboard({
       status?: string
     ) => {
       setAssignedClientState((currentClients) =>
-        currentClients.map((client) => {
-          if (client.id !== clientId) return client;
-
-          const entries = client.entries ?? [];
-          const hasEntry = entries.some((entry) => entry.id === entryId);
-
-          return {
-            ...client,
-            entries: hasEntry
-              ? entries.map((entry) =>
-                  entry.id === entryId
-                    ? {
-                        ...entry,
-                        providerId: authorProviderId,
-                        visibility: visibility ?? entry.visibility,
-                        status: status ?? entry.status,
-                        reads:
-                          visibility === "Private"
-                            ? []
-                            : authorProviderId === currentProviderId
-                            ? [{ readAt: null }]
-                            : entry.reads,
-                      }
-                    : entry
-                )
-              : [
-                  ...entries,
-                  {
-                    id: entryId,
-                    providerId: authorProviderId,
-                    visibility,
-                    status,
-                    reads: visibility === "Private" ? [] : [{ readAt: null }],
-                  },
-                ],
-            recentEntries: client.recentEntries?.some((entry) => entry.id === entryId)
-              ? client.recentEntries
-              : [
-                  ...(client.recentEntries ?? []),
-                  { id: entryId, providerId: authorProviderId, status },
-                ],
-          };
-        })
+        projectDashboardEntrySaved(
+          currentClients,
+          clientId,
+          authorProviderId,
+          entryId,
+          undefined,
+          visibility,
+          status,
+          currentProviderId
+        )
       );
     },
     [currentProviderId]
@@ -542,87 +373,27 @@ export default function SupervisorDashboard({
     );
 
   const floatingMenu =
-    mode === "grid" ? (
-      <div ref={menuRef} style={menuStackStyle}>
-        {menuOpen && (
-          <div style={menuPanelStyle}>
-            <Link
-              href="/portal/supervisor/create-client"
-              className="soft-link"
-              style={menuActionStyle}
-            >
-              Add Client
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("add");
-                setMenuOpen(false);
-              }}
-              style={menuActionStyle}
-            >
-              Link Client
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("remove");
-                setMenuOpen(false);
-              }}
-              style={menuActionStyle}
-            >
-              Remove Client
-            </button>
-          </div>
-        )}
-        <button
-          type="button"
-          className="material-control"
-          onClick={() => setMenuOpen((value) => !value)}
-          aria-expanded={menuOpen}
-          aria-label="More"
-          style={menuButtonStyle}
-        >
-          <MenuDots />
-        </button>
-      </div>
-    ) : mode === "orbit" ? (
-      <div ref={menuRef} style={menuStackStyle}>
-        {menuOpen && (
-          <div style={menuPanelStyle}>
-            {activeClientId ? (
-              <Link
-                href={`/portal/supervisor/edit-providers/${activeClientId}`}
-                onClick={() => setMenuOpen(false)}
-                className="soft-link"
-                style={menuActionStyle}
-              >
-                Care Team
-              </Link>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => {
-                setInsightsOpen(true);
-                setMenuOpen(false);
-              }}
-              style={menuActionStyle}
-            >
-              Insights
-            </button>
-          </div>
-        )}
-        <button
-          type="button"
-          className="material-control"
-          onClick={() => setMenuOpen((value) => !value)}
-          aria-expanded={menuOpen}
-          aria-label="More"
-          style={menuButtonStyle}
-        >
-          <MenuDots />
-        </button>
-      </div>
+    mode === "grid" || mode === "orbit" ? (
+      <SupervisorDashboardMenu
+        mode={mode}
+        menuOpen={menuOpen}
+        activeClientId={activeClientId}
+        menuRef={menuRef}
+        onToggle={() => setMenuOpen((value) => !value)}
+        onClose={() => setMenuOpen(false)}
+        onOpenLinkClient={() => {
+          setMode("add");
+          setMenuOpen(false);
+        }}
+        onOpenRemoveClient={() => {
+          setMode("remove");
+          setMenuOpen(false);
+        }}
+        onOpenInsights={() => {
+          setInsightsOpen(true);
+          setMenuOpen(false);
+        }}
+      />
     ) : null;
 
   return (
