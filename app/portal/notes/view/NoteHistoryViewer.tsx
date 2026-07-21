@@ -9,7 +9,6 @@
 import Link from "next/link";
 import { useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import OverlayContainer from "@/components/ui/OverlayContainer";
-import type { ClinicalHandoff } from "@/app/api/aiGateway";
 import { formatClinicalDateTime } from "@/app/libs/dateTime";
 
 type EntryItem = {
@@ -26,14 +25,6 @@ type EntryItem = {
   status?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | string;
   note: string;
   clinicalReflection: string | null;
-  clinicalHandoff?: ClinicalHandoff | null;
-  clinicalHandoffMetrics?: {
-    generationTimeMs: number;
-    confidence: ClinicalHandoff["confidence"] | null;
-    importantEventCount: number;
-    watchItemCount: number;
-    carryForwardCount: number;
-  } | null;
   contextData?: unknown;
   date: string;
   completedAt?: string;
@@ -207,9 +198,6 @@ export default function NoteHistoryViewer({
       : isBehaviorTechnicianProgress
         ? "Session Progress"
         : "Classroom Progress";
-  const aiSummarySubject = isEducatorClassroomProgress
-    ? progressSectionTitle.toLowerCase()
-    : entryKindTitle(current.kind).toLowerCase();
   const isInProgressNote = current?.status && current.status !== "COMPLETED";
 
   const showOlder = () => {
@@ -437,27 +425,6 @@ export default function NoteHistoryViewer({
                 ) : null}
               </div>
 
-              {current.clinicalHandoff ? (
-                <ClinicalHandoffSection
-                  handoff={current.clinicalHandoff}
-                  metrics={current.clinicalHandoffMetrics ?? null}
-                />
-              ) : (
-                <RecordSection title="AI Daily Summary">
-                  <div style={{ opacity: 0.72 }}>
-                    Summary placeholder. AI-generated {aiSummarySubject} summaries will appear here.
-                  </div>
-                </RecordSection>
-              )}
-
-              {current.clinicalHandoff && current.clinicalReflection ? (
-                <CollapsibleRecordSection title="Clinical Reflection (Legacy)">
-                  <div style={{ display: "grid", gap: 8, whiteSpace: "pre-wrap" }}>
-                    {current.clinicalReflection}
-                  </div>
-                </CollapsibleRecordSection>
-              ) : null}
-
               {isEducatorClassroomProgress ? (
                 <>
                   <CollapsibleRecordSection title={progressSectionTitle}>
@@ -589,7 +556,7 @@ export default function NoteHistoryViewer({
                 </CollapsibleRecordSection>
               ) : null}
 
-              {!current.clinicalHandoff && current.clinicalReflection ? (
+              {current.clinicalReflection ? (
                 <CollapsibleRecordSection title="Clinical Reflection">
                   <div style={{ display: "grid", gap: 8, whiteSpace: "pre-wrap" }}>
                     {current.clinicalReflection}
@@ -712,107 +679,6 @@ export default function NoteHistoryViewer({
   return content;
 }
 
-function ClinicalHandoffSection({
-  handoff,
-  metrics,
-}: {
-  handoff: ClinicalHandoff;
-  metrics: EntryItem["clinicalHandoffMetrics"];
-}) {
-  return (
-    <RecordSection title="AI Clinical Handoff">
-      <div style={{ display: "grid", gap: 14 }}>
-        {handoff.summary.trim().length > 0 ? (
-          <div style={{ whiteSpace: "pre-wrap" }}>{handoff.summary}</div>
-        ) : null}
-
-        <ClinicalHandoffList
-          title="Important Events"
-          items={handoff.importantEvents.map((event) => ({
-            id: event.id,
-            title: event.title,
-            detail: event.summary,
-          }))}
-        />
-        <ClinicalHandoffList
-          title="Care Team Connections"
-          items={handoff.careTeamConnections.map((connection) => ({
-            id: connection.id,
-            title: connection.providerRoles.join(" + "),
-            detail: connection.summary,
-          }))}
-        />
-        <ClinicalHandoffList
-          title="Watch Items"
-          items={handoff.watchItems.map((item) => ({
-            id: item.id,
-            title: item.title,
-            detail: item.reason,
-          }))}
-        />
-        <ClinicalHandoffList
-          title="Carry Forward"
-          items={handoff.carryForwardItems.map((item) => ({
-            id: item.id,
-            title: item.title,
-            detail: item.detail,
-          }))}
-        />
-
-        {metrics ? (
-          <div
-            style={{
-              display: "grid",
-              gap: 4,
-              paddingTop: 2,
-              fontSize: 12,
-              opacity: 0.66,
-            }}
-          >
-            <div>Validation diagnostics</div>
-            <div>
-              Confidence: {metrics.confidence ?? "unavailable"} · Generated in{" "}
-              {metrics.generationTimeMs}ms · Important events:{" "}
-              {metrics.importantEventCount} · Watch items: {metrics.watchItemCount} · Carry
-              forward: {metrics.carryForwardCount}
-            </div>
-          </div>
-        ) : null}
-      </div>
-    </RecordSection>
-  );
-}
-
-function ClinicalHandoffList({
-  title,
-  items,
-}: {
-  title: string;
-  items: Array<{ id: string; title: string; detail: string }>;
-}) {
-  if (items.length === 0) {
-    return null;
-  }
-
-  return (
-    <div style={{ display: "grid", gap: 8 }}>
-      <div style={{ fontWeight: 600 }}>{title}</div>
-      <div style={{ display: "grid", gap: 8 }}>
-        {items.map((item) => (
-          <div key={item.id} style={{ display: "grid", gap: 2 }}>
-            {item.title.trim().length > 0 ? (
-              <div style={{ fontWeight: 600 }}>{item.title}</div>
-            ) : null}
-            {item.detail.trim().length > 0 ? (
-              <div style={{ opacity: 0.76, whiteSpace: "pre-wrap" }}>{item.detail}</div>
-            ) : null}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function entryKindTitle(kind: EntryItem["kind"]) {
   switch (kind) {
     case "SupervisorObservation":
@@ -903,31 +769,6 @@ function NotePreviewCard({
         Overall: {overallPercent !== null ? `${overallPercent}%` : "Not enough data"}
       </div>
     </div>
-  );
-}
-
-function RecordSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section style={{ marginBottom: 16, flex: "0 0 auto" }}>
-      <div style={{ marginBottom: 8, fontWeight: 600 }}>{title}</div>
-      <div
-        style={{
-          border: "none",
-          borderRadius: 14,
-          padding: 12,
-          boxShadow:
-            "inset 0 2px 3px rgb(0 0 0 / 10%), inset 0 1px 1px rgb(0 0 0 / 5%), inset 0 -2px 2px rgb(255 255 255 / 42%)",
-        }}
-      >
-        {children}
-      </div>
-    </section>
   );
 }
 

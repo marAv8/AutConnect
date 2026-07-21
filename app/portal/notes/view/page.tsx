@@ -3,22 +3,6 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import NoteHistoryViewer from "./NoteHistoryViewer";
 import { formatRole } from "@/app/libs/roles";
-import {
-  buildGatewayContextForEntry,
-  generateClinicalHandoff,
-  type ClinicalHandoff,
-} from "@/app/api/aiGateway";
-
-type ClinicalHandoffValidationPayload = {
-  clinicalHandoff: ClinicalHandoff | null;
-  metrics: {
-    generationTimeMs: number;
-    confidence: ClinicalHandoff["confidence"] | null;
-    importantEventCount: number;
-    watchItemCount: number;
-    carryForwardCount: number;
-  } | null;
-};
 
 export default async function ViewNotePage({
   searchParams,
@@ -177,11 +161,6 @@ export default async function ViewNotePage({
       }),
     ]);
   }
-  const clinicalHandoffValidationEnabled = isClinicalHandoffValidationEnabled();
-  const clinicalHandoffValidation = clinicalHandoffValidationEnabled
-    ? await buildClinicalHandoffValidationPayloads(entries.map((entry) => entry.id))
-    : new Map<string, ClinicalHandoffValidationPayload>();
-
   return (
     <NoteHistoryViewer
       clientId={clientId}
@@ -192,8 +171,6 @@ export default async function ViewNotePage({
         status: entry.status,
         note: entry.note ?? "",
         clinicalReflection: entry.clinicalReflection,
-        clinicalHandoff: clinicalHandoffValidation.get(entry.id)?.clinicalHandoff ?? null,
-        clinicalHandoffMetrics: clinicalHandoffValidation.get(entry.id)?.metrics ?? null,
         contextData: entry.contextData,
         date: entry.date.toISOString(),
         completedAt: (entry.completedAt ?? entry.updatedAt).toISOString(),
@@ -217,101 +194,6 @@ export default async function ViewNotePage({
       backLabel={session.role === "Caregiver" ? "Back to Children" : "Back to Client"}
     />
   );
-}
-
-function isClinicalHandoffValidationEnabled() {
-  return (
-    process.env.NODE_ENV !== "production" &&
-    ["1", "true", "yes"].includes(
-      (process.env.ENABLE_CLINICAL_HANDOFF_VALIDATION ?? "").toLowerCase()
-    )
-  );
-}
-
-async function buildClinicalHandoffValidationPayloads(entryIds: string[]) {
-  const results: Array<readonly [string, ClinicalHandoffValidationPayload]> = await Promise.all(
-    entryIds.map(async (entryId) => {
-      const startedAt = Date.now();
-
-      try {
-        const gatewayContext = await buildGatewayContextForEntry(entryId);
-        if (!gatewayContext) {
-          logClinicalHandoffMetrics({
-            generationTimeMs: Date.now() - startedAt,
-            confidence: null,
-            importantEventCount: 0,
-            watchItemCount: 0,
-            carryForwardCount: 0,
-            success: false,
-          });
-
-          return [
-            entryId,
-            {
-              clinicalHandoff: null,
-              metrics: null,
-            },
-          ] as const;
-        }
-
-        const clinicalHandoff = generateClinicalHandoff(gatewayContext);
-        const metrics = {
-          generationTimeMs: Date.now() - startedAt,
-          confidence: clinicalHandoff.confidence,
-          importantEventCount: clinicalHandoff.importantEvents.length,
-          watchItemCount: clinicalHandoff.watchItems.length,
-          carryForwardCount: clinicalHandoff.carryForwardItems.length,
-        };
-
-        logClinicalHandoffMetrics({
-          ...metrics,
-          success: true,
-        });
-
-        return [
-          entryId,
-          {
-            clinicalHandoff,
-            metrics,
-          },
-        ] as const;
-      } catch {
-        logClinicalHandoffMetrics({
-          generationTimeMs: Date.now() - startedAt,
-          confidence: null,
-          importantEventCount: 0,
-          watchItemCount: 0,
-          carryForwardCount: 0,
-          success: false,
-        });
-
-        return [
-          entryId,
-          {
-            clinicalHandoff: null,
-            metrics: null,
-          },
-        ] as const;
-      }
-    })
-  );
-
-  return new Map(results);
-}
-
-function logClinicalHandoffMetrics(metrics: {
-  generationTimeMs: number;
-  confidence: ClinicalHandoff["confidence"] | null;
-  importantEventCount: number;
-  watchItemCount: number;
-  carryForwardCount: number;
-  success: boolean;
-}) {
-  if (!isClinicalHandoffValidationEnabled()) {
-    return;
-  }
-
-  console.info("[clinical-handoff-view-notes-validation]", metrics);
 }
 
 function sevenDayWindowStart() {
