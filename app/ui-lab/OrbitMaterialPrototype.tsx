@@ -5,9 +5,9 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { RotateCcw } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ExtrudeGeometry, MathUtils, Shape } from "three";
 import type {
   Group,
-  Mesh,
   MeshBasicMaterial,
   OrthographicCamera as ThreeOrthographicCamera,
 } from "three";
@@ -18,7 +18,6 @@ type OrbitNode = {
   name: string;
   role: string;
   position: readonly [number, number];
-  completed?: boolean;
   current?: boolean;
 };
 
@@ -28,7 +27,6 @@ const PROVIDERS: OrbitNode[] = [
     name: "Kristine",
     role: "O.T.",
     position: [-2.55, -1.65],
-    completed: true,
     current: true,
   },
   { id: "caretaker", name: "Mona", role: "Caretaker", position: [0, -2.52] },
@@ -63,7 +61,8 @@ function ResponsiveCamera() {
     <OrthographicCamera
       ref={cameraRef}
       makeDefault
-      position={[0, 9.2, 9.2]}
+      position={[0, 10, 0]}
+      up={[0, 0, -1]}
       near={0.1}
       far={100}
       zoom={zoom}
@@ -103,7 +102,7 @@ function Ripple({ reduceMotion }: { reduceMotion: boolean }) {
   }
 
   return (
-    <group ref={groupRef} position={[0, 0.34, 0]}>
+    <group ref={groupRef} position={[0, 0.03, 0]}>
       {[0, 1, 2].map((ring) => (
         <mesh key={ring} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[0.94, 0.022, 12, 96]} />
@@ -130,8 +129,8 @@ type MatteDiscProps = {
   color: string;
   delay: number;
   position: readonly [number, number];
-  completed?: boolean;
-  pulseKey?: number;
+  showAdd?: boolean;
+  pulseKey?: number | null;
   reduceMotion: boolean;
   client?: boolean;
   onActivate?: () => void;
@@ -145,17 +144,33 @@ function MatteDisc({
   color,
   delay,
   position,
-  completed = false,
+  showAdd = false,
   pulseKey,
   reduceMotion,
   client = false,
   onActivate,
 }: MatteDiscProps) {
   const groupRef = useRef<Group | null>(null);
-  const discRef = useRef<Mesh | null>(null);
-  const entered = useRef(reduceMotion ? 1 : 0.02);
-  const velocity = useRef(0);
+  const entered = useRef(reduceMotion ? 1 : 0.94);
   const [pressed, setPressed] = useState(false);
+
+  // Extrusion supplies a true rounded edge while keeping the badge face circular.
+  const discGeometry = useMemo(() => {
+    const shape = new Shape();
+    shape.absarc(0, 0, radius, 0, Math.PI * 2, false);
+
+    return new ExtrudeGeometry(shape, {
+      depth,
+      bevelEnabled: true,
+      bevelSegments: 4,
+      steps: 1,
+      bevelSize: Math.min(0.055, radius * 0.07),
+      bevelThickness: Math.min(0.035, depth * 0.28),
+      curveSegments: 96,
+    });
+  }, [depth, radius]);
+
+  useEffect(() => () => discGeometry.dispose(), [discGeometry]);
 
   useFrame(({ clock }, delta) => {
     if (!groupRef.current) {
@@ -163,20 +178,12 @@ function MatteDisc({
     }
 
     const canEnter = reduceMotion || clock.elapsedTime >= delay;
-    const target = canEnter ? (pressed ? 0.96 : 1) : 0.02;
-    const stiffness = pressed ? 42 : 28;
-    const damping = pressed ? 14 : 11;
+    const target = canEnter ? (pressed ? 0.975 : 1) : 0.94;
 
-    velocity.current += (target - entered.current) * stiffness * delta;
-    velocity.current *= Math.exp(-damping * delta);
-    entered.current += velocity.current;
+    // A damped settle keeps the launch calm and prevents spring overshoot.
+    entered.current = MathUtils.damp(entered.current, target, pressed ? 18 : 10, delta);
 
     groupRef.current.scale.setScalar(entered.current);
-    groupRef.current.position.y = (1 - entered.current) * 0.65;
-
-    if (discRef.current) {
-      discRef.current.rotation.y += delta * 0.025;
-    }
   });
 
   return (
@@ -194,37 +201,59 @@ function MatteDisc({
       }}
       onPointerLeave={() => setPressed(false)}
     >
-      <mesh ref={discRef} castShadow receiveShadow position={[0, depth / 2, 0]}>
-        <cylinderGeometry args={[radius, radius, depth, 96]} />
+      <mesh
+        castShadow
+        receiveShadow
+        geometry={discGeometry}
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
         <meshPhysicalMaterial
           color={color}
-          roughness={0.76}
+          roughness={0.82}
           metalness={0}
-          clearcoat={0.08}
-          clearcoatRoughness={0.78}
+          clearcoat={0.035}
+          clearcoatRoughness={0.88}
         />
       </mesh>
 
-      <mesh position={[0, depth + 0.012, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
-        <torusGeometry args={[radius * 0.89, radius * 0.035, 16, 96]} />
-        <meshStandardMaterial color="#fafaf8" roughness={0.82} metalness={0} />
+      <mesh position={[0, depth + 0.016, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+        <torusGeometry args={[radius * 0.88, radius * 0.022, 12, 96]} />
+        <meshStandardMaterial color="#f7f7f4" roughness={0.9} metalness={0} />
       </mesh>
 
-      {completed ? (
-        <mesh position={[0, depth + 0.085, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
-          <torusGeometry args={[radius * 1.08, radius * 0.045, 18, 128]} />
+      {showAdd ? (
+        <mesh position={[0, depth + 0.045, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+          <torusGeometry args={[radius * 1.075, radius * 0.032, 16, 128]} />
           <meshPhysicalMaterial
-            color={GRAPHITE}
-            roughness={0.52}
-            metalness={0.08}
-            clearcoat={0.12}
-            clearcoatRoughness={0.68}
+            color={PROVIDER_SURFACE}
+            roughness={0.84}
+            metalness={0}
+            clearcoat={0.04}
+            clearcoatRoughness={0.88}
           />
         </mesh>
       ) : null}
 
-      {completed && pulseKey !== undefined ? (
-        <group key={pulseKey} position={[0, depth - 0.25, 0]} scale={radius / 0.8}>
+      {showAdd ? (
+        <group position={[radius * 0.79, depth + 0.055, -radius * 0.67]}>
+          <mesh castShadow>
+            <cylinderGeometry args={[radius * 0.19, radius * 0.19, 0.055, 48]} />
+            <meshPhysicalMaterial color={PROVIDER_SURFACE} roughness={0.84} metalness={0} />
+          </mesh>
+          <mesh position={[0, 0.04, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[radius * 0.19, radius * 0.025, 12, 64]} />
+            <meshStandardMaterial color="#deded9" roughness={0.9} />
+          </mesh>
+          <Html center position={[0, 0.075, 0]} zIndexRange={[3, 0]}>
+            <span className={styles.addIcon} aria-hidden="true">
+              +
+            </span>
+          </Html>
+        </group>
+      ) : null}
+
+      {pulseKey !== null && pulseKey !== undefined ? (
+        <group key={pulseKey} position={[0, depth + 0.06, 0]} scale={radius / 0.8}>
           <Ripple reduceMotion={reduceMotion} />
         </group>
       ) : null}
@@ -242,7 +271,13 @@ function MatteDisc({
   );
 }
 
-function MaterialScene({ pulseKey, reduceMotion }: { pulseKey: number; reduceMotion: boolean }) {
+function MaterialScene({
+  pulseKey,
+  reduceMotion,
+}: {
+  pulseKey: number | null;
+  reduceMotion: boolean;
+}) {
   const providers = useMemo(() => PROVIDERS, []);
   const { size } = useThree();
   const sceneScale = size.width < 640 ? 0.94 : 1;
@@ -290,7 +325,7 @@ function MaterialScene({ pulseKey, reduceMotion }: { pulseKey: number; reduceMot
             color={PROVIDER_SURFACE}
             delay={0.16 + index * 0.065}
             position={provider.position}
-            completed={provider.completed}
+            showAdd={provider.current}
             pulseKey={provider.current ? pulseKey : undefined}
             reduceMotion={reduceMotion}
           />
@@ -312,7 +347,7 @@ function MaterialScene({ pulseKey, reduceMotion }: { pulseKey: number; reduceMot
 }
 
 export default function OrbitMaterialPrototype() {
-  const [pulseKey, setPulseKey] = useState(0);
+  const [pulseKey, setPulseKey] = useState<number | null>(null);
   const reduceMotion = useReducedMotion() ?? false;
 
   return (
@@ -340,12 +375,12 @@ export default function OrbitMaterialPrototype() {
       <div className={styles.controls}>
         <div className={styles.status}>
           <span className={styles.statusDot} aria-hidden="true" />
-          Completed note
+          Ready to add note
         </div>
         <motion.button
           type="button"
           className={styles.replayButton}
-          onClick={() => setPulseKey((current) => current + 1)}
+          onClick={() => setPulseKey((current) => (current ?? 0) + 1)}
           whileTap={{ scale: 0.9 }}
           transition={{ type: "spring", stiffness: 520, damping: 30 }}
           aria-label="Replay completion ripple"
