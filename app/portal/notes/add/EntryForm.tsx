@@ -49,18 +49,13 @@ import {
   behaviorTherapistFallbackTargetOptions,
   behaviorTherapistMeasurementProfiles,
   behaviorTherapistResponseProfiles,
-  communicationObservationCategoryOptions,
-  communicationRecommendationOptions,
   educatorFallbackTargetOptions,
   educatorMeasurementProfiles,
   educatorResponseProfiles,
   fallbackMeasurementOptions,
-  observationCategoryOptions,
   otFallbackTargetOptions,
   otMeasurementProfiles,
   otResponseProfiles,
-  sensoryObservationCategoryOptions,
-  sensoryRecommendationOptions,
   speechFallbackTargetOptions,
   speechMeasurementProfiles,
   speechResponseProfiles,
@@ -89,6 +84,7 @@ import {
   CaretakerContextEntryForm,
   ClinicalReflectionEntryForm,
 } from "./EntrySpecializedForms";
+import { ObservationEntryForm } from "./ObservationEntryForm";
 
 type Props = {
   clientId: string;
@@ -2185,407 +2181,77 @@ export default function EntryForm({
     noteKind === "SensoryObservation" ||
     noteKind === "CommunicationObservation"
   ) {
-    const isSensoryObservationMode = noteKind === "SensoryObservation";
-    const isCommunicationObservationMode = noteKind === "CommunicationObservation";
-    const isImmediateObservationMode =
-      isSensoryObservationMode || isCommunicationObservationMode;
-    const observationCardCount = isImmediateObservationMode ? 3 : 2;
-    const activeObservationCategories = isSensoryObservationMode
-      ? sensoryObservationCategoryOptions
-      : isCommunicationObservationMode
-        ? communicationObservationCategoryOptions
-      : observationCategoryOptions;
-    const activeRecommendationOptions = isCommunicationObservationMode
-      ? communicationRecommendationOptions
-      : sensoryRecommendationOptions;
-    const observationTitle = isSensoryObservationMode
-      ? "Sensory Observation"
-      : isCommunicationObservationMode
-        ? "Communication Observation"
-      : "Observation Session";
+    const observationCardCount = noteKind === "SupervisorObservation" ? 2 : 3;
+    const isImmediateObservationMode = noteKind !== "SupervisorObservation";
 
     return (
-      <form
-        className="add-note-form"
-        onSubmit={isAddingObservation ? (event) => {
+      <ObservationEntryForm
+        noteKind={noteKind}
+        clientName={clientName}
+        providerName={providerName}
+        todayLabel={todayLabel}
+        isAddingObservation={isAddingObservation}
+        activeIndex={activeIndex}
+        draftCategory={draftObservationCategory}
+        draftText={draftObservationText}
+        draftRecommendation={draftObservationRecommendation}
+        draftRecommendationNote={draftObservationNote}
+        editingObservationIndex={editingObservationIndex}
+        observationItems={observationItems}
+        overallComment={overallObservationComment}
+        visibilityControl={supervisorVisibilityControl}
+        saveStatus={saveStatus}
+        isEditMode={isEditMode}
+        onEditorSubmit={(event) => {
           event.preventDefault();
-          saveDraftObservation();
-        } : submitObservationSession}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
+          void saveDraftObservation();
         }}
-      >
-        <div
-          className="add-note-header-text"
-          style={{
-            marginBottom: 14,
-            opacity: 0.7,
-          }}
-        >
-          <div>{clientName}</div>
-          <div>
-            {providerName} -- {observationTitle}
-          </div>
-          <div>{todayLabel}</div>
-        </div>
-
-        {isAddingObservation ? (
-          <>
-            <div
-              className="paper-surface"
-              style={{
-                padding: "18px 22px 20px",
-                maxWidth: noteCardMaxWidth,
-                margin: "0 auto",
-                height: noteCardHeight,
-                boxSizing: "border-box",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  gap: 28,
-                  marginBottom: 12,
-                }}
-              >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() =>
-                    setActiveIndex((current) =>
-                      current === 0 ? observationCardCount - 1 : current - 1
-                    )
-                  }
-                >
-                  ‹
-                </Button>
-                <div style={{ display: "grid", justifyItems: "center", gap: 6, minWidth: 76 }}>
-                  <div style={{ fontWeight: 600 }}>{activeIndex + 1} of {observationCardCount}</div>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() =>
-                    setActiveIndex((current) =>
-                      current === observationCardCount - 1 ? 0 : current + 1
-                    )
-                  }
-                >
-                  ›
-                </Button>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  alignContent: "center",
-                  gap: 18,
-                  height: "calc(100% - 58px)",
-                  padding: "8px 18px 0",
-                  boxSizing: "border-box",
-                }}
-              >
-                {activeIndex === 0 ? (
-                  <>
-                    <div style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}>
-                      Observations
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        justifyContent: "center",
-                        gap: 10,
-                      }}
-                    >
-                      {activeObservationCategories.map((option) => {
-                        const selected = draftObservationCategory === option;
-
-                        return (
-                          <Button
-                            key={option}
-                            type="button"
-                            variant="ghost"
-                            onClick={() => {
-                              setDraftObservationCategory(option);
-                              setSaveStatus("idle");
-                              if (isImmediateObservationMode) {
-                                setActiveIndex(1);
-                              }
-                            }}
-                            style={{
-                              minHeight: 40,
-                              padding: "9px 14px",
-                              borderRadius: 12,
-                              background: selected ? "rgb(0 0 0 / 9%)" : "var(--glass-strong)",
-                              boxShadow: selected ? "var(--inset-paper)" : "var(--shadow-soft)",
-                            }}
-                          >
-                            {option}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </>
-                ) : null}
-
-                {activeIndex === 1 ? (
-                  <>
-                    <div style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}>
-                      Observation
-                    </div>
-                    <Textarea
-                      value={draftObservationText}
-                      onChange={(event) => {
-                        setDraftObservationText(event.target.value);
-                        setSaveStatus("idle");
-                      }}
-                      placeholder={
-                        isSensoryObservationMode
-                          ? "Describe today's observation."
-                          : isCommunicationObservationMode
-                            ? "Describe today's communication observation."
-                          : "Describe what you directly observed."
-                      }
-                      style={{
-                        minHeight: 122,
-                        padding: "12px 14px",
-                        resize: "none",
-                        ...fieldInputStyle,
-                      }}
-                    />
-                  </>
-                ) : null}
-
-                {isImmediateObservationMode && activeIndex === 2 ? (
-                  <>
-                    <div style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}>
-                      Recommendation
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        justifyContent: "center",
-                        gap: 10,
-                      }}
-                    >
-                      {activeRecommendationOptions.map((option) => {
-                        const selected = draftObservationRecommendation === option;
-
-                        return (
-                          <Button
-                            key={option}
-                            type="button"
-                            variant="ghost"
-                            onClick={() => {
-                              setDraftObservationRecommendation(option);
-                              setSaveStatus("idle");
-                              if (option !== "Other") {
-                                setDraftObservationNote("");
-                              }
-                            }}
-                            style={{
-                              minHeight: 40,
-                              padding: "9px 14px",
-                              borderRadius: 12,
-                              background: selected ? "rgb(0 0 0 / 9%)" : "var(--glass-strong)",
-                              boxShadow: selected ? "var(--inset-paper)" : "var(--shadow-soft)",
-                            }}
-                          >
-                            {option}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                    {draftObservationRecommendation === "Other" ? (
-                      <Input
-                        value={draftObservationNote}
-                        onChange={(event) => {
-                          setDraftObservationNote(event.target.value);
-                          setSaveStatus("idle");
-                        }}
-                        placeholder="Recommendation"
-                        style={{ minHeight: 44, padding: "10px 12px", ...fieldInputStyle }}
-                      />
-                    ) : null}
-                  </>
-                ) : null}
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 14,
-                minHeight: 44,
-              }}
-            >
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  if (isImmediateObservationMode) {
-                    onCancelToProgress?.();
-                    return;
-                  }
-
-                  setIsAddingObservation(false);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="material-control action-positive"
-                disabled={saveStatus === "saving"}
-              >
-                {editingObservationIndex === null ? "Add Observation" : "Update Observation"}
-              </Button>
-              {saveStatus === "error" ? (
-                <span style={{ opacity: 0.72 }}>Complete the required cards before saving.</span>
-              ) : null}
-            </div>
-          </>
-        ) : (
-          <>
-            <div
-              className="paper-surface"
-              style={{
-                padding: 28,
-                maxWidth: noteCardMaxWidth,
-                margin: "0 auto",
-                minHeight: 360,
-                boxSizing: "border-box",
-                display: "grid",
-                gap: 18,
-              }}
-            >
-              <div style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}>
-                {observationTitle}
-              </div>
-              {supervisorVisibilityControl}
-
-              <Button
-                type="button"
-                onClick={startNewObservation}
-                className="material-control"
-                style={{ justifySelf: "start" }}
-              >
-                + Add Observation
-              </Button>
-
-              <div style={{ display: "grid", gap: 14 }}>
-                {observationItems.length === 0 ? (
-                  <div style={{ textAlign: "center", opacity: 0.62 }}>
-                    No observations added yet.
-                  </div>
-                ) : null}
-
-                {observationItems.map((item, index) => (
-                  <div
-                    key={`${item.category}-${index}`}
-                    style={{
-                      borderTop: "1px solid rgb(255 255 255 / 78%)",
-                      paddingTop: 14,
-                      display: "grid",
-                      gap: 8,
-                    }}
-                  >
-                    <div style={{ fontWeight: 650 }}>{item.category}</div>
-                    <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.45 }}>
-                      {item.observation}
-                    </div>
-                    {item.recommendation ? (
-                      <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.45, opacity: 0.78 }}>
-                        Recommendation: {item.recommendation}
-                      </div>
-                    ) : null}
-                    {item.note ? (
-                      <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.45, opacity: 0.78 }}>
-                        Note: {item.note}
-                      </div>
-                    ) : null}
-                    <div style={{ display: "flex", gap: 12 }}>
-                      <button
-                        type="button"
-                        onClick={() => startEditObservation(index)}
-                        className="back-link"
-                        style={{ border: "none", background: "transparent", padding: 0 }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeObservation(index)}
-                        className="back-link"
-                        style={{ border: "none", background: "transparent", padding: 0 }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <Textarea
-                value={overallObservationComment}
-                onChange={(event) => setOverallObservationComment(event.target.value)}
-                placeholder="Overall Comment (optional)"
-                style={{
-                  minHeight: 90,
-                  padding: "12px 14px",
-                  resize: "vertical",
-                  ...fieldInputStyle,
-                }}
-              />
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 14,
-                minHeight: 44,
-              }}
-            >
-              <Button
-                type="submit"
-                className="material-control action-positive"
-                disabled={saveStatus === "saving"}
-              >
-                {saveStatus === "saving"
-                  ? "Saving..."
-                  : isEditMode
-                    ? `Update ${observationTitle}`
-                    : noteKind === "SupervisorObservation"
-                      ? "Save Observation"
-                      : `Save ${observationTitle}`}
-              </Button>
-              {isEditMode ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={deleteSupervisorDocumentation}
-                  disabled={saveStatus === "saving"}
-                >
-                  Delete
-                </Button>
-              ) : null}
-              {saveStatus === "error" ? (
-                <span style={{ opacity: 0.72 }}>Add at least one observation.</span>
-              ) : null}
-            </div>
-          </>
-        )}
-      </form>
+        onSessionSubmit={submitObservationSession}
+        onPrevious={() =>
+          setActiveIndex((current) =>
+            current === 0 ? observationCardCount - 1 : current - 1
+          )
+        }
+        onNext={() =>
+          setActiveIndex((current) =>
+            current === observationCardCount - 1 ? 0 : current + 1
+          )
+        }
+        onCategoryChange={(value) => {
+          setDraftObservationCategory(value);
+          setSaveStatus("idle");
+          if (isImmediateObservationMode) {
+            setActiveIndex(1);
+          }
+        }}
+        onTextChange={(value) => {
+          setDraftObservationText(value);
+          setSaveStatus("idle");
+        }}
+        onRecommendationChange={(value) => {
+          setDraftObservationRecommendation(value);
+          setSaveStatus("idle");
+          if (value !== "Other") {
+            setDraftObservationNote("");
+          }
+        }}
+        onRecommendationNoteChange={(value) => {
+          setDraftObservationNote(value);
+          setSaveStatus("idle");
+        }}
+        onCancelEditor={() => {
+          if (isImmediateObservationMode) {
+            onCancelToProgress?.();
+            return;
+          }
+          setIsAddingObservation(false);
+        }}
+        onStartNew={startNewObservation}
+        onEdit={startEditObservation}
+        onRemove={removeObservation}
+        onOverallCommentChange={setOverallObservationComment}
+        onDelete={deleteSupervisorDocumentation}
+      />
     );
   }
 
