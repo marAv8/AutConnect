@@ -35,7 +35,7 @@ function CompletionRipple({
     groupRef.current.children.forEach((child, index) => {
       const delayed = (elapsed - index * 0.09) / 0.9;
       const progress = Math.min(1, Math.max(0, delayed));
-      child.scale.setScalar(1 + easeOutCubic(progress) * 0.9);
+      child.scale.setScalar(1 + easeOutCubic(progress) * 3);
       child.visible = delayed >= 0 && delayed < 1;
 
       const material = materialRefs.current[index];
@@ -49,7 +49,7 @@ function CompletionRipple({
     <group ref={groupRef} position={[0, 0.058, 0]}>
       {[0, 1, 2].map((ring) => (
         <mesh key={ring} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[radius * 1.16, radius * 0.045, 12, 96]} />
+          <torusGeometry args={[radius * 0.38, radius * 0.04, 12, 96]} />
           <meshBasicMaterial
             ref={(material) => {
               materialRefs.current[ring] = material;
@@ -210,18 +210,18 @@ export function SpatialBadge({
 
       {showAdd ? (
         <group position={[plusOffset, plusElevation, -plusOffset]}>
-          <ContactShadows
-            position={[0, -0.038, 0]}
-            opacity={0.24}
-            scale={plusRadius * 3.4}
-            blur={0.72}
-            far={0.22}
-            resolution={256}
-            color="#20252a"
-            frames={1}
-          />
           {!signalActive ? (
             <>
+              <ContactShadows
+                position={[0, -0.038, 0]}
+                opacity={0.24}
+                scale={plusRadius * 3.4}
+                blur={0.72}
+                far={0.22}
+                resolution={256}
+                color="#20252a"
+                frames={1}
+              />
               <mesh castShadow receiveShadow>
                 <cylinderGeometry args={[plusRadius, plusRadius, 0.05, 48]} />
                 <meshPhysicalMaterial
