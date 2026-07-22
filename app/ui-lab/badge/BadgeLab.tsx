@@ -17,7 +17,9 @@ type NumericControl = {
     BadgeAppearance,
     | "depth"
     | "torusLift"
+    | "torusTubeRatio"
     | "plusRadiusRatio"
+    | "plusRimTubeRatio"
     | "plusOverlap"
     | "contactShadowOpacity"
     | "diffuseShadowOpacity"
@@ -32,7 +34,23 @@ type NumericControl = {
 const NUMERIC_CONTROLS: NumericControl[] = [
   { key: "depth", label: "Badge depth", min: 0.06, max: 0.22, step: 0.005, format: decimals },
   { key: "torusLift", label: "Torus lift", min: 0.025, max: 0.14, step: 0.005, format: decimals },
+  {
+    key: "torusTubeRatio",
+    label: "Torus thickness",
+    min: 0.014,
+    max: 0.045,
+    step: 0.001,
+    format: decimals,
+  },
   { key: "plusRadiusRatio", label: "Plus size", min: 0.2, max: 0.42, step: 0.01, format: percent },
+  {
+    key: "plusRimTubeRatio",
+    label: "Plus rim",
+    min: 0.012,
+    max: 0.04,
+    step: 0.001,
+    format: decimals,
+  },
   { key: "plusOverlap", label: "Plus overlap", min: 0.05, max: 0.5, step: 0.01, format: percent },
   {
     key: "contactShadowOpacity",

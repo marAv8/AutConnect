@@ -11,6 +11,10 @@ import styles from "./SpatialBadge.module.css";
 
 const GRAPHITE = "#29323c";
 
+function easeOutCubic(value: number) {
+  return 1 - Math.pow(1 - value, 3);
+}
+
 function CompletionRipple({
   reduceMotion,
   radius,
@@ -31,12 +35,11 @@ function CompletionRipple({
     groupRef.current.children.forEach((child, index) => {
       const delayed = (elapsed - index * 0.09) / 0.9;
       const progress = Math.min(1, Math.max(0, delayed));
-      const pulse = Math.sin(progress * Math.PI);
-      child.scale.setScalar(1 + pulse * 0.72);
+      child.scale.setScalar(1 + easeOutCubic(progress) * 0.9);
       child.visible = delayed >= 0 && delayed < 1;
 
       const material = materialRefs.current[index];
-      if (material) material.opacity = pulse * 0.2;
+      if (material) material.opacity = Math.pow(1 - progress, 2.2) * 0.28;
     });
   });
 
@@ -148,6 +151,10 @@ export function SpatialBadge({
   });
 
   const plusRadius = radius * appearance.plusRadiusRatio;
+  const torusTubeRatio =
+    appearance.torusTubeRatio ?? DEFAULT_BADGE_APPEARANCE.torusTubeRatio;
+  const plusRimTubeRatio =
+    appearance.plusRimTubeRatio ?? DEFAULT_BADGE_APPEARANCE.plusRimTubeRatio;
   const plusCenterDistance = radius + plusRadius - plusRadius * 2 * appearance.plusOverlap;
   const plusOffset = plusCenterDistance / Math.sqrt(2);
   const plusElevation = depth + appearance.torusLift + Math.max(0.075, plusRadius * 0.22);
@@ -181,7 +188,7 @@ export function SpatialBadge({
       {showAdd ? (
         <>
           <mesh position={[0, depth + 0.026, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[radius * 1.075, radius * 0.0345, 16, 128]} />
+            <torusGeometry args={[radius * 1.075, radius * torusTubeRatio * 1.21, 16, 128]} />
             <meshBasicMaterial color="#a7adb3" transparent opacity={0.18} depthWrite={false} />
           </mesh>
           <mesh
@@ -189,7 +196,7 @@ export function SpatialBadge({
             rotation={[Math.PI / 2, 0, 0]}
             castShadow
           >
-            <torusGeometry args={[radius * 1.075, radius * 0.0285, 16, 128]} />
+            <torusGeometry args={[radius * 1.075, radius * torusTubeRatio, 16, 128]} />
             <meshPhysicalMaterial
               color={appearance.torusColor}
               roughness={0.9}
@@ -203,14 +210,32 @@ export function SpatialBadge({
 
       {showAdd ? (
         <group position={[plusOffset, plusElevation, -plusOffset]}>
-          <mesh castShadow>
-            <cylinderGeometry args={[plusRadius, plusRadius, 0.05, 48]} />
-            <meshPhysicalMaterial color={appearance.badgeColor} roughness={0.86} metalness={0} />
-          </mesh>
-          <mesh position={[0, 0.034, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[plusRadius, radius * 0.027, 12, 64]} />
-            <meshStandardMaterial color={appearance.torusColor} roughness={0.92} />
-          </mesh>
+          <ContactShadows
+            position={[0, -0.038, 0]}
+            opacity={0.24}
+            scale={plusRadius * 3.4}
+            blur={0.72}
+            far={0.22}
+            resolution={256}
+            color="#20252a"
+            frames={1}
+          />
+          {!signalActive ? (
+            <>
+              <mesh castShadow receiveShadow>
+                <cylinderGeometry args={[plusRadius, plusRadius, 0.05, 48]} />
+                <meshPhysicalMaterial
+                  color={appearance.badgeColor}
+                  roughness={0.86}
+                  metalness={0}
+                />
+              </mesh>
+              <mesh position={[0, 0.034, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+                <torusGeometry args={[plusRadius, radius * plusRimTubeRatio, 12, 64]} />
+                <meshStandardMaterial color={appearance.torusColor} roughness={0.92} />
+              </mesh>
+            </>
+          ) : null}
           {signalActive ? <CompletionSignal radius={plusRadius} /> : null}
           {!signalActive ? (
             <Html center position={[0, 0.052, 0]} zIndexRange={[3, 0]}>
