@@ -181,7 +181,7 @@ export function SpatialBadge({
       {showAdd ? (
         <>
           <mesh position={[0, depth + 0.026, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[radius * 1.075, radius * 0.046, 16, 128]} />
+            <torusGeometry args={[radius * 1.075, radius * 0.0345, 16, 128]} />
             <meshBasicMaterial color="#a7adb3" transparent opacity={0.18} depthWrite={false} />
           </mesh>
           <mesh
@@ -189,7 +189,7 @@ export function SpatialBadge({
             rotation={[Math.PI / 2, 0, 0]}
             castShadow
           >
-            <torusGeometry args={[radius * 1.075, radius * 0.038, 16, 128]} />
+            <torusGeometry args={[radius * 1.075, radius * 0.0285, 16, 128]} />
             <meshPhysicalMaterial
               color={appearance.torusColor}
               roughness={0.9}
