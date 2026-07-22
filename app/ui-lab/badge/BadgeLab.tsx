@@ -227,7 +227,10 @@ export default function BadgeLab() {
           <motion.button
             type="button"
             className={styles.iconButton}
-            onClick={() => setAppearance(DEFAULT_BADGE_APPEARANCE)}
+            onClick={() => {
+              setAppearance(DEFAULT_BADGE_APPEARANCE);
+              setPulseKey(null);
+            }}
             whileTap={{ scale: 0.9 }}
             aria-label="Reset badge appearance"
             title="Reset badge appearance"

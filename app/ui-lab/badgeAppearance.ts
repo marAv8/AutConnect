@@ -1,7 +1,6 @@
 export type BadgeAppearance = {
   badgeColor: string;
   torusColor: string;
-  insetRingColor: string;
   depth: number;
   torusLift: number;
   plusRadiusRatio: number;
@@ -18,7 +17,6 @@ export type BadgeAppearance = {
 export const DEFAULT_BADGE_APPEARANCE: BadgeAppearance = {
   badgeColor: "#ffffff",
   torusColor: "#e5e9ed",
-  insetRingColor: "#f1f3f5",
   depth: 0.12,
   torusLift: 0.062,
   plusRadiusRatio: 0.3,

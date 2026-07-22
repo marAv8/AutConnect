@@ -11,11 +11,13 @@ import styles from "./SpatialBadge.module.css";
 
 const GRAPHITE = "#29323c";
 
-function easeOutCubic(value: number) {
-  return 1 - Math.pow(1 - value, 3);
-}
-
-function CompletionRipple({ reduceMotion }: { reduceMotion: boolean }) {
+function CompletionRipple({
+  reduceMotion,
+  radius,
+}: {
+  reduceMotion: boolean;
+  radius: number;
+}) {
   const groupRef = useRef<Group | null>(null);
   const materialRefs = useRef<Array<MeshBasicMaterial | null>>([]);
   const startedAt = useRef<number | null>(null);
@@ -27,23 +29,24 @@ function CompletionRipple({ reduceMotion }: { reduceMotion: boolean }) {
     const elapsed = clock.elapsedTime - startedAt.current;
 
     groupRef.current.children.forEach((child, index) => {
-      const delayed = (elapsed - index * 0.1) / 0.72;
+      const delayed = (elapsed - index * 0.09) / 0.9;
       const progress = Math.min(1, Math.max(0, delayed));
-      child.scale.setScalar(1 + easeOutCubic(progress) * 0.62);
+      const pulse = Math.sin(progress * Math.PI);
+      child.scale.setScalar(1 + pulse * 0.72);
       child.visible = delayed >= 0 && delayed < 1;
 
       const material = materialRefs.current[index];
-      if (material) material.opacity = Math.pow(1 - progress, 1.8) * 0.36;
+      if (material) material.opacity = pulse * 0.2;
     });
   });
 
   if (reduceMotion) return null;
 
   return (
-    <group ref={groupRef} position={[0, 0.03, 0]}>
+    <group ref={groupRef} position={[0, 0.058, 0]}>
       {[0, 1, 2].map((ring) => (
         <mesh key={ring} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[0.94, 0.022, 12, 96]} />
+          <torusGeometry args={[radius * 1.16, radius * 0.045, 12, 96]} />
           <meshBasicMaterial
             ref={(material) => {
               materialRefs.current[ring] = material;
@@ -55,6 +58,29 @@ function CompletionRipple({ reduceMotion }: { reduceMotion: boolean }) {
           />
         </mesh>
       ))}
+    </group>
+  );
+}
+
+function CompletionSignal({ radius }: { radius: number }) {
+  const coreRadius = radius * 0.28;
+
+  return (
+    <group position={[0, 0.055, 0]}>
+      <mesh castShadow>
+        <sphereGeometry args={[coreRadius, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshPhysicalMaterial
+          color="#4b5661"
+          roughness={0.72}
+          metalness={0}
+          clearcoat={0.08}
+          clearcoatRoughness={0.82}
+        />
+      </mesh>
+      <mesh position={[0, 0.008, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[coreRadius * 1.35, coreRadius * 0.1, 12, 72]} />
+        <meshStandardMaterial color="#737c85" roughness={0.86} metalness={0} />
+      </mesh>
     </group>
   );
 }
@@ -124,6 +150,8 @@ export function SpatialBadge({
   const plusRadius = radius * appearance.plusRadiusRatio;
   const plusCenterDistance = radius + plusRadius - plusRadius * 2 * appearance.plusOverlap;
   const plusOffset = plusCenterDistance / Math.sqrt(2);
+  const plusElevation = depth + appearance.torusLift + Math.max(0.075, plusRadius * 0.22);
+  const signalActive = pulseKey !== null && pulseKey !== undefined;
 
   return (
     <group
@@ -150,11 +178,6 @@ export function SpatialBadge({
         />
       </mesh>
 
-      <mesh position={[0, depth + 0.016, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
-        <torusGeometry args={[radius * 0.88, radius * 0.022, 12, 96]} />
-        <meshStandardMaterial color={appearance.insetRingColor} roughness={0.92} metalness={0} />
-      </mesh>
-
       {showAdd ? (
         <>
           <mesh position={[0, depth + 0.026, 0]} rotation={[Math.PI / 2, 0, 0]}>
@@ -179,7 +202,7 @@ export function SpatialBadge({
       ) : null}
 
       {showAdd ? (
-        <group position={[plusOffset, depth + 0.025, -plusOffset]}>
+        <group position={[plusOffset, plusElevation, -plusOffset]}>
           <mesh castShadow>
             <cylinderGeometry args={[plusRadius, plusRadius, 0.05, 48]} />
             <meshPhysicalMaterial color={appearance.badgeColor} roughness={0.86} metalness={0} />
@@ -188,17 +211,19 @@ export function SpatialBadge({
             <torusGeometry args={[plusRadius, radius * 0.027, 12, 64]} />
             <meshStandardMaterial color={appearance.torusColor} roughness={0.92} />
           </mesh>
-          <Html center position={[0, 0.052, 0]} zIndexRange={[3, 0]}>
-            <span className={styles.addIcon} aria-hidden="true">
-              +
-            </span>
-          </Html>
-        </group>
-      ) : null}
-
-      {pulseKey !== null && pulseKey !== undefined ? (
-        <group key={pulseKey} position={[0, depth + 0.06, 0]} scale={radius / 0.8}>
-          <CompletionRipple reduceMotion={reduceMotion} />
+          {signalActive ? <CompletionSignal radius={plusRadius} /> : null}
+          {!signalActive ? (
+            <Html center position={[0, 0.052, 0]} zIndexRange={[3, 0]}>
+              <span className={styles.addIcon} aria-hidden="true">
+                +
+              </span>
+            </Html>
+          ) : null}
+          {signalActive ? (
+            <group key={pulseKey}>
+              <CompletionRipple reduceMotion={reduceMotion} radius={plusRadius} />
+            </group>
+          ) : null}
         </group>
       ) : null}
 
