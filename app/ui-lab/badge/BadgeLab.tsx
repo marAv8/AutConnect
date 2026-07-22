@@ -152,9 +152,13 @@ function BadgeScene({
  * move into the dashboard without recreating the object.
  */
 export default function BadgeLab() {
-  const [appearance, setAppearance] = useState<BadgeAppearance>(DEFAULT_BADGE_APPEARANCE);
+  const [appearance, setAppearance] = useState<BadgeAppearance>(() => ({
+    ...DEFAULT_BADGE_APPEARANCE,
+  }));
   const [pulseKey, setPulseKey] = useState<number | null>(null);
   const reduceMotion = useReducedMotion() ?? false;
+  // Hot reload can preserve an older control-state shape after new settings are added.
+  const resolvedAppearance = { ...DEFAULT_BADGE_APPEARANCE, ...appearance };
 
   function updateNumeric(key: NumericControl["key"], value: number) {
     setAppearance((current) => ({ ...current, [key]: value }));
@@ -181,7 +185,7 @@ export default function BadgeLab() {
           gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
         >
           <BadgeScene
-            appearance={appearance}
+            appearance={resolvedAppearance}
             pulseKey={pulseKey}
             reduceMotion={reduceMotion}
           />
@@ -194,7 +198,7 @@ export default function BadgeLab() {
             <span>Badge</span>
             <input
               type="color"
-              value={appearance.badgeColor}
+              value={resolvedAppearance.badgeColor}
               onChange={(event) =>
                 setAppearance((current) => ({ ...current, badgeColor: event.target.value }))
               }
@@ -204,7 +208,7 @@ export default function BadgeLab() {
             <span>Torus</span>
             <input
               type="color"
-              value={appearance.torusColor}
+              value={resolvedAppearance.torusColor}
               onChange={(event) =>
                 setAppearance((current) => ({ ...current, torusColor: event.target.value }))
               }
@@ -217,14 +221,14 @@ export default function BadgeLab() {
             <label className={styles.sliderControl} key={control.key}>
               <span className={styles.sliderLabel}>
                 <span>{control.label}</span>
-                <output>{control.format(appearance[control.key])}</output>
+                <output>{control.format(resolvedAppearance[control.key])}</output>
               </span>
               <input
                 type="range"
                 min={control.min}
                 max={control.max}
                 step={control.step}
-                value={appearance[control.key]}
+                value={resolvedAppearance[control.key]}
                 onChange={(event) => updateNumeric(control.key, Number(event.target.value))}
               />
             </label>
@@ -246,7 +250,7 @@ export default function BadgeLab() {
             type="button"
             className={styles.iconButton}
             onClick={() => {
-              setAppearance(DEFAULT_BADGE_APPEARANCE);
+              setAppearance({ ...DEFAULT_BADGE_APPEARANCE });
               setPulseKey(null);
             }}
             whileTap={{ scale: 0.9 }}
