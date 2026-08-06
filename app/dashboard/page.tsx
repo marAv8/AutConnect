@@ -1,18 +1,16 @@
 //app/dashboard/page.tsx
 import { getSession } from "@/lib/session";
+import {
+  activeDocumentationDate,
+  sevenDayHistoryStart,
+} from "@/app/libs/documentationDay";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import Link from "next/link";
-import ClientCarousel from "./ClientCarousel";
+import { clientDisplayText } from "@/app/libs/clientIdentity";
+import { isTeamFocusVisible } from "@/app/libs/teamFocusLifecycle";
+import { buildDashboardClientSignals } from "@/app/libs/clientSignal/server";
 import SupervisorDashboard from "./SupervisorDashboard";
-import {
-  CLIENT_ORB_FONT_SIZE,
-  CLIENT_ORB_SIZE,
-  GRID_VISIBLE_COLUMNS,
-  GRID_VISIBLE_ROWS,
-  MODE_GRID_GAP,
-  STATUS_BADGE_CLEARANCE,
-} from "./layoutConfig";
+import ProviderDashboard from "./ProviderDashboard";
 
 export default async function DashboardPage({
   searchParams,
@@ -31,12 +29,16 @@ export default async function DashboardPage({
     redirect("/login");
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const sevenDaysAgo = new Date(today);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  const now = new Date();
+  const activeDate = activeDocumentationDate(now);
+  const sevenDaysAgo = sevenDayHistoryStart(now);
 
-  const [provider, initialClients] = await Promise.all([
+  const [
+    provider,
+    initialClients,
+    caseSupportRequests,
+    caseSupportProviderUpdates,
+  ] = await Promise.all([
     db.provider.findUnique({
       where: { id: session.providerId },
       select: { firstName: true, lastName: true, role: true },
@@ -53,6 +55,12 @@ export default async function DashboardPage({
         providerClients: {
           select: {
             role: true,
+            organizationId: true,
+            organization: {
+              select: {
+                type: true,
+              },
+            },
             provider: {
               select: {
                 id: true,
@@ -64,13 +72,10 @@ export default async function DashboardPage({
         },
         entries: {
           where: {
-            date: today,
+            ...(activeDate
+              ? { date: activeDate }
+              : { id: { in: [] as string[] } }),
             OR: [
-              {
-                kind: {
-                  notIn: ["SupervisorObservation", "ClinicalNote"],
-                },
-              },
               {
                 visibility: "Shared",
               },
@@ -107,6 +112,7 @@ export default async function DashboardPage({
             id: true,
             title: true,
             content: true,
+            displayStartedAt: true,
             updatedAt: true,
             author: {
               select: {
@@ -117,8 +123,85 @@ export default async function DashboardPage({
             },
           },
         },
+        caseSupportCases: {
+          where: {
+            OR: [
+              {
+                ownerSupervisorId: session.providerId,
+              },
+              {
+                members: {
+                  some: {
+                    providerId: session.providerId,
+                    revokedAt: null,
+                  },
+                },
+              },
+            ],
+          },
+          take: 1,
+          select: {
+            id: true,
+          },
+        },
       },
     }),
+    session.role === "Supervisor"
+      ? db.caseSupportRequest.findMany({
+          where: {
+            recipientSupervisorId: session.providerId,
+            status: { in: ["REQUESTED", "ACKNOWLEDGED"] },
+          },
+          orderBy: [{ status: "asc" }, { createdAt: "asc" }],
+          select: {
+            id: true,
+            status: true,
+            createdAt: true,
+            client: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+            requester: {
+              select: {
+                firstName: true,
+                lastName: true,
+                role: true,
+              },
+            },
+          },
+        })
+      : Promise.resolve([]),
+    session.role !== "Supervisor" && session.role !== "Caregiver"
+      ? db.caseSupportRequest.findMany({
+          where: {
+            requesterId: session.providerId,
+            requesterViewedAt: null,
+            status: { in: ["ACKNOWLEDGED", "DECLINED", "CASE_OPENED"] },
+          },
+          orderBy: { updatedAt: "desc" },
+          take: 5,
+          select: {
+            id: true,
+            status: true,
+            updatedAt: true,
+            responseNote: true,
+            client: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+            recipientSupervisor: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        })
+      : Promise.resolve([]),
   ]);
 
   if (!provider) {
@@ -166,11 +249,6 @@ export default async function DashboardPage({
           },
           OR: [
             {
-              kind: {
-                notIn: ["SupervisorObservation", "ClinicalNote"],
-              },
-            },
-            {
               visibility: "Shared",
             },
             {
@@ -209,6 +287,12 @@ export default async function DashboardPage({
       })
     : [];
 
+  const clientSignals = await buildDashboardClientSignals({
+    clientIds: clients.map((client) => client.id),
+    viewerProviderId: session.providerId,
+    now,
+  });
+
   const recentEntriesByClientId = new Map<
     string,
     Array<{ id: string; providerId: string; status?: string }>
@@ -228,167 +312,87 @@ export default async function DashboardPage({
     }
   }
 
-  const clientsWithRecentEntries = clients.map((client) => ({
-    ...client,
-    recentEntries: recentEntriesByClientId.get(client.id) ?? [],
-  }));
-
-  const shouldShowProviderClientList =
-    !isSupervisor && clientsWithRecentEntries.length > 1 && view !== "orbit";
-  const providerInitialClientId =
-    clientsWithRecentEntries.length === 1
-      ? clientsWithRecentEntries[0]?.id
-      : clientId;
+  const clientsWithRecentEntries = clients.map((client) => {
+    const { caseSupportCases, ...dashboardClient } = client;
+    const viewerAssignment = client.providerClients.find(
+      ({ provider }) => provider.id === session.providerId
+    );
+    const canRequestCaseSupport =
+      session.role !== "Supervisor" &&
+      session.role !== "Caregiver" &&
+      viewerAssignment?.organization?.type === "AGENCY" &&
+      Boolean(viewerAssignment.organizationId) &&
+      client.providerClients.some(
+        (assignment) =>
+          assignment.role === "Supervisor" &&
+          assignment.organizationId === viewerAssignment.organizationId &&
+          assignment.organization?.type === "AGENCY"
+      );
+    return {
+      ...dashboardClient,
+      hasCaseSupportAccess: caseSupportCases.length > 0,
+      canRequestCaseSupport,
+      signal: clientSignals.get(client.id),
+      recentEntries: recentEntriesByClientId.get(client.id) ?? [],
+      teamFocusItems: client.teamFocusItems
+        .filter((teamFocus) =>
+          isTeamFocusVisible(teamFocus.displayStartedAt, now)
+        )
+        .map((teamFocus) => ({
+          ...teamFocus,
+          title: teamFocus.title
+            ? clientDisplayText(
+                teamFocus.title,
+                client.firstName,
+                client.lastName
+              )
+            : null,
+          content: clientDisplayText(
+            teamFocus.content,
+            client.firstName,
+            client.lastName
+          ),
+        })),
+    };
+  });
 
   return (
     <main
+      className="dashboard-page-shell"
       style={{
         padding: "0 32px 24px",
         position: "relative",
-        height: "calc(100vh - 110px)",
+        height: "auto",
         boxSizing: "border-box",
-        overflow: "hidden",
+        overflow: "visible",
       }}
     >
       <section
         style={{
-          marginTop: isSupervisor ? 0 : 48,
-          height: isSupervisor ? "100%" : undefined,
+          minHeight: "inherit",
         }}
       >
-        {!isSupervisor && !shouldShowProviderClientList && clients.length > 1 ? (
-          <Link
-            href="/dashboard"
-            className="back-link"
-          >
-            {backToClientListLabel.replace("Back to ", "")}
-          </Link>
-        ) : null}
-        {clients.length === 0 && (
-          <p style={{ opacity: 0.6 }}>
-            You don’t have any assigned clients yet.
-          </p>
-        )}
-
         {isSupervisor ? (
           <SupervisorDashboard
             assignedClients={clientsWithRecentEntries}
             availableClients={availableClients}
             currentProviderId={session.providerId}
+            caseSupportRequests={caseSupportRequests}
             initialClientId={clientId}
             forceOrbitView={view === "orbit"}
           />
-        ) : shouldShowProviderClientList ? (
-          <ProviderClientList clients={clientsWithRecentEntries} />
         ) : (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              marginTop: 40,
-              flexWrap: "wrap",
-              gap: 80,
-            }}
-          >
-            <ClientCarousel
-              clients={clientsWithRecentEntries}
-              currentProviderId={session.providerId}
-              viewerRole={session.role}
-              initialClientId={providerInitialClientId}
-            />
-          </div>
+          <ProviderDashboard
+            clients={clientsWithRecentEntries}
+            currentProviderId={session.providerId}
+            viewerRole={session.role}
+            initialClientId={clientId}
+            forceOrbitView={view === "orbit"}
+            clientListLabel={backToClientListLabel.replace("Back to ", "")}
+            caseSupportUpdates={caseSupportProviderUpdates}
+          />
         )}
       </section>
     </main>
-  );
-}
-
-function ProviderClientList({
-  clients,
-}: {
-  clients: Array<{
-    id: string;
-    firstName: string;
-    lastName: string;
-  }>;
-}) {
-  const palette = [
-    "#e1e1e1",
-    "#ededed",
-    "#d9d9d9",
-    "#f4f4f4",
-    "#e6e6e6",
-    "#eeeeee",
-    "#d5d5d5",
-  ];
-  const visibleWidth =
-    CLIENT_ORB_SIZE * GRID_VISIBLE_COLUMNS + MODE_GRID_GAP * (GRID_VISIBLE_COLUMNS - 1);
-  const visibleHeight =
-    CLIENT_ORB_SIZE * GRID_VISIBLE_ROWS + MODE_GRID_GAP * (GRID_VISIBLE_ROWS - 1);
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        paddingTop: 80,
-        width: "100%",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: visibleWidth + 16,
-          maxHeight: visibleHeight + STATUS_BADGE_CLEARANCE + 16,
-          margin: "0 auto",
-          overflowY: "auto",
-          overflowX: "hidden",
-          paddingTop: STATUS_BADGE_CLEARANCE,
-          paddingRight: 8,
-          boxSizing: "border-box",
-          scrollbarGutter: "stable both-edges",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: MODE_GRID_GAP,
-            justifyContent: "center",
-            alignItems: "center",
-            width: "100%",
-            minHeight: visibleHeight,
-            alignContent:
-              clients.length <= GRID_VISIBLE_COLUMNS ? "center" : "flex-start",
-          }}
-        >
-          {clients.map((client, index) => (
-            <Link
-              key={client.id}
-              href={`/dashboard?clientId=${client.id}&view=orbit`}
-              title={`${client.firstName} ${client.lastName}`}
-              style={{
-                width: CLIENT_ORB_SIZE,
-                height: CLIENT_ORB_SIZE,
-                borderRadius: "50%",
-                background: palette[index % palette.length],
-                color: "var(--foreground)",
-                boxShadow: "var(--shadow-dashboard-sphere)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flex: "0 0 auto",
-                fontSize: CLIENT_ORB_FONT_SIZE,
-                fontWeight: 500,
-                textDecoration: "none",
-              }}
-            >
-              {client.firstName.slice(0, 2)}
-              {client.lastName.slice(0, 2)}
-            </Link>
-          ))}
-        </div>
-      </div>
-    </div>
   );
 }

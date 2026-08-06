@@ -21,10 +21,21 @@ model Provider {
   providerClients ProviderClient[]
   goalDefinitions GoalDefinition[]
 
-  entries    Entry[]
-  entryReads EntryRead[]
-  teamFocusItems TeamFocus[]
-  documentationDrafts DocumentationDraft[]
+  entries                      Entry[]
+  entryReads                   EntryRead[]
+  clientSignalReads            ClientSignalRead[]
+  entryRevisions               EntryRevision[]
+  teamFocusItems               TeamFocus[]
+  documentationDrafts          DocumentationDraft[]
+  ownedCaseSupportCases        CaseSupportCase[]         @relation("CaseSupportOwner")
+  caseSupportMemberships       CaseSupportMember[]       @relation("CaseSupportMemberProvider")
+  caseSupportAccessGrants      CaseSupportMember[]       @relation("CaseSupportGrantedBy")
+  caseSupportAuditEvents       CaseSupportAuditEvent[]   @relation("CaseSupportAuditActor")
+  caseSupportEntries           CaseSupportEntry[]
+  caseSupportCoordinations     CaseSupportCoordination[]
+  submittedCaseSupportRequests CaseSupportRequest[]      @relation("CaseSupportRequester")
+  receivedCaseSupportRequests  CaseSupportRequest[]      @relation("CaseSupportRecipient")
+  organizationMemberships      OrganizationMembership[]
 
   @@index([createdAt])
 }
@@ -36,6 +47,51 @@ enum Role {
   Caregiver
   BehaviorTherapist
   OccupationalTherapist
+}
+
+enum OrganizationType {
+  AGENCY
+  SCHOOL
+  DISTRICT
+  INDEPENDENT
+}
+
+enum OrganizationMembershipRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model Organization {
+  id             String           @id @default(uuid())
+  name           String
+  normalizedName String           @unique
+  type           OrganizationType
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  memberships         OrganizationMembership[]
+  providerClients     ProviderClient[]
+  caseSupportCases    CaseSupportCase[]
+  caseSupportRequests CaseSupportRequest[]
+
+  @@index([type, name])
+}
+
+model OrganizationMembership {
+  id             String                     @id @default(uuid())
+  organizationId String
+  providerId     String
+  role           OrganizationMembershipRole @default(MEMBER)
+  active         Boolean                    @default(true)
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  provider     Provider     @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, providerId])
+  @@index([providerId, active])
 }
 
 enum MetricType {
@@ -83,20 +139,23 @@ enum EntryStatus {
 }
 
 model Client {
-  id                            String    @id @default(uuid())
-  firstName                     String
-  lastName                      String
-  dateOfBirth                   DateTime?
-  diagnosis                     String?
-  receivesPrescribedMedication  Boolean   @default(false)
-  createdAt                     DateTime  @default(now())
+  id                           String    @id @default(uuid())
+  firstName                    String
+  lastName                     String
+  dateOfBirth                  DateTime?
+  diagnosis                    String?
+  receivesPrescribedMedication Boolean   @default(false)
+  createdAt                    DateTime  @default(now())
 
   providerClients ProviderClient[]
   goalDefinitions GoalDefinition[]
 
-  entries Entry[]
-  teamFocusItems TeamFocus[]
+  entries             Entry[]
+  teamFocusItems      TeamFocus[]
   documentationDrafts DocumentationDraft[]
+  caseSupportCases    CaseSupportCase[]
+  caseSupportRequests CaseSupportRequest[]
+  clientSignalReads   ClientSignalRead[]
 
   @@index([createdAt])
 }
@@ -107,32 +166,37 @@ model TeamFocus {
   clientId String
   authorId String
 
-  title   String?
-  content String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  title            String?
+  content          String
+  isActive         Boolean  @default(true)
+  displayStartedAt DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  client Client @relation(fields: [clientId], references: [id])
+  client Client   @relation(fields: [clientId], references: [id])
   author Provider @relation(fields: [authorId], references: [id])
 
   @@index([clientId, isActive])
+  @@index([clientId, isActive, displayStartedAt])
   @@index([authorId])
   @@index([updatedAt])
 }
 
 model ProviderClient {
-  id         String @id @default(uuid())
-  providerId String
-  clientId   String
-  role       Role // <-- this is missing right now
+  id             String  @id @default(uuid())
+  providerId     String
+  clientId       String
+  organizationId String?
+  role           Role
 
-  provider Provider @relation(fields: [providerId], references: [id])
-  client   Client   @relation(fields: [clientId], references: [id])
+  provider     Provider      @relation(fields: [providerId], references: [id])
+  client       Client        @relation(fields: [clientId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   @@index([providerId])
   @@index([clientId])
   @@index([providerId, clientId])
+  @@index([clientId, organizationId])
 }
 
 model Entry {
@@ -141,10 +205,10 @@ model Entry {
   providerId String
   clientId   String
 
-  date DateTime
-  kind EntryKind @default(SessionNote)
+  date       DateTime
+  kind       EntryKind       @default(SessionNote)
   visibility EntryVisibility @default(Shared)
-  status EntryStatus @default(IN_PROGRESS)
+  status     EntryStatus     @default(IN_PROGRESS)
 
   q1 Int?
   q2 Int?
@@ -159,15 +223,16 @@ model Entry {
   contextData        Json?
   finalScore         Int?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   completedAt DateTime?
 
   provider Provider @relation(fields: [providerId], references: [id])
   client   Client   @relation(fields: [clientId], references: [id])
 
-  items AssessmentItem[]
-  reads EntryRead[]
+  items           AssessmentItem[]
+  reads           EntryRead[]
+  revisions       EntryRevision[]
   abcObservations AbcObservation[]
 
   @@unique([providerId, clientId, date, kind])
@@ -177,6 +242,25 @@ model Entry {
   @@index([clientId, visibility, date])
   @@index([date])
   @@index([updatedAt])
+}
+
+model EntryRevision {
+  id String @id @default(uuid())
+
+  entryId     String
+  createdById String
+
+  revisionNumber Int
+  snapshot       Json
+  changes        Json
+  createdAt      DateTime @default(now())
+
+  entry     Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  createdBy Provider @relation(fields: [createdById], references: [id])
+
+  @@unique([entryId, revisionNumber])
+  @@index([entryId, createdAt])
+  @@index([createdById])
 }
 
 model AbcObservation {
@@ -211,6 +295,7 @@ model AssessmentItem {
   domain       AssessmentDomain?
   rawValue     Float?
   supportLevel Int?
+  observation  String?
 
   createdAt DateTime @default(now())
 
@@ -230,8 +315,8 @@ model GoalDefinition {
   target String
   goal   String
 
-  metricType MetricType
-  domain     AssessmentDomain?
+  metricType         MetricType
+  domain             AssessmentDomain?
   measurementProfile String?
 
   targetValue Float?
@@ -268,14 +353,31 @@ model EntryRead {
   @@index([providerId, entryId])
 }
 
+model ClientSignalRead {
+  id String @id @default(uuid())
+
+  clientId    String
+  providerId  String
+  sessionDate DateTime
+
+  readAt DateTime @default(now())
+
+  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, providerId, sessionDate])
+  @@index([providerId, sessionDate])
+  @@index([clientId, sessionDate])
+}
+
 model DocumentationDraft {
   id String @id @default(uuid())
 
-  providerId String
-  clientId   String
+  providerId  String
+  clientId    String
   workflowKey String
 
-  data Json
+  data      Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -285,4 +387,233 @@ model DocumentationDraft {
   @@unique([providerId, clientId, workflowKey])
   @@index([clientId, providerId])
   @@index([updatedAt])
+}
+
+enum CaseSupportStatus {
+  OPEN
+  RESOLVED
+  ARCHIVED
+}
+
+enum CaseSupportRequestStatus {
+  REQUESTED
+  ACKNOWLEDGED
+  CASE_OPENED
+  DECLINED
+}
+
+enum CaseSupportAccessLevel {
+  CONTRIBUTOR
+  VIEWER
+}
+
+enum CaseSupportEntryType {
+  PROVIDER_ACCOUNT
+  SUPERVISOR_COORDINATION
+  CLARIFICATION
+}
+
+enum CaseSupportRequestSource {
+  CLASSROOM_STAFF
+  SCHOOL_ADMINISTRATION
+  AGENCY_SUPERVISOR
+  SAFETY_NEED
+  SELF_INITIATED
+  OTHER
+  UNCLEAR
+}
+
+enum CaseSupportCoverageStatus {
+  MAINTAINED
+  TEMPORARILY_REASSIGNED
+  NOT_MAINTAINED
+  UNCLEAR
+}
+
+enum CaseSupportCoordinationPath {
+  INTERNAL
+  EXTERNAL
+}
+
+enum CaseSupportCoordinationStatus {
+  DOCUMENTED
+  AWAITING_RESPONSE
+  RESPONSE_RECEIVED
+  MONITORING
+  FOLLOW_UP_NEEDED
+  COMPLETE
+}
+
+enum CaseSupportCommunicationMethod {
+  EMAIL
+  PHONE
+  IN_PERSON
+  VIRTUAL_MEETING
+  WRITTEN_NOTICE
+  OTHER
+}
+
+model CaseSupportCase {
+  id String @id @default(uuid())
+
+  clientId          String
+  ownerSupervisorId String
+  organizationId    String?
+
+  title          String
+  concern        String
+  desiredOutcome String
+  status         CaseSupportStatus @default(OPEN)
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  resolvedAt DateTime?
+
+  client              Client                    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  ownerSupervisor     Provider                  @relation("CaseSupportOwner", fields: [ownerSupervisorId], references: [id])
+  organization        Organization?             @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  members             CaseSupportMember[]
+  auditEvents         CaseSupportAuditEvent[]
+  entries             CaseSupportEntry[]
+  coordinations       CaseSupportCoordination[]
+  originatingRequests CaseSupportRequest[]
+
+  @@index([clientId, status, updatedAt])
+  @@index([ownerSupervisorId, status])
+  @@index([organizationId, status])
+}
+
+model CaseSupportRequest {
+  id String @id @default(uuid())
+
+  clientId              String
+  requesterId           String
+  recipientSupervisorId String
+  linkedCaseId          String?
+  organizationId        String?
+
+  concern          String
+  requestedSupport String
+  status           CaseSupportRequestStatus @default(REQUESTED)
+  responseNote     String?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  acknowledgedAt    DateTime?
+  respondedAt       DateTime?
+  requesterViewedAt DateTime?
+
+  client              Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  requester           Provider         @relation("CaseSupportRequester", fields: [requesterId], references: [id])
+  recipientSupervisor Provider         @relation("CaseSupportRecipient", fields: [recipientSupervisorId], references: [id])
+  linkedCase          CaseSupportCase? @relation(fields: [linkedCaseId], references: [id], onDelete: SetNull)
+  organization        Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([recipientSupervisorId, status, createdAt])
+  @@index([requesterId, clientId, createdAt])
+  @@index([clientId, status])
+  @@index([linkedCaseId])
+  @@index([organizationId, status])
+}
+
+model CaseSupportMember {
+  id String @id @default(uuid())
+
+  caseId      String
+  providerId  String
+  grantedById String
+
+  accessLevel CaseSupportAccessLevel @default(CONTRIBUTOR)
+  grantedAt   DateTime               @default(now())
+  revokedAt   DateTime?
+
+  case      CaseSupportCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  provider  Provider        @relation("CaseSupportMemberProvider", fields: [providerId], references: [id])
+  grantedBy Provider        @relation("CaseSupportGrantedBy", fields: [grantedById], references: [id])
+
+  @@unique([caseId, providerId])
+  @@index([providerId, revokedAt])
+  @@index([caseId, revokedAt])
+}
+
+model CaseSupportAuditEvent {
+  id String @id @default(uuid())
+
+  caseId  String
+  actorId String
+  action  String
+  details Json?
+
+  createdAt DateTime @default(now())
+
+  case  CaseSupportCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  actor Provider        @relation("CaseSupportAuditActor", fields: [actorId], references: [id])
+
+  @@index([caseId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model CaseSupportEntry {
+  id String @id @default(uuid())
+
+  caseId        String
+  authorId      String
+  amendsEntryId String?
+
+  entryType       CaseSupportEntryType
+  occurredAt      DateTime
+  requestSource   CaseSupportRequestSource
+  requestedBy     String?
+  coverageStatus  CaseSupportCoverageStatus
+  durationMinutes Int?
+  scheduleImpacts String[]
+
+  whatOccurred      String
+  supportProvided   String
+  observableOutcome String
+  communication     String?
+  followUp          String?
+  clarification     String?
+
+  createdAt DateTime @default(now())
+
+  case        CaseSupportCase    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  author      Provider           @relation(fields: [authorId], references: [id])
+  amendsEntry CaseSupportEntry?  @relation("CaseSupportEntryAmendments", fields: [amendsEntryId], references: [id])
+  amendments  CaseSupportEntry[] @relation("CaseSupportEntryAmendments")
+
+  @@index([caseId, occurredAt])
+  @@index([authorId, createdAt])
+  @@index([amendsEntryId])
+}
+
+model CaseSupportCoordination {
+  id String @id @default(uuid())
+
+  caseId   String
+  authorId String
+
+  path       CaseSupportCoordinationPath
+  status     CaseSupportCoordinationStatus
+  occurredAt DateTime
+
+  contactOrganization String?
+  contactRole         String?
+  contactName         String?
+  communicationMethod CaseSupportCommunicationMethod?
+
+  actionTaken       String
+  requestOrDecision String
+  responseSummary   String?
+  nextStep          String?
+  followUpAt        DateTime?
+
+  createdAt DateTime @default(now())
+
+  case   CaseSupportCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  author Provider        @relation(fields: [authorId], references: [id])
+
+  @@index([caseId, occurredAt])
+  @@index([authorId, createdAt])
+  @@index([path, status])
 }

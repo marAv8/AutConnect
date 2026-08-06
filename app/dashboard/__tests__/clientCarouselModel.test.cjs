@@ -18,6 +18,11 @@ require.extensions[".ts"] = (module, filename) => {
 };
 
 const { applyDashboardEntryMutations } = require("../clientCarouselModel.ts");
+const { providerSignalState } = require("../providerSignalState.ts");
+const {
+  activeDocumentationDate,
+  sevenDayHistoryStart,
+} = require("../../libs/documentationDay.ts");
 
 function clientFixture() {
   return {
@@ -92,4 +97,82 @@ test("does not project unread state for a private saved entry", () => {
   );
 
   assert.deepEqual(result[0].entries.at(-1).reads, []);
+});
+
+test("keeps a completed provider signal visible after it is read", () => {
+  const unread = providerSignalState({
+    entries: [
+      {
+        id: "completed-entry",
+        providerId: "author",
+        status: "COMPLETED",
+        reads: [{ readAt: null }],
+      },
+    ],
+    isCurrentProvider: false,
+    locallyCompleted: false,
+  });
+  const read = providerSignalState({
+    entries: [
+      {
+        id: "completed-entry",
+        providerId: "author",
+        status: "COMPLETED",
+        reads: [{ readAt: new Date() }],
+      },
+    ],
+    isCurrentProvider: false,
+    locallyCompleted: false,
+  });
+
+  assert.equal(unread.showSignal, true);
+  assert.equal(unread.isSignalDimmed, false);
+  assert.equal(read.showSignal, true);
+  assert.equal(read.isSignalDimmed, true);
+  assert.equal(read.showAction, true);
+});
+
+test("returns the author's completed read signal to the action control", () => {
+  const state = providerSignalState({
+    entries: [
+      {
+        id: "own-completed-entry",
+        providerId: "author",
+        status: "COMPLETED",
+        reads: [{ readAt: new Date() }],
+      },
+    ],
+    isCurrentProvider: true,
+    locallyCompleted: false,
+  });
+
+  assert.equal(state.showSignal, false);
+  assert.equal(state.isSignalDimmed, false);
+  assert.equal(state.showAction, true);
+});
+
+test("starts the active documentation day at 6 a.m. and resets at midnight", () => {
+  assert.equal(
+    activeDocumentationDate(new Date(2026, 6, 27, 5, 59, 59)),
+    null
+  );
+  assert.equal(
+    activeDocumentationDate(new Date(2026, 6, 27, 6, 0, 0))?.getTime(),
+    new Date(2026, 6, 27, 0, 0, 0).getTime()
+  );
+  assert.equal(
+    activeDocumentationDate(new Date(2026, 6, 27, 23, 59, 59))?.getTime(),
+    new Date(2026, 6, 27, 0, 0, 0).getTime()
+  );
+  assert.equal(
+    activeDocumentationDate(new Date(2026, 6, 28, 0, 0, 0)),
+    null
+  );
+});
+
+test("keeps note history on a separate seven-calendar-day window", () => {
+  assert.equal(
+    sevenDayHistoryStart(new Date(2026, 6, 27, 14, 0, 0)).getTime(),
+    new Date(2026, 6, 21, 0, 0, 0).getTime()
+  );
 });

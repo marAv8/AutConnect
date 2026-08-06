@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { getGoogleOAuthConfig } from "@/lib/googleOAuth";
 import { setSessionOnResponse } from "@/lib/session";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -23,16 +24,15 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
   const expectedState = request.cookies.get(OAUTH_STATE_COOKIE)?.value;
-  const loginUrl = new URL("/login", request.url);
+  const loginUrl = googleErrorUrl(request);
 
   if (!code || !state || !expectedState || state !== expectedState) {
     return redirectClearingState(loginUrl);
   }
 
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const config = getGoogleOAuthConfig();
 
-  if (!clientId || !clientSecret) {
+  if (!config) {
     return redirectClearingState(loginUrl);
   }
 
@@ -44,8 +44,8 @@ export async function GET(request: NextRequest) {
     },
     body: new URLSearchParams({
       code,
-      client_id: clientId,
-      client_secret: clientSecret,
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
       redirect_uri: redirectUri,
       grant_type: "authorization_code",
     }),
@@ -144,4 +144,8 @@ function redirectClearingState(url: URL) {
   const response = NextResponse.redirect(url);
   response.cookies.delete(OAUTH_STATE_COOKIE);
   return response;
+}
+
+function googleErrorUrl(request: NextRequest) {
+  return new URL("/login?error=google-auth", request.url);
 }

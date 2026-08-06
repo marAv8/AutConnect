@@ -123,6 +123,7 @@ export default function EditProvidersClient({
               }}
             >
               <div
+                className="glass-client-badge"
                 style={{
                   width: CLIENT_ORB_SIZE,
                   height: CLIENT_ORB_SIZE,

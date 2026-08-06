@@ -43,5 +43,68 @@ export function mapBehaviorTherapistEntry(entry: NormalizableEntry): ClinicalEve
     tags: ["behavior_therapy", "abc", "behavior"],
   }));
 
-  return [...targetEvents, ...abcEvents];
+  const positiveResponse = positiveResponseEvent(entry);
+
+  return [...targetEvents, ...abcEvents, ...(positiveResponse ? [positiveResponse] : [])];
+}
+
+function positiveResponseEvent(entry: NormalizableEntry): ClinicalEvent | null {
+  const note = [
+    entry.note?.trim(),
+    ...(entry.items ?? []).map((item) => item.observation?.trim()).filter(Boolean),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  if (!note) return null;
+
+  const nonNegatedNote = note
+    .replace(
+      /\b(?:not|was not|wasn't|did not appear|didn't appear)\s+(?:happy|calm|engaged|communicative)\b/gi,
+      ""
+    )
+    .replace(/\b(?:no|without)\s+(?:expressive|verbal)\s+language\b/gi, "");
+  const positiveEngagement =
+    /\b(happy|calm|smil(?:e|ed|ing)|laugh(?:ed|ing)?|giggl(?:e|ed|ing)|engag(?:e|ed|ing)|enjoy(?:ed|ing)?)\b/i.test(
+      nonNegatedNote
+    );
+  const expressiveCommunication =
+    /\b(expressive language|verbal language|spontaneous(?:ly)?\s+(?:said|stated|spoke|communicated)|client\b[^.!?]{0,120}\b(?:said|stated|spoke|communicated|verbalized)\b)/i.test(
+      nonNegatedNote
+    );
+
+  if (!positiveEngagement && !expressiveCommunication) return null;
+
+  const transitionContext = /\b(transition|prompt|support|guided|assisted)\b/i.test(note);
+  const observedResponse =
+    positiveEngagement && expressiveCommunication
+      ? "positive engagement and expressive language"
+      : positiveEngagement
+        ? "positive engagement"
+        : "expressive language";
+  const contextPhrase = transitionContext
+    ? " following the documented support"
+    : " during the session";
+
+  return {
+    id: eventId(entry.id, "positive-response-observed"),
+    clientId: entry.clientId,
+    occurredAt: isoDate(entry.date),
+    source: baseSource(entry, "entry"),
+    category: "provider_observation",
+    eventType: "positive_response_observed",
+    title: "Positive response observed",
+    summary: `Behavior therapy observed ${observedResponse}${contextPhrase}.`,
+    details: {
+      positiveEngagement,
+      expressiveCommunication,
+      transitionContext,
+    },
+    significance: "important",
+    tags: [
+      "behavior_therapy",
+      "positive_response",
+      ...(positiveEngagement ? ["engagement"] : []),
+      ...(expressiveCommunication ? ["communication"] : []),
+    ],
+  };
 }

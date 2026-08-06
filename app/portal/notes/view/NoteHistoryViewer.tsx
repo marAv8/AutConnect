@@ -9,15 +9,14 @@
 import Link from "next/link";
 import { useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import OverlayContainer from "@/components/ui/OverlayContainer";
+import { ChevronControl } from "@/components/ui/ChevronControl";
 import { formatClinicalDateTime } from "@/app/libs/dateTime";
 import type { NoteHistoryEntry, SupervisorObservation } from "./noteHistoryTypes";
 import {
   entryKindTitle,
-  formatDomain,
   formatEducatorResponse,
   formatMetricValue,
   getAbcObservation,
-  getDomainScores,
   getItemPercent,
   groupCaretakerEntriesByDay,
   parseSensoryObservations,
@@ -26,6 +25,7 @@ import {
 import {
   CollapsibleRecordSection,
   NotePreviewCard,
+  RevisionHistorySection,
   SensoryObservationSection,
   SupervisorObservationSection,
 } from "./NoteHistorySections";
@@ -40,17 +40,15 @@ type Props = {
 };
 
 const activeOverlayCardStyle: CSSProperties = {
-  border: "none",
-  background: "var(--surface-raised)",
-  boxShadow:
-    "0 5px 5px rgb(0 0 0 / 22%), 0 1px 1px rgb(0 0 0 / 14%), 0 8px 10px rgb(0 0 0 / 7%), -3px -3px 5px rgb(255 255 255 / 68%), inset 0 1px 0 rgb(255 255 255 / 70%), inset 0 -1px 3px rgb(0 0 0 / 5%)",
+  border: "1px solid rgb(35 45 55 / 10%)",
+  background: "var(--surface)",
+  boxShadow: "none",
 };
 
 const activePageCardStyle: CSSProperties = {
-  border: "none",
-  background: "var(--surface-raised)",
-  boxShadow:
-    "0 5px 5px rgb(0 0 0 / 22%), 0 1px 1px rgb(0 0 0 / 14%), 0 8px 10px rgb(0 0 0 / 7%), -3px -3px 5px rgb(255 255 255 / 68%), inset 0 1px 0 rgb(255 255 255 / 70%), inset 0 -1px 3px rgb(0 0 0 / 5%)",
+  border: "1px solid rgb(35 45 55 / 10%)",
+  background: "var(--surface)",
+  boxShadow: "none",
 };
 
 export default function NoteHistoryViewer({
@@ -73,30 +71,6 @@ export default function NoteHistoryViewer({
   const canNavigateOlder = olderEntry !== null;
   const canNavigateNewer = newerEntry !== null;
   const canNavigate = canNavigateOlder || canNavigateNewer;
-  const measurableScores =
-    current?.items
-      .map((item) => getItemPercent(item))
-      .filter((score): score is number => score !== null) ?? [];
-  const highestScore = measurableScores.length ? Math.max(...measurableScores) : null;
-  const lowestScore = measurableScores.length ? Math.min(...measurableScores) : null;
-  const scoreRange =
-    highestScore !== null && lowestScore !== null ? highestScore - lowestScore : null;
-  const overallPercent =
-    current?.finalScore !== null && current?.finalScore !== undefined
-      ? current.finalScore * 10
-      : measurableScores.length
-        ? Math.round(
-            measurableScores.reduce((sum, score) => sum + score, 0) /
-              measurableScores.length
-          )
-        : null;
-  const domainScores = getDomainScores(current?.items ?? []);
-  const hasSummary =
-    highestScore !== null ||
-    lowestScore !== null ||
-    overallPercent !== null ||
-    domainScores.length > 0 ||
-    scoreRange !== null;
   const hasTargets = current?.items.length > 0;
   const noteAbcObservation = getAbcObservation(current?.note ?? "");
   const sensoryObservations =
@@ -236,6 +210,7 @@ export default function NoteHistoryViewer({
 
   const content = (
     <div
+      className="note-history-content"
       style={{
         padding: variant === "overlay" ? 0 : "0 32px 24px",
       }}
@@ -277,6 +252,7 @@ export default function NoteHistoryViewer({
       </div>
 
       <div
+        className="note-history-carousel"
         style={{
           maxWidth: 1280,
           margin: "0 auto",
@@ -289,30 +265,36 @@ export default function NoteHistoryViewer({
               : undefined,
         }}
       >
-          <button
-            type="button"
+        <div
+          className="note-history-navigation"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 18,
+            marginBottom: 14,
+            minHeight: 44,
+          }}
+        >
+          <ChevronControl
+            direction="left"
             onClick={showOlder}
             aria-label="Older note"
             disabled={!canNavigateOlder}
-            style={{
-              border: "none",
-              background: "transparent",
-              cursor: canNavigateOlder ? "pointer" : "default",
-              fontSize: 48,
-              lineHeight: 1,
-              color: "rgb(0 0 0 / 54%)",
-              opacity: canNavigateOlder ? 1 : 0,
-              position: "absolute",
-              left: 0,
-            top: "50%",
-            transform: "translateY(-50%)",
-            zIndex: 5,
-          }}
-        >
-          ‹
-        </button>
+          />
+          <div style={{ minWidth: 66, textAlign: "center", fontWeight: 600 }}>
+            {index + 1} of {displayEntries.length}
+          </div>
+          <ChevronControl
+            direction="right"
+            onClick={showNewer}
+            aria-label="Newer note"
+            disabled={!canNavigateNewer}
+          />
+        </div>
 
         <div
+          className="note-history-stage"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={finishDrag}
@@ -325,7 +307,7 @@ export default function NoteHistoryViewer({
             justifyContent: "center",
             gap: variant === "overlay" ? 36 : 24,
             minHeight: 620,
-            padding: "0 72px",
+            padding: "0 32px",
             overflow: "hidden",
             cursor: canNavigate ? (isDragging ? "grabbing" : "grab") : "default",
             touchAction: "pan-y",
@@ -341,12 +323,13 @@ export default function NoteHistoryViewer({
           />
 
           <div
+            className="note-history-frame"
             key={current.id}
             style={{
               position: "relative",
               zIndex: 3,
-              height: 500,
-              paddingRight: 22,
+              height: 532,
+              padding: 18,
               boxSizing: "border-box",
               overflowY: "auto",
               overflowX: "visible",
@@ -356,6 +339,7 @@ export default function NoteHistoryViewer({
             }}
           >
             <div
+              className="note-history-card"
               style={{
                 padding: 40,
                 borderRadius: 18,
@@ -369,7 +353,7 @@ export default function NoteHistoryViewer({
               <div style={{ marginBottom: 16, opacity: 0.7 }}>
                 <div>{clientInitials}</div>
                 <div>
-                  {current.providerName} -- {current.providerRole}
+                  {current.providerName} — {current.providerRole}
                 </div>
                 <div>{new Date(current.date).toLocaleDateString()}</div>
                 {isInProgressNote ? (
@@ -406,6 +390,12 @@ export default function NoteHistoryViewer({
                               isBehaviorTechnicianProgress
                             )}
                           </div>
+                          {item.observation?.trim() ? (
+                            <div style={{ marginTop: 4, whiteSpace: "pre-wrap" }}>
+                              <span style={{ fontWeight: 600 }}>Observation: </span>
+                              {item.observation}
+                            </div>
+                          ) : null}
                         </div>
                       ))}
                     </div>
@@ -501,39 +491,6 @@ export default function NoteHistoryViewer({
               !isClinicalNoteEntry &&
               !isSensoryObservationEntry &&
               !isCommunicationObservationEntry &&
-              hasSummary ? (
-                <CollapsibleRecordSection title="Assessment Summary">
-                  <div style={{ display: "grid", gap: 8 }}>
-                    {highestScore !== null ? <div>Highest: {highestScore}%</div> : null}
-                    {lowestScore !== null ? <div>Lowest: {lowestScore}%</div> : null}
-                    {overallPercent !== null ? <div>Overall: {overallPercent}%</div> : null}
-                    {domainScores.map((domainScore) => (
-                      <div key={domainScore.domain}>
-                        {formatDomain(domainScore.domain)}: {domainScore.percent}%
-                      </div>
-                    ))}
-                    {scoreRange !== null ? (
-                      <div style={{ marginTop: 4, opacity: 0.72 }}>
-                        Spread: {scoreRange} points between the highest and lowest entries.
-                      </div>
-                    ) : null}
-                  </div>
-                </CollapsibleRecordSection>
-              ) : null}
-
-              {current.clinicalReflection ? (
-                <CollapsibleRecordSection title="Clinical Reflection">
-                  <div style={{ display: "grid", gap: 8, whiteSpace: "pre-wrap" }}>
-                    {current.clinicalReflection}
-                  </div>
-                </CollapsibleRecordSection>
-              ) : null}
-
-              {!isEducatorClassroomProgress &&
-              !isSupervisorObservationEntry &&
-              !isClinicalNoteEntry &&
-              !isSensoryObservationEntry &&
-              !isCommunicationObservationEntry &&
               hasTargets ? (
                 <CollapsibleRecordSection title="Targets">
                   <div style={{ display: "grid", gap: 10 }}>
@@ -546,6 +503,12 @@ export default function NoteHistoryViewer({
                           <div style={{ opacity: 0.72 }}>
                             {formatMetricValue(item, percent)}
                           </div>
+                          {item.observation?.trim() ? (
+                            <div style={{ marginTop: 4, whiteSpace: "pre-wrap" }}>
+                              <span style={{ fontWeight: 600 }}>Observation: </span>
+                              {item.observation}
+                            </div>
+                          ) : null}
                         </div>
                       );
                     })}
@@ -583,6 +546,8 @@ export default function NoteHistoryViewer({
                 </CollapsibleRecordSection>
               ) : null}
 
+              <RevisionHistorySection revisions={current.revisions ?? []} />
+
               <CollapsibleRecordSection title="Timestamp">
                 <div>{formatClinicalDateTime(current.completedAt ?? current.date)}</div>
               </CollapsibleRecordSection>
@@ -598,28 +563,6 @@ export default function NoteHistoryViewer({
           />
         </div>
 
-          <button
-            type="button"
-            onClick={showNewer}
-            aria-label="Newer note"
-            disabled={!canNavigateNewer}
-            style={{
-              border: "none",
-              background: "transparent",
-              cursor: canNavigateNewer ? "pointer" : "default",
-              fontSize: 48,
-              lineHeight: 1,
-              color: "rgb(0 0 0 / 54%)",
-              opacity: canNavigateNewer ? 1 : 0,
-              position: "absolute",
-            right: 0,
-            top: "50%",
-            transform: "translateY(-50%)",
-            zIndex: 5,
-          }}
-        >
-          ›
-        </button>
       </div>
     </div>
   );

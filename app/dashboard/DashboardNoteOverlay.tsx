@@ -25,10 +25,11 @@ type EntryFormItem = {
     | "Regulation"
     | "Other"
     | "";
-    rawValue: string;
-    supportLevel: string;
-    measurementProfile?: string | null;
-  };
+  rawValue: string;
+  supportLevel: string;
+  observation: string;
+  measurementProfile?: string | null;
+};
 
 type FormOverlayData = {
   clientId: string;
@@ -185,7 +186,7 @@ export default function DashboardNoteOverlay({
 
   if (status === "loading") {
     return (
-      <div className="p-8 text-center text-foreground">
+      <div className="dashboard-note-overlay-content dashboard-note-overlay-status p-8 text-center text-foreground">
         Loading notes...
       </div>
     );
@@ -193,7 +194,7 @@ export default function DashboardNoteOverlay({
 
   if (status === "empty") {
     return (
-      <div className="p-8 text-center text-foreground">
+      <div className="dashboard-note-overlay-content dashboard-note-overlay-status p-8 text-center text-foreground">
         <p className="mb-6">No notes are available for this provider yet.</p>
         <button type="button" onClick={onClose} className="back-link">
           Client
@@ -204,7 +205,7 @@ export default function DashboardNoteOverlay({
 
   if (status === "error") {
     return (
-      <div className="p-8 text-center text-foreground">
+      <div className="dashboard-note-overlay-content dashboard-note-overlay-status p-8 text-center text-foreground">
         <p className="mb-6">Notes could not be loaded.</p>
         <button type="button" onClick={onClose} className="back-link">
           Client
@@ -233,7 +234,7 @@ export default function DashboardNoteOverlay({
     formData
   ) {
     return (
-      <div>
+      <div className="dashboard-note-overlay-content">
         <div className="mb-6 flex items-center">
           <button
             type="button"

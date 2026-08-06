@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import NoteHistoryViewer from "./NoteHistoryViewer";
 import { formatRole } from "@/app/libs/roles";
+import { clientDisplayText } from "@/app/libs/clientIdentity";
 
 export default async function ViewNotePage({
   searchParams,
@@ -100,6 +101,7 @@ export default async function ViewNotePage({
           domain: true,
           rawValue: true,
           supportLevel: true,
+          observation: true,
           goalDefinition: {
             select: {
               targetValue: true,
@@ -118,6 +120,24 @@ export default async function ViewNotePage({
           antecedent: true,
           behavior: true,
           consequence: true,
+        },
+      },
+      revisions: {
+        orderBy: {
+          revisionNumber: "asc",
+        },
+        select: {
+          id: true,
+          revisionNumber: true,
+          changes: true,
+          createdAt: true,
+          createdBy: {
+            select: {
+              firstName: true,
+              lastName: true,
+              role: true,
+            },
+          },
         },
       },
       provider: {
@@ -179,6 +199,18 @@ export default async function ViewNotePage({
         providerRole: formatRole(entry.provider.role),
         items: entry.items,
         abcObservations: entry.abcObservations,
+        revisions: entry.revisions.map((revision) => ({
+          id: revision.id,
+          revisionNumber: revision.revisionNumber,
+          createdAt: revision.createdAt.toISOString(),
+          createdByName: `${revision.createdBy.firstName} ${revision.createdBy.lastName}`,
+          createdByRole: formatRole(revision.createdBy.role),
+          changes: sanitizeRevisionChanges(
+            revision.changes,
+            client.firstName,
+            client.lastName
+          ),
+        })),
         sensoryObservations: extractObservations(
           entry.kind === "SensoryObservation" ? entry.contextData : null,
           entry.createdAt,
@@ -194,6 +226,67 @@ export default async function ViewNotePage({
       backLabel={session.role === "Caregiver" ? "Back to Children" : "Back to Client"}
     />
   );
+}
+
+function sanitizeRevisionChanges(
+  value: unknown,
+  clientFirstName: string,
+  clientLastName: string
+) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter(
+      (change): change is {
+        path: string;
+        label: string;
+        before: unknown;
+        after: unknown;
+      } =>
+        Boolean(change) &&
+        typeof change === "object" &&
+        typeof change.path === "string" &&
+        typeof change.label === "string"
+    )
+    .map((change) => ({
+      ...change,
+      before: sanitizeRevisionValue(
+        change.before,
+        clientFirstName,
+        clientLastName
+      ),
+      after: sanitizeRevisionValue(
+        change.after,
+        clientFirstName,
+        clientLastName
+      ),
+    }));
+}
+
+function sanitizeRevisionValue(
+  value: unknown,
+  clientFirstName: string,
+  clientLastName: string
+): unknown {
+  if (typeof value === "string") {
+    return clientDisplayText(value, clientFirstName, clientLastName);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) =>
+      sanitizeRevisionValue(item, clientFirstName, clientLastName)
+    );
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [
+        key,
+        sanitizeRevisionValue(child, clientFirstName, clientLastName),
+      ])
+    );
+  }
+  return value;
 }
 
 function sevenDayWindowStart() {

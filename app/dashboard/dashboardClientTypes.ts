@@ -1,3 +1,5 @@
+import type { ClientSignalSnapshot } from "@/app/libs/clientSignal";
+
 /**
  * Shared dashboard data contract for the client carousel and orbit.
  * Keeping this contract independent from layout code lets future UI work change
@@ -6,6 +8,10 @@
 
 export type DashboardProviderClient = {
   role: string;
+  organizationId?: string | null;
+  organization?: {
+    type: string;
+  } | null;
   provider: {
     id: string;
     firstName: string;
@@ -32,6 +38,7 @@ export type DashboardTeamFocus = {
   id: string;
   title?: string | null;
   content: string;
+  displayStartedAt: Date | string;
   updatedAt: Date | string;
   author: {
     firstName: string;
@@ -48,6 +55,9 @@ export type DashboardClient = {
   entries?: DashboardEntryState[];
   recentEntries?: DashboardRecentEntryState[];
   teamFocusItems?: DashboardTeamFocus[];
+  hasCaseSupportAccess?: boolean;
+  canRequestCaseSupport?: boolean;
+  signal?: ClientSignalSnapshot;
 };
 
 export type DashboardEntryMutation =

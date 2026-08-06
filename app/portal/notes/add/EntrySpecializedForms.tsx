@@ -9,8 +9,10 @@
 import type { FormEvent, ReactNode } from "react";
 import type { CaretakerContextCard } from "@/app/libs/caretakerContext";
 import { Button } from "@/components/ui/button";
+import { ChevronControl } from "@/components/ui/ChevronControl";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useGuardedSwipe } from "@/components/useGuardedSwipe";
 
 export type EntryFormSaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -39,7 +41,7 @@ function EntryFormHeader({
     <div className="add-note-header-text" style={{ marginBottom: 14, opacity: 0.7 }}>
       <div>{clientName}</div>
       <div>
-        {providerName} -- {providerRole}
+        {providerName} — {providerRole}
       </div>
       <div>{todayLabel}</div>
     </div>
@@ -74,6 +76,14 @@ export function ClinicalReflectionEntryForm({
   onSubmit,
   onDelete,
 }: ClinicalReflectionEntryFormProps) {
+  const reflectionSwipe = useGuardedSwipe({
+    onSwipeLeft: onNext,
+    onSwipeRight: onPrevious,
+    canSwipeLeft: activeIndex < cardCount - 1,
+    canSwipeRight: activeIndex > 0,
+    disabled: cardCount < 2,
+  });
+
   return (
     <form
       className="add-note-form"
@@ -91,11 +101,18 @@ export function ClinicalReflectionEntryForm({
         className="paper-surface"
         style={{
           padding: "18px 22px 20px",
+          width: "100%",
           maxWidth: 1080,
           margin: "0 auto",
-          height: 320,
+          minHeight: 360,
           boxSizing: "border-box",
+          display: "grid",
+          gap: 14,
+          touchAction: "pan-y",
+          transform: `translateX(${reflectionSwipe.dragOffset}px)`,
+          transition: reflectionSwipe.dragOffset === 0 ? "transform 160ms ease-out" : "none",
         }}
+        {...reflectionSwipe.swipeHandlers}
       >
         <div
           style={{
@@ -106,17 +123,23 @@ export function ClinicalReflectionEntryForm({
             marginBottom: 12,
           }}
         >
-          <Button type="button" variant="ghost" onClick={onPrevious}>
-            ‹
-          </Button>
+          <ChevronControl
+            direction="left"
+            onClick={onPrevious}
+            disabled={activeIndex === 0}
+            aria-label="Previous reflection"
+          />
           <div style={{ display: "grid", justifyItems: "center", gap: 6, minWidth: 76 }}>
             <div style={{ fontWeight: 600 }}>
               {activeIndex + 1} of {cardCount}
             </div>
           </div>
-          <Button type="button" variant="ghost" onClick={onNext}>
-            ›
-          </Button>
+          <ChevronControl
+            direction="right"
+            onClick={onNext}
+            disabled={activeIndex === cardCount - 1}
+            aria-label="Next reflection"
+          />
         </div>
 
         {visibilityControl}
@@ -126,8 +149,8 @@ export function ClinicalReflectionEntryForm({
             display: "grid",
             alignContent: "center",
             gap: 18,
-            height: "calc(100% - 58px)",
-            padding: "8px 18px 0",
+            minHeight: 224,
+            padding: "8px 18px 12px",
             boxSizing: "border-box",
           }}
         >
@@ -190,6 +213,7 @@ export function ClinicalReflectionEntryForm({
           <Button
             type="button"
             variant="ghost"
+            className="action-negative"
             onClick={onDelete}
             disabled={saveStatus === "saving"}
           >
@@ -237,6 +261,13 @@ export function CaretakerContextEntryForm({
   const activeContextCard = hasContextCards
     ? contextCards[Math.min(activeIndex, contextCards.length - 1)]
     : null;
+  const contextSwipe = useGuardedSwipe({
+    onSwipeLeft: onNext,
+    onSwipeRight: onPrevious,
+    canSwipeLeft: activeIndex < contextCards.length - 1,
+    canSwipeRight: activeIndex > 0,
+    disabled: contextCards.length < 2,
+  });
 
   return (
     <form
@@ -259,7 +290,11 @@ export function CaretakerContextEntryForm({
           margin: "0 auto",
           height: 320,
           boxSizing: "border-box",
+          touchAction: "pan-y",
+          transform: `translateX(${contextSwipe.dragOffset}px)`,
+          transition: contextSwipe.dragOffset === 0 ? "transform 160ms ease-out" : "none",
         }}
+        {...contextSwipe.swipeHandlers}
       >
         <div
           style={{
@@ -270,17 +305,23 @@ export function CaretakerContextEntryForm({
             marginBottom: 12,
           }}
         >
-          <Button type="button" variant="ghost" onClick={onPrevious} disabled={!hasContextCards}>
-            ‹
-          </Button>
+          <ChevronControl
+            direction="left"
+            onClick={onPrevious}
+            disabled={!hasContextCards || activeIndex === 0}
+            aria-label="Previous context card"
+          />
           <div style={{ display: "grid", justifyItems: "center", gap: 6, minWidth: 76 }}>
             <div style={{ fontWeight: 600 }}>
               {hasContextCards ? `${activeIndex + 1} of ${contextCards.length}` : "No items yet"}
             </div>
           </div>
-          <Button type="button" variant="ghost" onClick={onNext} disabled={!hasContextCards}>
-            ›
-          </Button>
+          <ChevronControl
+            direction="right"
+            onClick={onNext}
+            disabled={!hasContextCards || activeIndex === contextCards.length - 1}
+            aria-label="Next context card"
+          />
         </div>
 
         {activeContextCard ? (
@@ -328,6 +369,8 @@ export function CaretakerContextEntryForm({
                       key={option}
                       type="button"
                       variant="ghost"
+                      className="clinical-selection-control"
+                      aria-pressed={selected}
                       onClick={() => onContextValueChange(activeContextCard.key, option)}
                       style={{
                         minHeight: 40,

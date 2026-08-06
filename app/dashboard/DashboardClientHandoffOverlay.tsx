@@ -42,6 +42,7 @@ type ClientDailyHandoffPayload = {
   highestAttentionLevel: string | null;
   hasMeaningfulEvents: boolean;
   completedEntryCount: number;
+  inProgressEntryCount: number;
   contributingProviderRoles: string[];
   lastUpdatedAt: string;
 };
@@ -59,7 +60,9 @@ type Props = {
 export default function DashboardClientHandoffOverlay({ clientId, onClose }: Props) {
   const [data, setData] = useState<HandoffResponse | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [activeView, setActiveView] = useState<"today" | "previousDay">("today");
+  const [activeView, setActiveView] = useState<"today" | "previousDay">(
+    "previousDay"
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -74,14 +77,14 @@ export default function DashboardClientHandoffOverlay({ clientId, onClose }: Pro
         });
 
         if (!response.ok) {
-          throw new Error(`Unable to load client handoff: ${response.status}`);
+          throw new Error(`Unable to load client summary: ${response.status}`);
         }
 
         const payload = (await response.json()) as HandoffResponse;
         if (!isMounted) return;
 
         setData(payload);
-        setActiveView(payload.today ? "today" : "previousDay");
+        setActiveView(payload.previousDay ? "previousDay" : "today");
         setStatus("ready");
       } catch (error) {
         if (!isMounted || (error instanceof DOMException && error.name === "AbortError")) {
@@ -106,14 +109,14 @@ export default function DashboardClientHandoffOverlay({ clientId, onClose }: Pro
   }, [activeHandoff?.lastUpdatedAt]);
 
   if (status === "loading") {
-    return <OverlayShell onClose={onClose}>Loading client handoff...</OverlayShell>;
+    return <OverlayShell onClose={onClose}>Loading client summary...</OverlayShell>;
   }
 
   if (status === "error" || !data) {
     return (
       <OverlayShell onClose={onClose}>
         <div style={{ textAlign: "center", opacity: 0.72 }}>
-          Client handoff could not be loaded.
+          Client summary could not be loaded.
         </div>
       </OverlayShell>
     );
@@ -121,9 +124,9 @@ export default function DashboardClientHandoffOverlay({ clientId, onClose }: Pro
 
   return (
     <OverlayShell onClose={onClose}>
-      <div style={{ display: "grid", gap: 18 }}>
+      <div className="client-handoff-layout" style={{ display: "grid", gap: 18 }}>
         <div style={{ display: "grid", justifyItems: "center", gap: 8 }}>
-          <div style={{ fontSize: 24, fontWeight: 650 }}>Client Handoff</div>
+          <div style={{ fontSize: 24, fontWeight: 650 }}>Client Summary</div>
           <div style={{ fontSize: 13, opacity: 0.64 }}>
             {activeHandoff?.client.name ?? "Client"}
           </div>
@@ -131,7 +134,7 @@ export default function DashboardClientHandoffOverlay({ clientId, onClose }: Pro
 
         <div
           role="tablist"
-          aria-label="Client handoff day"
+          aria-label="Client Summary session"
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
@@ -141,24 +144,24 @@ export default function DashboardClientHandoffOverlay({ clientId, onClose }: Pro
           }}
         >
           <HandoffTab
-            selected={activeView === "today"}
-            disabled={!data.today}
-            onClick={() => setActiveView("today")}
-          >
-            Today
-          </HandoffTab>
-          <HandoffTab
             selected={activeView === "previousDay"}
             disabled={!data.previousDay}
             onClick={() => setActiveView("previousDay")}
           >
-            Previous Day
+            Previous Session
+          </HandoffTab>
+          <HandoffTab
+            selected={activeView === "today"}
+            disabled={!data.today}
+            onClick={() => setActiveView("today")}
+          >
+            Current Session
           </HandoffTab>
         </div>
 
         {activeHandoff ? (
           <div
-            className="paper-surface"
+            className="paper-surface client-handoff-content-card"
             style={{
               width: "min(620px, 86vw)",
               maxHeight: "min(620px, calc(100vh - 210px))",
@@ -170,9 +173,29 @@ export default function DashboardClientHandoffOverlay({ clientId, onClose }: Pro
             }}
           >
             <section style={{ display: "grid", gap: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-                <div style={{ fontSize: 16, fontWeight: 650 }}>
-                  {activeView === "today" ? "Today" : "Previous Day"}
+              <div
+                className="client-handoff-card-heading"
+                style={{ display: "flex", justifyContent: "space-between", gap: 16 }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ fontSize: 16, fontWeight: 650 }}>
+                    {activeView === "today"
+                      ? "Current Session"
+                      : "Previous Session"}
+                  </div>
+                  {activeHandoff.inProgressEntryCount > 0 ? (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                        opacity: 0.64,
+                      }}
+                    >
+                      Live · provisional
+                    </span>
+                  ) : null}
                 </div>
                 {updatedLabel ? (
                   <div style={{ fontSize: 12, opacity: 0.58 }}>{updatedLabel}</div>
@@ -206,19 +229,20 @@ function OverlayShell({
     <div
       style={{
         position: "relative",
+        width: "100%",
         display: "grid",
         justifyItems: "center",
         gap: 22,
-        color: "rgb(0 0 0 / 78%)",
+        color: "var(--client-summary-text, rgb(0 0 0 / 78%))",
       }}
     >
       <button
         type="button"
         onClick={onClose}
-        className="team-focus-close-button"
-        aria-label="Close Client Handoff"
+        className="back-link overlay-client-back-control"
+        aria-label="Back to Client"
       >
-        ×
+        Client
       </button>
       {children}
     </div>
@@ -243,11 +267,15 @@ function HandoffTab({
       aria-selected={selected}
       disabled={disabled}
       onClick={onClick}
+      className="material-control handoff-day-tab"
       style={{
         minHeight: 42,
         border: "none",
-        background: selected ? "rgb(255 255 255 / 82%)" : "rgb(255 255 255 / 42%)",
-        boxShadow: selected ? "var(--shadow-dashboard-badge)" : "none",
+        borderRadius: 14,
+        background: selected
+          ? "var(--client-summary-tab-selected, rgb(255 255 255 / 82%))"
+          : "var(--client-summary-tab, rgb(255 255 255 / 42%))",
+        boxShadow: selected ? "var(--shadow-dashboard-badge)" : "var(--shadow-tactile)",
         color: "var(--foreground)",
         opacity: disabled ? 0.38 : 1,
         cursor: disabled ? "default" : "pointer",
@@ -285,9 +313,9 @@ function ReferencedNotes({ references }: { references: SourceReference[] }) {
           <details
             key={group.providerRole}
             style={{
-              border: "1px solid rgb(0 0 0 / 7%)",
+              border: "1px solid var(--client-summary-reference-border, rgb(0 0 0 / 7%))",
               borderRadius: 8,
-              background: "rgb(255 255 255 / 54%)",
+              background: "var(--client-summary-reference-surface, rgb(255 255 255 / 54%))",
               padding: "9px 11px",
             }}
           >
@@ -296,7 +324,7 @@ function ReferencedNotes({ references }: { references: SourceReference[] }) {
                 cursor: "pointer",
                 fontSize: 13,
                 fontWeight: 650,
-                color: "rgb(0 0 0 / 72%)",
+                color: "var(--client-summary-reference-text, rgb(0 0 0 / 72%))",
               }}
             >
               {formatProviderRole(group.providerRole)}
@@ -333,7 +361,7 @@ function groupReferencesByProviderRole(references: SourceReference[]) {
   for (const reference of references) {
     const existing = groups.get(reference.providerRole) ?? [];
     const isDuplicate = existing.some(
-      (item) => item.label === reference.label && item.snippet === reference.snippet
+      (item) => normalizeReferenceText(item.snippet) === normalizeReferenceText(reference.snippet)
     );
     if (!isDuplicate) {
       existing.push(reference);
@@ -345,6 +373,10 @@ function groupReferencesByProviderRole(references: SourceReference[]) {
     providerRole,
     references: groupedReferences,
   }));
+}
+
+function normalizeReferenceText(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 function formatProviderRole(role: string) {

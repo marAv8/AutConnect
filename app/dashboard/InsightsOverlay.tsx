@@ -2,10 +2,16 @@
 
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { useInsights, type InsightResponse } from "./useInsights";
+import {
+  INSIGHT_CATEGORY_DEFINITIONS,
+  type InsightCategory,
+} from "@/app/libs/insights/categories";
+import { formatClinicalShortDateTime } from "@/app/libs/dateTime";
 
 type Props = {
   clientId: string;
   isOpen: boolean;
+  hasCaseSupportAccess?: boolean;
   onClose: () => void;
 };
 
@@ -33,8 +39,14 @@ const elevatedControlStyle: CSSProperties = {
   boxShadow: "var(--note-neo-control)",
 };
 
-export default function InsightsOverlay({ clientId, isOpen, onClose }: Props) {
+export default function InsightsOverlay({
+  clientId,
+  isOpen,
+  hasCaseSupportAccess = false,
+  onClose,
+}: Props) {
   const { ask } = useInsights(clientId);
+  const [category, setCategory] = useState<InsightCategory>("overview");
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<InsightResponse | null>(null);
   const [error, setError] = useState("");
@@ -62,6 +74,7 @@ export default function InsightsOverlay({ clientId, isOpen, onClose }: Props) {
 
   useEffect(() => {
     if (!isOpen) {
+      setCategory("overview");
       setQuestion("");
       setAnswer(null);
       setError("");
@@ -80,7 +93,7 @@ export default function InsightsOverlay({ clientId, isOpen, onClose }: Props) {
     setError("");
 
     try {
-      const result = await ask(trimmedQuestion);
+      const result = await ask(trimmedQuestion, category);
       setAnswer(result);
     } catch (caught) {
       setAnswer(null);
@@ -92,6 +105,7 @@ export default function InsightsOverlay({ clientId, isOpen, onClose }: Props) {
 
   return (
     <div
+      className="insights-overlay-backdrop"
       style={{
         position: "fixed",
         inset: 0,
@@ -106,12 +120,15 @@ export default function InsightsOverlay({ clientId, isOpen, onClose }: Props) {
       onClick={onClose}
     >
       <form
+        className="insights-overlay-panel"
         onSubmit={onSubmit}
         style={{
           ...overlayPanelStyle,
-          width: "min(100%, 560px)",
+          width: "min(100%, 720px)",
+          maxHeight: "min(88vh, 760px)",
+          overflowY: "auto",
           borderRadius: 18,
-          padding: "30px 32px",
+          padding: "26px clamp(18px, 5vw, 34px) 30px",
           boxSizing: "border-box",
           display: "grid",
           justifyItems: "center",
@@ -119,11 +136,101 @@ export default function InsightsOverlay({ clientId, isOpen, onClose }: Props) {
         }}
         onClick={(event) => event.stopPropagation()}
       >
+        <div
+          style={{
+            width: "100%",
+            display: "grid",
+            gridTemplateColumns: "1fr auto 1fr",
+            alignItems: "center",
+          }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            className="back-link overlay-client-back-control"
+            aria-label="Back to Client"
+          >
+            Client
+          </button>
+          <h2 style={{ margin: 0, fontSize: 26, fontWeight: 650 }}>
+            Insights
+          </h2>
+          <span aria-hidden="true" />
+        </div>
+
+        <div
+          aria-label="Insight categories"
+          style={{
+            width: "100%",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+            gap: 10,
+          }}
+        >
+          {INSIGHT_CATEGORY_DEFINITIONS.filter(
+            (definition) =>
+              definition.id !== "caseSupport" || hasCaseSupportAccess
+          ).map((definition) => {
+            const selected = category === definition.id;
+            return (
+              <button
+                key={definition.id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => {
+                  if (document.activeElement instanceof HTMLElement) {
+                    document.activeElement.blur();
+                  }
+                  setCategory(definition.id);
+                  setQuestion("");
+                  setAnswer(null);
+                  setError("");
+                }}
+                style={{
+                  background: selected
+                    ? "rgb(255 255 255 / 92%)"
+                    : "rgb(255 255 255 / 58%)",
+                  border: selected
+                    ? "1px solid rgb(40 55 76 / 28%)"
+                    : "1px solid rgb(40 55 76 / 10%)",
+                  borderRadius: 13,
+                  boxShadow: selected
+                    ? "0 5px 14px rgb(31 42 57 / 12%)"
+                    : "none",
+                  color: "var(--foreground)",
+                  cursor: "pointer",
+                  display: "grid",
+                  gap: 4,
+                  minHeight: 76,
+                  padding: "12px 10px",
+                  textAlign: "center",
+                }}
+              >
+                <span style={{ fontSize: 15, fontWeight: 650 }}>
+                  {definition.label}
+                </span>
+                <span
+                  style={{
+                    color: "rgba(34, 34, 34, 0.6)",
+                    fontSize: 11,
+                    lineHeight: 1.25,
+                  }}
+                >
+                  {definition.description}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         <input
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
-          placeholder="Ask about this client"
-          autoFocus
+          placeholder={
+            INSIGHT_CATEGORY_DEFINITIONS.find(
+              (definition) => definition.id === category
+            )?.placeholder ?? "Ask about this client"
+          }
           style={{
             ...recessedInputStyle,
             width: "100%",
@@ -155,18 +262,17 @@ export default function InsightsOverlay({ clientId, isOpen, onClose }: Props) {
           {isAsking ? "Asking..." : "Ask"}
         </button>
 
-        {(answer || error) && (
-          <div
-            style={{
-              width: "100%",
-              borderTop: "none",
-              paddingTop: 18,
-              display: "grid",
-              gap: 10,
-              justifyItems: "center",
-              textAlign: "center",
-            }}
-          >
+        <div
+          className="insights-answer-viewport"
+          aria-live="polite"
+          aria-busy={isAsking}
+        >
+          {isAsking && !answer && !error ? (
+            <div className="insights-answer-status">Reviewing client records…</div>
+          ) : null}
+
+          {(answer || error) ? (
+            <div className="insights-answer-content">
             <div
               style={{
                 color: error ? "var(--danger)" : "var(--foreground)",
@@ -175,8 +281,69 @@ export default function InsightsOverlay({ clientId, isOpen, onClose }: Props) {
                 maxWidth: 480,
               }}
             >
+              {answer?.headline && !error ? (
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    marginBottom: 6,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.035em",
+                  }}
+                >
+                  {answer.headline}
+                </div>
+              ) : null}
               {error || answer?.summary}
             </div>
+
+            {answer?.evidence?.length ? (
+              <div
+                style={{
+                  width: "100%",
+                  display: "grid",
+                  gap: 8,
+                  textAlign: "left",
+                }}
+              >
+                {answer.evidence.slice(0, 4).map((item, index) => (
+                  <div
+                    key={`${item.sourceId ?? item.label}:${index}`}
+                    style={{
+                      background: "rgb(255 255 255 / 64%)",
+                      border: "1px solid rgb(40 55 76 / 10%)",
+                      borderRadius: 12,
+                      padding: "10px 12px",
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>
+                      {item.label}
+                    </div>
+                    <div
+                      style={{
+                        color: "rgba(34, 34, 34, 0.72)",
+                        fontSize: 13,
+                        lineHeight: 1.4,
+                        marginTop: 2,
+                      }}
+                    >
+                      {item.value}
+                    </div>
+                    {item.date ? (
+                      <div
+                        style={{
+                          color: "rgba(34, 34, 34, 0.48)",
+                          fontSize: 11,
+                          marginTop: 4,
+                        }}
+                      >
+                        {formatClinicalShortDateTime(item.date)}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
 
             {answer?.trend || answer?.supportingData?.sessions !== undefined ? (
               <div
@@ -193,8 +360,44 @@ export default function InsightsOverlay({ clientId, isOpen, onClose }: Props) {
                   : null}
               </div>
             ) : null}
-          </div>
-        )}
+
+            {answer?.confidence ? (
+              <div
+                style={{
+                  color: "rgba(34, 34, 34, 0.58)",
+                  fontSize: 12,
+                  lineHeight: 1.4,
+                }}
+              >
+                {answer.answerMode === "synthesized"
+                  ? `Synthesized from ${
+                      answer.evidence?.length ?? 0
+                    } cited record${answer.evidence?.length === 1 ? "" : "s"}`
+                  : answer.answerMode === "insufficient"
+                    ? "Available records are insufficient"
+                    : "Verified from structured records"}
+                {" · "}
+                {`${answer.confidence[0].toUpperCase()}${answer.confidence.slice(
+                  1
+                )} confidence`}
+              </div>
+            ) : null}
+
+            {answer?.limitations?.length ? (
+              <div
+                style={{
+                  color: "rgba(34, 34, 34, 0.56)",
+                  fontSize: 12,
+                  lineHeight: 1.45,
+                  maxWidth: 480,
+                }}
+              >
+                {answer.limitations.join(" ")}
+              </div>
+            ) : null}
+            </div>
+          ) : null}
+        </div>
       </form>
     </div>
   );

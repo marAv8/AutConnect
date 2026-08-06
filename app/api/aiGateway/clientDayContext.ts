@@ -18,10 +18,20 @@ const attentionLevelWeight: Record<Exclude<AttentionLevel, "none">, number> = {
 
 export function createClientDayContext(input: ClientDayContextInput): ClientDayContext {
   const completedEntries = sortCompletedEntries(dedupeById(input.completedEntries, "entryId"));
-  const completedEntryIds = new Set(completedEntries.map((entry) => entry.entryId));
+  const inProgressEntries = sortCompletedEntries(
+    dedupeById(input.inProgressEntries ?? [], "entryId")
+  );
+  const documentedEntries = sortCompletedEntries(
+    dedupeById([...completedEntries, ...inProgressEntries], "entryId")
+  );
+  const documentedEntryIds = new Set(
+    documentedEntries.map((entry) => entry.entryId)
+  );
   const clinicalEvents = sortClinicalEvents(
     dedupeById(input.clinicalEvents, "id").filter((event) =>
-      event.source.entryId ? completedEntryIds.has(event.source.entryId) : event.category === "team_focus"
+      event.source.entryId
+        ? documentedEntryIds.has(event.source.entryId)
+        : event.category === "team_focus"
     )
   );
   const clinicalEventIds = new Set(clinicalEvents.map((event) => event.id));
@@ -36,7 +46,7 @@ export function createClientDayContext(input: ClientDayContextInput): ClientDayC
     )
   );
   const sourceReferences = buildSourceReferences({
-    entries: completedEntries,
+    entries: documentedEntries,
     clinicalEvents,
     attentionEvents,
     supervisorDirectives,
@@ -49,6 +59,7 @@ export function createClientDayContext(input: ClientDayContextInput): ClientDayC
     date: input.date,
     status: input.status,
     completedEntries,
+    inProgressEntries,
     clinicalEvents,
     attentionEvents,
     caregiverContext: sourceItems.filter((item) => item.sourceCategory === "caregiver_context"),
@@ -65,11 +76,14 @@ export function createClientDayContext(input: ClientDayContextInput): ClientDayC
     meaningfulEventCount: clinicalEvents.filter(isMeaningfulClinicalEvent).length,
     routineEventCount: clinicalEvents.filter((event) => !isMeaningfulClinicalEvent(event)).length,
     completedEntryCount: completedEntries.length,
+    inProgressEntryCount: inProgressEntries.length,
     contributingProviderRoles: uniqueValues(
-      completedEntries.map((entry) => entry.providerRole)
+      documentedEntries.map((entry) => entry.providerRole)
     ).sort(),
     generatedAt,
-    lastUpdatedAt: lastUpdatedAt(completedEntries, clinicalEvents, supervisorDirectives) ?? generatedAt,
+    lastUpdatedAt:
+      lastUpdatedAt(documentedEntries, clinicalEvents, supervisorDirectives) ??
+      generatedAt,
   };
 }
 
@@ -98,11 +112,17 @@ function buildSourceReferences(input: {
       sourceCategory: "session_observation",
       sourceItemId: entry.entryId,
       sectionKey: "session-observation",
-      label: "Session Observation",
+      label:
+        (entry.revisionNumber ?? 1) > 1
+          ? "Updated Session Observation"
+          : "Session Observation",
       snippet: observation,
       clinicalEventIds: input.clinicalEvents
         .filter((event) => event.source.entryId === entry.entryId)
         .map((event) => event.id),
+      revisionNumber: entry.revisionNumber,
+      revisedAt: entry.revisedAt,
+      revisionChangeLabels: entry.revisionChangeLabels,
     });
   }
 
@@ -148,6 +168,9 @@ function clinicalEventToSourceReference(
     label: event.title,
     snippet: event.summary,
     clinicalEventIds: [event.id],
+    revisionNumber: entry?.revisionNumber,
+    revisedAt: entry?.revisedAt,
+    revisionChangeLabels: entry?.revisionChangeLabels,
   };
 }
 
@@ -172,6 +195,9 @@ function attentionEventToSourceReference(
     snippet: event.summary,
     clinicalEventIds: event.clinicalEventIds,
     attentionEventIds: [event.id],
+    revisionNumber: entry?.revisionNumber,
+    revisedAt: entry?.revisedAt,
+    revisionChangeLabels: entry?.revisionChangeLabels,
   };
 }
 
@@ -216,6 +242,9 @@ function sourceReferenceToItem(reference: ClientDaySourceReference): ClientDaySo
     clinicalEventIds: reference.clinicalEventIds,
     attentionEventIds: reference.attentionEventIds,
     directiveIds: reference.directiveIds,
+    revisionNumber: reference.revisionNumber,
+    revisedAt: reference.revisedAt,
+    revisionChangeLabels: reference.revisionChangeLabels,
   };
 }
 
@@ -226,6 +255,7 @@ function sourceCategoryForClinicalEvent(event: ClinicalEvent): ClientDaySourceCa
   if (event.category === "communication_observation") return "communication_observation";
   if (event.category === "sensory_observation") return "sensory_observation";
   if (event.category === "abc_observation") return "abc_observation";
+  if (event.category === "provider_observation") return "provider_observation";
   if (event.category === "supervisor_observation") return "provider_observation";
   if (event.category === "clinical_reflection") return "clinical_reflection";
   return "target_progress";
@@ -239,6 +269,7 @@ function sectionKeyForClinicalEvent(event: ClinicalEvent) {
   if (event.category === "communication_observation") return "communication-observations";
   if (event.category === "sensory_observation") return "sensory-observations";
   if (event.category === "abc_observation") return "abc";
+  if (event.category === "provider_observation") return "observations";
   if (event.category === "clinical_reflection") return "clinical-reflection";
   return "observations";
 }
@@ -252,6 +283,7 @@ function isMeaningfulClinicalEvent(event: ClinicalEvent) {
       "caregiver_context",
       "communication_observation",
       "sensory_observation",
+      "provider_observation",
       "supervisor_observation",
       "clinical_reflection",
       "reinforcer",

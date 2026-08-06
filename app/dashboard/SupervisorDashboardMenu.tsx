@@ -8,6 +8,7 @@
 
 import Link from "next/link";
 import type { CSSProperties, RefObject } from "react";
+import ThemeToggle from "@/app/components/ThemeToggle";
 
 type Props = {
   mode: "grid" | "orbit";
@@ -19,12 +20,16 @@ type Props = {
   onOpenLinkClient: () => void;
   onOpenRemoveClient: () => void;
   onOpenInsights: () => void;
+  onOpenGuide: () => void;
 };
 
 const menuStackStyle: CSSProperties = {
   position: "relative",
-  width: 58,
-  height: 58,
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+  width: "auto",
+  height: 52,
 };
 
 const menuPanelStyle: CSSProperties = {
@@ -46,47 +51,43 @@ const menuActionStyle: CSSProperties = {
   alignItems: "center",
   justifyContent: "center",
   width: "100%",
-  minHeight: 42,
-  border: "none",
-  borderRadius: 14,
-  background: "var(--note-neo-surface)",
+  minHeight: 44,
   textAlign: "center",
   textDecoration: "none",
   padding: "0 16px",
   cursor: "pointer",
   fontSize: 13,
   fontWeight: 650,
-  color: "rgb(0 0 0 / 82%)",
-  boxShadow: "var(--note-neo-control)",
 };
 
 const menuButtonStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  width: 58,
-  height: 58,
+  width: 52,
+  height: 52,
   borderRadius: "50%",
-  border: "none",
+  border: "1px solid rgb(35 45 55 / 14%)",
   background: "var(--note-neo-surface)",
   color: "var(--foreground)",
-  fontSize: 28,
+  fontSize: 24,
   lineHeight: 1,
   cursor: "pointer",
-  boxShadow: "var(--note-neo-control)",
+  boxShadow:
+    "0 1px 2px rgb(35 45 55 / 9%), 0 6px 14px rgb(35 45 55 / 11%), inset 0 1px 0 rgb(255 255 255 / 92%)",
 };
 
 const menuDotRowStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  gap: 6,
+  gap: 5,
   height: 10,
 };
 
 const menuDotStyle: CSSProperties = {
-  width: 5,
-  height: 5,
+  width: 4,
+  height: 4,
   borderRadius: "50%",
   background: "currentColor",
   display: "block",
@@ -102,25 +103,44 @@ export default function SupervisorDashboardMenu({
   onOpenLinkClient,
   onOpenRemoveClient,
   onOpenInsights,
+  onOpenGuide,
 }: Props) {
   return (
     <div ref={menuRef} style={menuStackStyle}>
       {menuOpen ? (
-        <div style={menuPanelStyle}>
+        <div className="dashboard-more-menu" style={menuPanelStyle}>
           {mode === "grid" ? (
             <>
               <Link
                 href="/portal/supervisor/create-client"
-                className="soft-link"
+                className="soft-link dashboard-menu-action action-positive"
                 style={menuActionStyle}
               >
                 Add Client
               </Link>
-              <button type="button" onClick={onOpenLinkClient} style={menuActionStyle}>
+              <button
+                type="button"
+                className="dashboard-menu-action action-secondary"
+                onClick={onOpenLinkClient}
+                style={menuActionStyle}
+              >
                 Link Client
               </button>
-              <button type="button" onClick={onOpenRemoveClient} style={menuActionStyle}>
+              <button
+                type="button"
+                className="dashboard-menu-action dashboard-menu-action--destructive"
+                onClick={onOpenRemoveClient}
+                style={menuActionStyle}
+              >
                 Remove Client
+              </button>
+              <button
+                type="button"
+                className="dashboard-menu-action action-secondary"
+                onClick={onOpenGuide}
+                style={menuActionStyle}
+              >
+                How AutConnect Works
               </button>
             </>
           ) : (
@@ -129,13 +149,18 @@ export default function SupervisorDashboardMenu({
                 <Link
                   href={`/portal/supervisor/edit-providers/${activeClientId}`}
                   onClick={onClose}
-                  className="soft-link"
+                  className="soft-link dashboard-menu-action action-secondary"
                   style={menuActionStyle}
                 >
                   Care Team
                 </Link>
               ) : null}
-              <button type="button" onClick={onOpenInsights} style={menuActionStyle}>
+              <button
+                type="button"
+                className="dashboard-menu-action action-secondary"
+                onClick={onOpenInsights}
+                style={menuActionStyle}
+              >
                 Insights
               </button>
             </>
@@ -144,7 +169,7 @@ export default function SupervisorDashboardMenu({
       ) : null}
       <button
         type="button"
-        className="material-control"
+        className="material-control more-icon-control dashboard-round-icon-control"
         onClick={onToggle}
         aria-expanded={menuOpen}
         aria-label="More"
@@ -152,6 +177,7 @@ export default function SupervisorDashboardMenu({
       >
         <MenuDots />
       </button>
+      <ThemeToggle />
     </div>
   );
 }

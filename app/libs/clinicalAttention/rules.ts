@@ -109,6 +109,22 @@ export function attentionEventsForClinicalEvent(
     );
   }
 
+  if (
+    event.category === "provider_observation" &&
+    event.eventType === "positive_response_observed"
+  ) {
+    events.push(
+      createAttentionEvent(event, input, "improvement", {
+        level: "medium",
+        title: "Positive response observed",
+        summary: event.summary,
+        rationale:
+          "The provider documented a constructive response that may help the team understand what followed the challenge.",
+        metadata: event.details,
+      })
+    );
+  }
+
   if (event.category === "reinforcer" || includesAny(event, /\b(reinforcer|reinforcement|preferred item|motivator)\b/i)) {
     events.push(
       createAttentionEvent(event, input, "new_reinforcer", {

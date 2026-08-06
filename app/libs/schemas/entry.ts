@@ -10,6 +10,7 @@ export const assessmentItemSchema = z.object({
   domain: z.nativeEnum(AssessmentDomain).nullable().optional(),
   rawValue: z.number().finite().nullable().optional(),
   supportLevel: z.number().int().min(1).max(10).nullable().optional(),
+  observation: z.string().trim().max(4000).nullable().optional(),
 });
 
 export const createEntrySchema = z.object({

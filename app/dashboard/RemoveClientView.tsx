@@ -73,6 +73,7 @@ export default function RemoveClientView({
               <button
                 key={client.id}
                 type="button"
+                className="glass-client-badge"
                 disabled={busyClientId === client.id}
                 onClick={() =>
                   onClientClick(client.id, `${client.firstName} ${client.lastName}`)
@@ -93,6 +94,8 @@ export default function RemoveClientView({
                   fontSize: CLIENT_ORB_FONT_SIZE,
                   fontWeight: 500,
                   cursor: "pointer",
+                  touchAction: "manipulation",
+                  WebkitTapHighlightColor: "transparent",
                   overflow: "visible",
                   appearance: "none",
                   WebkitAppearance: "none",
@@ -112,7 +115,7 @@ export default function RemoveClientView({
                     background: "var(--glass-strong)",
                     border: "none",
                     boxShadow: "var(--shadow-dashboard-badge)",
-                    color: "var(--negative)",
+                    color: "var(--client-remove-action)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -126,7 +129,7 @@ export default function RemoveClientView({
                       width: 12,
                       height: 3,
                       borderRadius: 999,
-                      background: "var(--negative)",
+                      background: "var(--client-remove-action)",
                     }}
                   />
                 </span>

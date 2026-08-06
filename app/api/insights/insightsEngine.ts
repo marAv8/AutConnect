@@ -1,6 +1,13 @@
 import { AssessmentDomain, MetricType, Role } from "@prisma/client";
 import { normalizeItem } from "@/lib/sessionScoring";
 import { buildInsightContext, type InsightContext } from "./insightContext";
+import type { InsightCategory } from "@/app/libs/insights/categories";
+import { formatClinicalDateTime } from "@/app/libs/dateTime";
+import {
+  buildEntryRevisionChanges,
+  type EntryRevisionSnapshot,
+} from "@/app/libs/entryRevision";
+import { formatRevisionUpdate } from "@/app/portal/notes/view/noteHistoryRevision";
 
 export type ParsedInsightQuestion = {
   providerRole?: string;
@@ -13,11 +20,21 @@ export type ParsedInsightQuestion = {
   context?: string[];
 };
 
-type InsightResult = {
+export type InsightResult = {
+  category?: InsightCategory;
   headline?: string;
   summary: string;
   context?: string;
   trend?: "up" | "down" | "flat";
+  answerMode?: "deterministic" | "synthesized" | "insufficient";
+  confidence?: "high" | "medium" | "low";
+  limitations?: string[];
+  evidence?: Array<{
+    label: string;
+    value: string;
+    date?: string;
+    sourceId?: string;
+  }>;
   supportingData?: {
     providers?: Array<{
       providerId: string;
@@ -35,6 +52,12 @@ type InsightResult = {
     }>;
     sessions?: number;
   };
+};
+
+type InsightBuildOptions = {
+  category: InsightCategory;
+  viewerProviderId: string;
+  context?: InsightContext | null;
 };
 
 type InsightEntry = InsightContext["sessions"][number];
@@ -66,7 +89,23 @@ function endOfDay(date: Date) {
   return next;
 }
 
-function parseDateRange(question: string) {
+function parseDateRange(question: string, now = new Date()) {
+  if (/\b(today|tonight)\b/i.test(question)) {
+    return {
+      from: startOfDay(now),
+      to: endOfDay(now),
+    };
+  }
+
+  if (/\b(yesterday|previous day)\b/i.test(question)) {
+    const yesterday = startOfDay(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return {
+      from: yesterday,
+      to: endOfDay(yesterday),
+    };
+  }
+
   const monthNames =
     "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?";
   const dateMatch = question.match(
@@ -85,7 +124,10 @@ function parseDateRange(question: string) {
   };
 }
 
-export function parseQuestion(question: string): ParsedInsightQuestion {
+export function parseQuestion(
+  question: string,
+  now = new Date()
+): ParsedInsightQuestion {
   const normalized = question.toLowerCase();
   const role = roleAliases.find(([pattern]) => pattern.test(question))?.[1];
   const metricType = Object.values(MetricType).find((type) =>
@@ -126,7 +168,7 @@ export function parseQuestion(question: string): ParsedInsightQuestion {
   if (/\b(trend|improv|declin|progress|over time)\b/.test(normalized)) {
     intent = "trend";
   }
-  if (/\b(submits?|notes?|late|delay|timing|compliance)\b/.test(normalized)) {
+  if (/\b(submits?|submitted|late|delay|timing|compliance)\b/.test(normalized)) {
     intent = "compliance";
   }
 
@@ -140,7 +182,7 @@ export function parseQuestion(question: string): ParsedInsightQuestion {
     providerRole: role,
     metricType,
     domainFocus: domainFocus.length ? Array.from(new Set(domainFocus)) : undefined,
-    dateRange: parseDateRange(question),
+    dateRange: parseDateRange(question, now),
     threshold: thresholdValue,
     comparison,
     intent,
@@ -222,7 +264,13 @@ function providerSummaries(entries: InsightEntry[], parsed: ParsedInsightQuestio
 
   for (const entry of entries) {
     const scores = entry.items
-      .filter((item) => !parsed.metricType || item.metricType === parsed.metricType)
+      .filter(
+        (item) =>
+          (!parsed.metricType || item.metricType === parsed.metricType) &&
+          (!parsed.domainFocus?.length ||
+            (item.domain !== null &&
+              parsed.domainFocus.includes(item.domain)))
+      )
       .map(normalizeScore)
       .filter((score): score is number => score !== null);
 
@@ -352,7 +400,13 @@ function trendFor(entries: InsightEntry[], parsed: ParsedInsightQuestion): Insig
   const datedScores = entries
     .map((entry) => {
       const scores = entry.items
-        .filter((item) => !parsed.metricType || item.metricType === parsed.metricType)
+        .filter(
+          (item) =>
+            (!parsed.metricType || item.metricType === parsed.metricType) &&
+            (!parsed.domainFocus?.length ||
+              (item.domain !== null &&
+                parsed.domainFocus.includes(item.domain)))
+        )
         .map(normalizeScore)
         .filter((score): score is number => score !== null);
 
@@ -519,21 +573,63 @@ function formatRankingObservation({
   };
 }
 
-export async function buildInsight(clientId: string, question: string): Promise<InsightResult> {
+export async function buildInsight(
+  clientId: string,
+  question: string,
+  options: InsightBuildOptions
+): Promise<InsightResult> {
   const parsed = parseQuestion(question);
-  const insightContext = await buildInsightContext(clientId, parsed);
+  const insightContext =
+    options.context === undefined
+      ? await buildInsightContext(clientId, parsed, options)
+      : options.context;
+
+  if (!insightContext) {
+    return {
+      category: options.category,
+      summary: "No matching client data was found.",
+      supportingData: { sessions: 0 },
+    };
+  }
+
+  if (options.category === "overview") {
+    return buildOverviewInsight(insightContext, question);
+  }
+  if (options.category === "documentation") {
+    return buildDocumentationInsight(insightContext, question);
+  }
+  if (options.category === "providers") {
+    return buildProviderInsight(insightContext, question);
+  }
+  if (options.category === "caseSupport") {
+    return buildCaseSupportInsight(insightContext, question);
+  }
+
+  const targetProgressInsight = buildTargetProgressInsight(
+    insightContext,
+    question,
+    parsed
+  );
+  if (targetProgressInsight) {
+    return targetProgressInsight;
+  }
+
   const rawEntries = insightContext?.sessions ?? [];
   const entries = rawEntries.filter((entry) => entryMatchesContext(entry, parsed));
 
   if (entries.length === 0) {
     return {
+      category: "progress",
       ...formatNoDataObservation("No matching data was found for this client."),
       supportingData: { sessions: 0 },
     };
   }
 
   if (parsed.intent === "compliance") {
-    return noteTimingCompliance(entries);
+    return {
+      category: "progress",
+      ...noteTimingCompliance(entries),
+    };
   }
 
   if (
@@ -541,12 +637,16 @@ export async function buildInsight(clientId: string, question: string): Promise<
     (parsed.metricType === "Frequency" ||
       /\b(challenging|difficult|behavior)\b/i.test(question))
   ) {
-    return mostDifficultBehavior(entries);
+    return {
+      category: "progress",
+      ...mostDifficultBehavior(entries),
+    };
   }
 
   const providers = providerSummaries(entries, parsed).sort((a, b) => a.avgScore - b.avgScore);
   if (providers.length === 0) {
     return {
+      category: "progress",
       ...formatNoDataObservation("No scored assessment data was found for this client."),
       supportingData: { providers: [], sessions: entries.length },
     };
@@ -568,6 +668,7 @@ export async function buildInsight(clientId: string, question: string): Promise<
     const trend = trendFor(entries, parsed);
 
     return {
+      category: "progress",
       ...formatThresholdObservation({
         matched,
         thresholdPercent: thresholdScore * 10,
@@ -583,6 +684,7 @@ export async function buildInsight(clientId: string, question: string): Promise<
     const lowest = providers[0];
     const trend = trendFor(entries, parsed);
     return {
+      category: "progress",
       ...formatRankingObservation({ provider: lowest, trend }),
       trend,
       supportingData: { providers, sessions: entries.length },
@@ -593,6 +695,7 @@ export async function buildInsight(clientId: string, question: string): Promise<
   const roleLabel = parsed.providerRole ? formatRole(parsed.providerRole) : "The care team";
   const trend = trendFor(entries, parsed);
   return {
+    category: "progress",
     ...formatAverageObservation({
       roleLabel,
       avgPercent: avgScore * 10,
@@ -602,4 +705,860 @@ export async function buildInsight(clientId: string, question: string): Promise<
     trend,
     supportingData: { providers, sessions: entries.length },
   };
+}
+
+function buildOverviewInsight(
+  context: InsightContext,
+  question: string
+): InsightResult {
+  const latestDocumentation = [...context.documentationRecords].sort(
+    (left, right) =>
+      new Date(right.completedAt ?? right.updatedAt).getTime() -
+      new Date(left.completedAt ?? left.updatedAt).getTime()
+  )[0];
+  const openCases = context.caseSupport.cases.filter(
+    (caseRecord) => caseRecord.status === "OPEN"
+  );
+  const pendingRequests = context.caseSupport.requests.filter((request) =>
+    ["REQUESTED", "ACKNOWLEDGED"].includes(request.status)
+  );
+  const focus = context.currentTeamFocus;
+  const asksTeamFocus = /\b(team\s*focus|current focus|focus banner)\b/i.test(
+    question
+  );
+  const asksCaseSupport = /\b(case support|support request|open case)\b/i.test(
+    question
+  );
+  const asksRecentActivity =
+    /\b(recent|latest|today|activity|happened|new)\b/i.test(question) &&
+    !asksCaseSupport;
+  const asksCareTeam =
+    /\b(care team|providers?|who is involved|who.*assigned|assigned team)\b/i.test(
+      question
+    );
+
+  if (asksTeamFocus) {
+    return {
+      category: "overview",
+      headline: "Current Team Focus",
+      summary: focus
+        ? `${focus.title ? `${focus.title}: ` : ""}${focus.content}`
+        : "No active Team Focus is currently displayed for this client.",
+      supportingData: { sessions: context.precomputedStatistics.sessionCount },
+      evidence: focus
+        ? [
+            {
+              label: focus.authorName,
+              value: `Updated ${formatClinicalDateTime(focus.updatedAt)}`,
+              date: focus.updatedAt,
+              sourceId: focus.id,
+            },
+          ]
+        : [],
+    };
+  }
+
+  if (asksRecentActivity) {
+    if (!latestDocumentation) {
+      return {
+        category: "overview",
+        headline: "Recent activity",
+        summary: "No completed documentation is available for this client.",
+        supportingData: { sessions: 0 },
+      };
+    }
+
+    return {
+      category: "overview",
+      headline: "Recent activity",
+      summary: `${latestDocumentation.providerName} completed the most recent ${humanizeValue(latestDocumentation.kind)} on ${formatClinicalDateTime(latestDocumentation.completedAt ?? latestDocumentation.updatedAt)}.`,
+      supportingData: { sessions: context.precomputedStatistics.sessionCount },
+      evidence: [
+        {
+          label: humanizeValue(latestDocumentation.kind),
+          value:
+            latestDocumentation.note ||
+            latestDocumentation.observations[0]?.observation ||
+            "Completed documentation",
+          date:
+            latestDocumentation.completedAt ?? latestDocumentation.updatedAt,
+          sourceId: latestDocumentation.id,
+        },
+      ],
+    };
+  }
+
+  if (asksCareTeam) {
+    const providersWithActivity = context.providerRelationships.filter(
+      (provider) => provider.totalSessions > 0
+    );
+    return {
+      category: "overview",
+      headline: "Care team",
+      summary: `${context.careTeam.length} providers are assigned to this client. ${providersWithActivity.length} have contributed completed documentation.`,
+      supportingData: {
+        sessions: context.precomputedStatistics.sessionCount,
+        providers: context.providerRelationships.map((provider) => ({
+          providerId: provider.providerId,
+          providerName: provider.providerName,
+          role: humanizeValue(provider.assignmentRole),
+          sessions: provider.totalSessions,
+        })),
+      },
+      evidence: context.careTeam.map((provider) => ({
+        label: provider.providerName,
+        value: humanizeValue(provider.assignmentRole),
+        sourceId: provider.providerId,
+      })),
+    };
+  }
+
+  if (asksCaseSupport) {
+    return {
+      category: "overview",
+      headline: "Case Support",
+      summary:
+        pendingRequests.length || openCases.length
+          ? `${pendingRequests.length} request${pendingRequests.length === 1 ? " is" : "s are"} awaiting action and ${openCases.length} case-support record${openCases.length === 1 ? " is" : "s are"} open.`
+          : "No accessible case-support request is awaiting action and no accessible case-support record is open.",
+      supportingData: { sessions: context.precomputedStatistics.sessionCount },
+      evidence: [
+        ...pendingRequests.slice(0, 2).map((request) => ({
+          label: `Request from ${request.requesterName}`,
+          value: request.concern,
+          date: request.createdAt,
+          sourceId: request.id,
+        })),
+        ...openCases.slice(0, 2).map((caseRecord) => ({
+          label: caseRecord.title,
+          value: caseRecord.concern,
+          date: caseRecord.updatedAt,
+          sourceId: caseRecord.id,
+        })),
+      ],
+    };
+  }
+
+  const parts = [
+    `${context.precomputedStatistics.providersWithSessions} providers have contributed across ${context.precomputedStatistics.sessionCount} completed sessions.`,
+    focus ? `The current Team Focus is “${focus.title || focus.content}.”` : null,
+    pendingRequests.length
+      ? `${pendingRequests.length} case-support request${pendingRequests.length === 1 ? " is" : "s are"} awaiting action.`
+      : null,
+    openCases.length
+      ? `${openCases.length} case-support record${openCases.length === 1 ? " is" : "s are"} open.`
+      : null,
+  ].filter((part): part is string => Boolean(part));
+
+  return {
+    category: "overview",
+    headline: "Client overview",
+    summary: parts.join(" "),
+    supportingData: { sessions: context.precomputedStatistics.sessionCount },
+    evidence: [
+      ...(focus
+        ? [
+            {
+              label: "Team Focus",
+              value: focus.title || focus.content,
+              date: focus.updatedAt,
+              sourceId: focus.id,
+            },
+          ]
+        : []),
+      ...(latestDocumentation
+        ? [
+            {
+              label: "Latest documentation",
+              value: `${latestDocumentation.providerName} · ${humanizeValue(latestDocumentation.kind)}`,
+              date:
+                latestDocumentation.completedAt ??
+                latestDocumentation.updatedAt,
+              sourceId: latestDocumentation.id,
+            },
+          ]
+        : []),
+    ],
+  };
+}
+
+function buildDocumentationInsight(
+  context: InsightContext,
+  question: string
+): InsightResult {
+  const records = filterRecordsByProvider(
+    context.documentationRecords,
+    question
+  ).sort(
+    (left, right) =>
+      new Date(right.completedAt ?? right.updatedAt).getTime() -
+      new Date(left.completedAt ?? left.updatedAt).getTime()
+  );
+
+  if (records.length === 0) {
+    return {
+      category: "documentation",
+      headline: "Documentation",
+      summary: "No matching completed documentation was found.",
+      supportingData: { sessions: 0 },
+    };
+  }
+
+  const asksAboutRevision =
+    /\b(update|updated|change|changed|revision|revised|edit|edited)\b/i.test(
+      question
+    );
+  if (asksAboutRevision) {
+    const revisedRecord = records.find((record) => record.revisions.length > 1);
+    const revisionUpdate = revisedRecord
+      ? buildLatestRevisionUpdate(revisedRecord.revisions)
+      : null;
+
+    if (!revisedRecord || !revisionUpdate || revisionUpdate.changes.length === 0) {
+      return {
+        category: "documentation",
+        headline: "Documentation updates",
+        summary: "No matching documented changes were found.",
+        supportingData: { sessions: records.length },
+      };
+    }
+
+    return {
+      category: "documentation",
+      headline: "Latest documented update",
+      summary: `${revisionUpdate.authorName} updated ${humanizeValue(revisedRecord.kind)}. ${revisionUpdate.changes
+        .map((change) => `${change.label}: ${change.value}`)
+        .join(" ")}`,
+      supportingData: { sessions: records.length },
+      evidence: revisionUpdate.changes.map((change) => ({
+        label: change.label,
+        value: change.value,
+        date: revisionUpdate.createdAt,
+        sourceId: revisedRecord.id,
+      })),
+    };
+  }
+
+  const asksForCount =
+    /\b(how many|count|number of|total)\b/i.test(question) &&
+    /\b(notes?|documentation|records?|sessions?)\b/i.test(question);
+  if (asksForCount) {
+    const authors = Array.from(
+      new Set(records.map((record) => record.providerName))
+    );
+    return {
+      category: "documentation",
+      headline: "Documentation count",
+      summary: `${records.length} matching completed record${records.length === 1 ? " was" : "s were"} found from ${authors.length} provider${authors.length === 1 ? "" : "s"}.`,
+      supportingData: { sessions: records.length },
+      evidence: authors.map((author) => ({
+        label: author,
+        value: `${records.filter((record) => record.providerName === author).length} completed record${records.filter((record) => record.providerName === author).length === 1 ? "" : "s"}`,
+      })),
+    };
+  }
+
+  const latest = records[0];
+  const asksWho =
+    /\b(who|filed|submitted|documented|author|provider)\b/i.test(question);
+  return {
+    category: "documentation",
+    headline: asksWho ? "Documentation author" : "Latest documentation",
+    summary: asksWho
+      ? `${latest.providerName} (${humanizeValue(latest.providerRole)}) completed the latest matching ${humanizeValue(latest.kind)} on ${formatClinicalDateTime(latest.completedAt ?? latest.updatedAt)}.`
+      : `The latest matching record is ${humanizeValue(latest.kind)}, completed by ${latest.providerName} on ${formatClinicalDateTime(latest.completedAt ?? latest.updatedAt)}.`,
+    supportingData: { sessions: records.length },
+    evidence: [
+      {
+        label: humanizeValue(latest.kind),
+        value:
+          latest.note ||
+          latest.observations[0]?.observation ||
+          "Completed documentation",
+        date: latest.completedAt ?? latest.updatedAt,
+        sourceId: latest.id,
+      },
+    ],
+  };
+}
+
+function buildProviderInsight(
+  context: InsightContext,
+  question: string
+): InsightResult {
+  const normalizedQuestion = question.toLowerCase();
+  const matched = context.providerRelationships.filter((provider) => {
+    const nameMatch = normalizedQuestion.includes(
+      provider.providerName.toLowerCase()
+    );
+    const firstName = provider.providerName.split(/\s+/)[0]?.toLowerCase();
+    const roleMatch = roleAliases.some(
+      ([pattern, role]) =>
+        role === provider.accountRole && pattern.test(question)
+    );
+    return nameMatch || Boolean(firstName && normalizedQuestion.includes(firstName)) || roleMatch;
+  });
+  const providers = matched.length ? matched : context.providerRelationships;
+  const asksRecentContributors =
+    /\b(recent|recently|latest)\b/i.test(question) &&
+    /\b(contribut|document|note|session|activity)\b/i.test(question);
+  const asksOverlap =
+    /\b(overlap|shared|same areas?|same goals?|together|both|compare|comparison|differently|difference)\b/i.test(
+      question
+    );
+  const asksProviderObservation =
+    /\b(observ(?:e|ed|ation|ations)?|document(?:ed|ation)?|notes?|record(?:ed)?)\b/i.test(
+      question
+    ) && matched.length === 1;
+
+  if (providers.length === 0) {
+    return {
+      category: "providers",
+      headline: "Providers",
+      summary: "No provider activity was found for this client.",
+      supportingData: { providers: [], sessions: 0 },
+    };
+  }
+
+  if (asksRecentContributors) {
+    const latestByProvider = new Map<
+      string,
+      InsightContext["documentationRecords"][number]
+    >();
+    for (const record of [...context.documentationRecords].sort(
+      (left, right) =>
+        new Date(right.completedAt ?? right.updatedAt).getTime() -
+        new Date(left.completedAt ?? left.updatedAt).getTime()
+    )) {
+      if (!latestByProvider.has(record.providerId)) {
+        latestByProvider.set(record.providerId, record);
+      }
+    }
+    const recent = Array.from(latestByProvider.values()).slice(0, 5);
+    return {
+      category: "providers",
+      headline: "Recent provider contributions",
+      summary: recent.length
+        ? `${recent.length} provider${recent.length === 1 ? " has" : "s have"} recent completed documentation. ${recent
+            .map(
+              (record) =>
+                `${record.providerName} completed ${humanizeValue(record.kind)}`
+            )
+            .join("; ")}.`
+        : "No recent completed provider documentation was found.",
+      supportingData: {
+        sessions: context.precomputedStatistics.sessionCount,
+      },
+      evidence: recent.map((record) => ({
+        label: record.providerName,
+        value: humanizeValue(record.kind),
+        date: record.completedAt ?? record.updatedAt,
+        sourceId: record.id,
+      })),
+    };
+  }
+
+  if (asksProviderObservation) {
+    const provider = matched[0];
+    const latestRecord = [...context.documentationRecords]
+      .filter((record) => record.providerId === provider.providerId)
+      .sort(
+        (left, right) =>
+          new Date(right.completedAt ?? right.updatedAt).getTime() -
+          new Date(left.completedAt ?? left.updatedAt).getTime()
+      )[0];
+
+    return {
+      category: "providers",
+      headline: `${provider.providerName} contribution`,
+      summary: latestRecord
+        ? `${provider.providerName} most recently completed ${humanizeValue(latestRecord.kind)} on ${formatClinicalDateTime(latestRecord.completedAt ?? latestRecord.updatedAt)}.`
+        : `${provider.providerName} is assigned to this client, but no matching completed documentation was found.`,
+      supportingData: {
+        sessions: provider.totalSessions,
+      },
+      evidence: latestRecord
+        ? [
+            {
+              label: humanizeValue(latestRecord.kind),
+              value:
+                latestRecord.note ||
+                latestRecord.observations[0]?.observation ||
+                "Completed documentation",
+              date: latestRecord.completedAt ?? latestRecord.updatedAt,
+              sourceId: latestRecord.id,
+            },
+          ]
+        : [],
+    };
+  }
+
+  if (asksOverlap) {
+    const matchedIds = new Set(matched.map((provider) => provider.providerId));
+    const overlap = context.providerOverlap.find((candidate) =>
+      matchedIds.size >= 2
+        ? matchedIds.has(candidate.providerAId) &&
+          matchedIds.has(candidate.providerBId)
+        : candidate.relationshipMatches.length > 0 ||
+          candidate.sharedDomains.length > 0
+    );
+
+    if (!overlap) {
+      return {
+        category: "providers",
+        headline: "Provider overlap",
+        summary:
+          "No tracked overlap was found between the matching providers. This means the available goals and domains do not currently establish a shared area.",
+        supportingData: { providers: [], sessions: 0 },
+      };
+    }
+
+    const sharedAreas = [
+      ...overlap.sharedTargets,
+      ...overlap.sharedDomains.map(humanizeValue),
+    ].filter((value, index, values) => values.indexOf(value) === index);
+    const uniqueA = overlap.uniqueDomains.providerA.map(humanizeValue);
+    const uniqueB = overlap.uniqueDomains.providerB.map(humanizeValue);
+    return {
+      category: "providers",
+      headline: "Provider overlap",
+      summary: sharedAreas.length
+        ? `${overlap.providerAName} and ${overlap.providerBName} overlap in ${sharedAreas.join(", ")}. ${uniqueA.length ? `${overlap.providerAName} also contributes ${uniqueA.join(", ")}.` : ""} ${uniqueB.length ? `${overlap.providerBName} also contributes ${uniqueB.join(", ")}.` : ""}`.trim()
+        : `${overlap.providerAName} and ${overlap.providerBName} do not have a directly shared tracked target or domain in the available data. ${uniqueA.length ? `${overlap.providerAName} contributes ${uniqueA.join(", ")}.` : ""} ${uniqueB.length ? `${overlap.providerBName} contributes ${uniqueB.join(", ")}.` : ""}`.trim(),
+      supportingData: { sessions: overlap.overlappingSessions.length },
+      evidence: [
+        {
+          label: "Shared areas",
+          value: sharedAreas.length ? sharedAreas.join(", ") : "None recorded",
+        },
+        {
+          label: overlap.providerAName,
+          value: uniqueA.length ? uniqueA.join(", ") : "No unique domain recorded",
+          sourceId: overlap.providerAId,
+        },
+        {
+          label: overlap.providerBName,
+          value: uniqueB.length ? uniqueB.join(", ") : "No unique domain recorded",
+          sourceId: overlap.providerBId,
+        },
+      ],
+    };
+  }
+
+  const summary =
+    providers.length === 1
+      ? providerSummarySentence(providers[0])
+      : `${providers.length} assigned providers are represented. ${providers
+          .slice(0, 3)
+          .map(providerSummarySentence)
+          .join(" ")}`;
+
+  return {
+    category: "providers",
+    headline: providers.length === 1 ? providers[0].providerName : "Care team",
+    summary,
+    supportingData: {
+      sessions: providers.reduce(
+        (sum, provider) => sum + provider.totalSessions,
+        0
+      ),
+      providers: providers.map((provider) => ({
+        providerId: provider.providerId,
+        providerName: provider.providerName,
+        role: humanizeValue(provider.assignmentRole),
+        sessions: provider.totalSessions,
+        avgPercent: provider.averageNormalizedPerformance ?? undefined,
+      })),
+    },
+    evidence: providers.map((provider) => ({
+      label: provider.providerName,
+      value: `${humanizeValue(provider.assignmentRole)} · ${provider.totalSessions} completed session${provider.totalSessions === 1 ? "" : "s"} · ${provider.activeGoals.length} active goal${provider.activeGoals.length === 1 ? "" : "s"}`,
+      sourceId: provider.providerId,
+    })),
+  };
+}
+
+function buildTargetProgressInsight(
+  context: InsightContext,
+  question: string,
+  parsed: ParsedInsightQuestion
+): InsightResult | null {
+  const asksTargetOrGoal = /\b(target|goal)\b/i.test(question);
+
+  const series = context.providerGoalSeries
+    .map((goalSeries) => {
+      const scores = goalSeries.sessions
+        .map((session) => session.normalizedScore)
+        .filter((score): score is number => score !== null);
+      return {
+        ...goalSeries,
+        average: average(scores),
+      };
+    })
+    .filter((seriesItem) => {
+      if (!parsed.domainFocus?.length) return true;
+      return (
+        seriesItem.domain !== null &&
+        parsed.domainFocus.includes(seriesItem.domain)
+      );
+    });
+
+  const named = series.find((seriesItem) => {
+    const normalizedQuestion = question.toLowerCase();
+    return (
+      Boolean(
+        seriesItem.target.trim() &&
+          normalizedQuestion.includes(seriesItem.target.toLowerCase())
+      ) ||
+      Boolean(
+        seriesItem.goal.trim() &&
+          normalizedQuestion.includes(seriesItem.goal.toLowerCase())
+      )
+    );
+  });
+  const asksImproving = /\b(improv|strongest|best progress)\b/i.test(question);
+  const asksDeclining = /\b(declin|regress|worsen)\b/i.test(question);
+  const asksNeedsSupport =
+    /\b(needs? (?:the )?most support|lowest|struggl|challenging|difficult|weakest)\b/i.test(
+      question
+    );
+
+  if (!asksTargetOrGoal && !named) return null;
+
+  let selected = named;
+  if (!selected && asksImproving) {
+    selected =
+      series.find((seriesItem) => seriesItem.trend === "up") ??
+      [...series]
+        .filter((seriesItem) => seriesItem.average !== null)
+        .sort((left, right) => (right.average ?? 0) - (left.average ?? 0))[0];
+  }
+  if (!selected && asksDeclining) {
+    selected = series.find((seriesItem) => seriesItem.trend === "down");
+  }
+  if (!selected && asksNeedsSupport) {
+    selected = [...series]
+      .filter((seriesItem) => seriesItem.average !== null)
+      .sort((left, right) => (left.average ?? 0) - (right.average ?? 0))[0];
+  }
+
+  if (!selected) {
+    if (!asksImproving && !asksDeclining && !asksNeedsSupport && !named) {
+      return null;
+    }
+    return {
+      category: "progress",
+      headline: "Target progress",
+      summary: "No matching scored target history was found.",
+      supportingData: { sessions: 0 },
+    };
+  }
+
+  const trendDescription =
+    selected.trend === "up"
+      ? "is improving"
+      : selected.trend === "down"
+        ? "is declining"
+        : selected.trend === "flat"
+          ? "has remained steady"
+          : "does not yet have enough data for a trend";
+  const supportLead = asksNeedsSupport
+    ? `${selected.target} currently shows the lowest consistency among the matching scored targets.`
+    : `${selected.target} ${trendDescription}.`;
+
+  return {
+    category: "progress",
+    headline: selected.target,
+    summary: `${supportLead} ${selected.providerName} has recorded ${selected.sessions.length} matching session${selected.sessions.length === 1 ? "" : "s"}.`,
+    trend: selected.trend,
+    supportingData: { sessions: selected.sessions.length },
+    evidence: selected.sessions
+      .slice(-3)
+      .reverse()
+      .map((session) => ({
+        label: selected.target,
+        value:
+          session.normalizedScore === null
+            ? "No normalized score"
+            : `${Math.round(session.normalizedScore * 10)}% normalized performance`,
+        date: session.date,
+        sourceId: session.sessionId,
+      })),
+  };
+}
+
+function buildCaseSupportInsight(
+  context: InsightContext,
+  question: string
+): InsightResult {
+  const { requests, cases } = context.caseSupport;
+  if (requests.length === 0 && cases.length === 0) {
+    return {
+      category: "caseSupport",
+      headline: "Case Support",
+      summary:
+        "No accessible case-support request or record was found for this client.",
+    };
+  }
+
+  const latestRequest = requests[0];
+  const latestCase = cases[0];
+  const asksWho = /\b(who|filed|requested|author|opened)\b/i.test(question);
+  const asksAboutRequest = /\brequest\b/i.test(question);
+  const asksAboutDocumentation =
+    /\b(documentation|documented|entry|note)\b/i.test(question);
+  const asksCoordination =
+    /\b(coordination|contact|school|agency|next step|follow.?up|response)\b/i.test(
+      question
+    );
+
+  if (asksWho && asksAboutRequest) {
+    if (!latestRequest) {
+      return {
+        category: "caseSupport",
+        headline: "Case-support requester",
+        summary:
+          "No accessible case-support request is recorded for this client. An accessible case may have been opened directly by the supervisor.",
+      };
+    }
+    return {
+      category: "caseSupport",
+      headline: "Case-support requester",
+      summary: `${latestRequest.requesterName} (${humanizeValue(latestRequest.requesterRole)}) filed the latest request on ${formatClinicalDateTime(latestRequest.createdAt)}. Its current status is ${humanizeValue(latestRequest.status)}.`,
+      evidence: [
+        {
+          label: "Support concern",
+          value: latestRequest.concern,
+          date: latestRequest.createdAt,
+          sourceId: latestRequest.id,
+        },
+      ],
+    };
+  }
+
+  if (asksWho && asksAboutDocumentation && latestCase) {
+    const latestEntry = latestCase.entries[0];
+    return {
+      category: "caseSupport",
+      headline: "Case-support documentation",
+      summary: latestEntry
+        ? `${latestEntry.authorName} (${humanizeValue(latestEntry.authorRole)}) filed the latest case-support documentation on ${formatClinicalDateTime(latestEntry.occurredAt)}.`
+        : "No documentation entry has been added to the latest accessible case.",
+      evidence: latestEntry
+        ? [
+            {
+              label: humanizeValue(latestEntry.entryType),
+              value: latestEntry.whatOccurred,
+              date: latestEntry.occurredAt,
+              sourceId: latestEntry.id,
+            },
+          ]
+        : [],
+    };
+  }
+
+  if (asksWho && latestCase) {
+    return {
+      category: "caseSupport",
+      headline: "Case owner",
+      summary: `${latestCase.ownerName} owns the latest accessible case, opened on ${formatClinicalDateTime(latestCase.createdAt)}.`,
+      evidence: [
+        {
+          label: latestCase.title,
+          value: latestCase.concern,
+          date: latestCase.createdAt,
+          sourceId: latestCase.id,
+        },
+      ],
+    };
+  }
+
+  if (asksCoordination && latestCase) {
+    const coordination = latestCase.coordinations[0];
+    return {
+      category: "caseSupport",
+      headline: "Case coordination",
+      summary: coordination
+        ? `${coordination.authorName} recorded ${humanizeValue(coordination.path)} coordination with status ${humanizeValue(coordination.status)}. ${coordination.nextStep || coordination.requestOrDecision}`
+        : "No coordination entry has been recorded for the latest accessible case.",
+      evidence: coordination
+        ? [
+            {
+              label: "Action taken",
+              value: coordination.actionTaken,
+              date: coordination.occurredAt,
+              sourceId: coordination.id,
+            },
+          ]
+        : [],
+    };
+  }
+
+  return {
+    category: "caseSupport",
+    headline: latestCase?.title ?? "Case Support",
+    summary: latestCase
+      ? `The latest accessible case is ${humanizeValue(latestCase.status)} and is owned by ${latestCase.ownerName}. ${latestCase.concern}`
+      : `The latest request is ${humanizeValue(latestRequest.status)}. ${latestRequest.concern}`,
+    evidence: [
+      ...(latestCase
+        ? [
+            {
+              label: "Desired outcome",
+              value: latestCase.desiredOutcome,
+              date: latestCase.updatedAt,
+              sourceId: latestCase.id,
+            },
+          ]
+        : []),
+      ...(!latestCase && latestRequest
+        ? [
+            {
+              label: "Requested support",
+              value: latestRequest.requestedSupport,
+              date: latestRequest.createdAt,
+              sourceId: latestRequest.id,
+            },
+          ]
+        : []),
+    ],
+  };
+}
+
+function providerSummarySentence(
+  provider: InsightContext["providerRelationships"][number]
+) {
+  const trend = provider.trend
+    ? ` The available trend is ${provider.trend}.`
+    : "";
+  return `${provider.providerName} (${humanizeValue(provider.assignmentRole)}) has ${provider.totalSessions} completed session${provider.totalSessions === 1 ? "" : "s"} and ${provider.activeGoals.length} active goal${provider.activeGoals.length === 1 ? "" : "s"}.${trend}`;
+}
+
+function filterRecordsByProvider(
+  records: InsightContext["documentationRecords"],
+  question: string
+) {
+  const normalized = question.toLowerCase();
+  const matched = records.filter((record) => {
+    const fullName = record.providerName.toLowerCase();
+    const firstName = fullName.split(/\s+/)[0];
+    const roleMatch = roleAliases.some(
+      ([pattern, role]) =>
+        role === record.providerRole && pattern.test(question)
+    );
+    return (
+      normalized.includes(fullName) ||
+      Boolean(firstName && normalized.includes(firstName)) ||
+      roleMatch
+    );
+  });
+  return matched.length ? matched : records;
+}
+
+function parseRevisionChanges(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((change) => {
+    if (!change || typeof change !== "object" || Array.isArray(change)) {
+      return [];
+    }
+    const record = change as Record<string, unknown>;
+    if (
+      typeof record.label !== "string" ||
+      typeof record.path !== "string"
+    ) {
+      return [];
+    }
+    return [
+      {
+        path: record.path,
+        label: record.label,
+        before: record.before,
+        after: record.after,
+      },
+    ];
+  });
+}
+
+function buildLatestRevisionUpdate(
+  revisions: InsightContext["documentationRecords"][number]["revisions"]
+) {
+  const updates = revisions
+    .filter((revision) => revision.revisionNumber > 1)
+    .sort((left, right) => right.revisionNumber - left.revisionNumber);
+  const latest = updates[0];
+  if (!latest) return null;
+
+  const latestTime = new Date(latest.createdAt).getTime();
+  const sessionWindowMs = 2 * 60 * 1000;
+  const editSession = updates.filter(
+    (revision) =>
+      latestTime - new Date(revision.createdAt).getTime() <= sessionWindowMs
+  );
+  const oldestSessionRevision = editSession.at(-1);
+  const baseline = revisions
+    .filter(
+      (revision) =>
+        oldestSessionRevision &&
+        revision.revisionNumber < oldestSessionRevision.revisionNumber
+    )
+    .sort((left, right) => right.revisionNumber - left.revisionNumber)[0];
+
+  const beforeSnapshot = parseRevisionSnapshot(baseline?.snapshot);
+  const afterSnapshot = parseRevisionSnapshot(latest.snapshot);
+  const exactChanges =
+    beforeSnapshot && afterSnapshot
+      ? buildEntryRevisionChanges(beforeSnapshot, afterSnapshot)
+      : collapseStoredRevisionChanges(editSession);
+
+  const changes = exactChanges.flatMap((change) => {
+    const value = formatRevisionUpdate(change.before, change.after);
+    return value ? [{ label: change.label, value }] : [];
+  });
+
+  return {
+    authorName: latest.createdByName,
+    createdAt: latest.createdAt,
+    changes,
+  };
+}
+
+function parseRevisionSnapshot(value: unknown): EntryRevisionSnapshot | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Partial<EntryRevisionSnapshot>;
+  if (!Array.isArray(record.items) || !Array.isArray(record.abcObservations)) {
+    return null;
+  }
+  return record as EntryRevisionSnapshot;
+}
+
+function collapseStoredRevisionChanges(
+  revisions: InsightContext["documentationRecords"][number]["revisions"]
+) {
+  const byPath = new Map<
+    string,
+    { path: string; label: string; before: unknown; after: unknown }
+  >();
+
+  for (const revision of [...revisions].sort(
+    (left, right) => left.revisionNumber - right.revisionNumber
+  )) {
+    for (const change of parseRevisionChanges(revision.changes)) {
+      const existing = byPath.get(change.path);
+      byPath.set(change.path, {
+        path: change.path,
+        label: change.label,
+        before: existing?.before ?? change.before,
+        after: change.after,
+      });
+    }
+  }
+
+  return Array.from(byPath.values());
+}
+
+function humanizeValue(value: string) {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

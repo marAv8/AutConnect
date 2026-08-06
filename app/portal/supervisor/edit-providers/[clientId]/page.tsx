@@ -65,7 +65,17 @@ export default async function EditClientProvidersPage({
 
   const assignments = await db.providerClient.findMany({
     where: { clientId },
-    select: { providerId: true, role: true },
+    select: {
+      providerId: true,
+      role: true,
+      organizationId: true,
+      organization: {
+        select: {
+          name: true,
+          type: true,
+        },
+      },
+    },
   });
 
   const roleOrder = [
@@ -79,11 +89,31 @@ export default async function EditClientProvidersPage({
   const assignedProviderIds = assignments
     .filter((row) => row.role !== "Supervisor")
     .map((row) => row.providerId);
+  const supervisorAgency = assignments.find(
+    (row) =>
+      row.providerId === session.providerId &&
+      row.role === "Supervisor" &&
+      row.organization?.type === "AGENCY"
+  )?.organization;
+  const agencyProviderIds = assignments
+    .filter(
+      (row) =>
+        row.role !== "Supervisor" &&
+        row.organizationId &&
+        row.organizationId ===
+          assignments.find(
+            (candidate) =>
+              candidate.providerId === session.providerId &&
+              candidate.role === "Supervisor"
+          )?.organizationId
+    )
+    .map((row) => row.providerId);
   const HEADER_TO_LINK_GAP = 10;
   const LINK_TO_CONTENT_GAP = 24;
 
   return (
     <main
+      className="provider-assignment-page"
       style={{
         padding: "0 32px 24px",
         height: "calc(100vh - 110px)",
@@ -95,7 +125,10 @@ export default async function EditClientProvidersPage({
           Client List
         </Link>
       </div>
-      <div style={{ display: "flex", justifyContent: "center", height: "calc(100% - 58px)" }}>
+      <div
+        className="provider-assignment-page-content"
+        style={{ display: "flex", justifyContent: "center", height: "calc(100% - 58px)" }}
+      >
         <div style={{ width: "100%", maxWidth: 1100, minHeight: 0 }}>
           <div
             className="paper-surface provider-assignment-panel"
@@ -114,6 +147,8 @@ export default async function EditClientProvidersPage({
               initialReceivesPrescribedMedication={client.receivesPrescribedMedication}
               providers={providers}
               initiallyAssignedProviderIds={assignedProviderIds}
+              initialAgencyName={supervisorAgency?.name ?? ""}
+              initialAgencyProviderIds={agencyProviderIds}
               roleOrder={roleOrder}
             />
           </div>

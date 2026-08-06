@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import {
   CLIENT_ORB_FONT_SIZE,
   CLIENT_ORB_SIZE,
@@ -31,6 +34,11 @@ export default function AddClientView({
   busyClientId,
   onClientClick,
 }: Props) {
+  const trayRef = useRef<HTMLDivElement | null>(null);
+  const firstAvailableClientRef = useRef<HTMLButtonElement | null>(null);
+  const firstAvailableClientIndex = clients.findIndex(
+    (client) => !client.attached
+  );
   const visibleWidth =
     CLIENT_ORB_SIZE * GRID_VISIBLE_COLUMNS + MODE_GRID_GAP * (GRID_VISIBLE_COLUMNS - 1);
   const visibleHeight =
@@ -38,9 +46,46 @@ export default function AddClientView({
   const addClientStaggerMs = 85;
   const addClientInitialDelayMs = 10;
 
+  useEffect(() => {
+    if (!clients.some((client) => !client.attached)) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      const tray = trayRef.current;
+      const firstAvailableClient = firstAvailableClientRef.current;
+      if (!tray || !firstAvailableClient) return;
+
+      const prefersReducedMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)"
+      ).matches;
+      const trayBounds = tray.getBoundingClientRect();
+      const clientBounds = firstAvailableClient.getBoundingClientRect();
+      const centeredTop = Math.max(
+        0,
+        tray.scrollTop +
+          clientBounds.top +
+          clientBounds.height / 2 -
+          (trayBounds.top + trayBounds.height / 2)
+      );
+      if (
+        prefersReducedMotion ||
+        !("scrollBehavior" in document.documentElement.style)
+      ) {
+        tray.scrollTop = centeredTop;
+        return;
+      }
+
+      tray.scrollTo({ top: centeredTop, behavior: "smooth" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [clients]);
+
   return (
     <ModeContentFrame>
       <div
+        ref={trayRef}
         className="client-cavity-tray"
         style={{
           width: "100%",
@@ -73,7 +118,13 @@ export default function AddClientView({
             {clients.map((client, index) => (
               <button
                 key={client.id}
+                ref={
+                  index === firstAvailableClientIndex
+                    ? firstAvailableClientRef
+                    : undefined
+                }
                 type="button"
+                className="glass-client-badge"
                 disabled={busyClientId === client.id}
                 onClick={() => onClientClick(client)}
                 style={{
@@ -91,6 +142,8 @@ export default function AddClientView({
                   fontSize: CLIENT_ORB_FONT_SIZE,
                   fontWeight: 500,
                   cursor: "pointer",
+                  touchAction: "manipulation",
+                  WebkitTapHighlightColor: "transparent",
                   animation: !client.attached ? "client-bubble-in 220ms ease-out both" : undefined,
                   animationDelay: !client.attached
                     ? `${index * addClientStaggerMs}ms`
@@ -112,7 +165,7 @@ export default function AddClientView({
                       background: "var(--glass-strong)",
                       border: "none",
                       boxShadow: "var(--shadow-dashboard-badge)",
-                      color: "var(--positive)",
+                      color: "var(--client-link-action)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",

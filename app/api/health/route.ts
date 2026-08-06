@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { isGoogleOAuthConfigured } from "@/lib/googleOAuth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const checks = {
     databaseUrl: Boolean(process.env.DATABASE_URL),
-    googleOAuth: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    googleOAuth: isGoogleOAuthConfigured(),
+    sessionSigning: Boolean(
+      process.env.AUTH_SESSION_SECRET?.trim() ||
+        process.env.NEXTAUTH_SECRET?.trim()
+    ),
     database: "unknown" as "ok" | "error" | "unknown",
     schema: "unknown" as "ok" | "error" | "unknown",
   };
@@ -26,6 +31,11 @@ export async function GET() {
   }
 
   return NextResponse.json(checks, {
-    status: checks.database === "ok" && checks.schema === "ok" ? 200 : 500,
+    status:
+      checks.database === "ok" &&
+      checks.schema === "ok" &&
+      checks.sessionSigning
+        ? 200
+        : 500,
   });
 }

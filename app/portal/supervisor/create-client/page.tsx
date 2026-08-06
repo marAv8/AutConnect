@@ -31,6 +31,7 @@ export default async function CreateClientPage() {
 
   return (
     <main
+      className="provider-assignment-page"
       style={{
         padding: "0 32px 24px",
         height: "calc(100vh - 110px)",
@@ -42,7 +43,10 @@ export default async function CreateClientPage() {
           Client List
         </Link>
       </div>
-      <div style={{ display: "flex", justifyContent: "center", height: "calc(100% - 58px)" }}>
+      <div
+        className="provider-assignment-page-content"
+        style={{ display: "flex", justifyContent: "center", height: "calc(100% - 58px)" }}
+      >
         <div style={{ width: "100%", maxWidth: 1100, minHeight: 0 }}>
           <div
             className="paper-surface provider-assignment-panel"

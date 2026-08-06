@@ -1,0 +1,71 @@
+.clientListScrollFrame {
+  --client-list-scroll-gutter: 10px;
+  --client-list-content-inset: clamp(32px, 7vw, 80px);
+  position: relative;
+  isolation: isolate;
+  border-radius: 36px;
+  overflow: hidden;
+}
+
+.clientListSurface {
+  position: absolute;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.clientListSurface {
+  inset: 0;
+  z-index: 0;
+  border: 1px solid var(--client-list-border);
+  background: var(--client-list-surface);
+  box-shadow: var(--client-list-shadow);
+}
+
+.clientListFades {
+  display: none;
+}
+
+.clientListScrollRegion {
+  position: relative;
+  z-index: 1;
+  border-radius: 36px;
+  overscroll-behavior: contain;
+}
+
+.containedScrollbar {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  scrollbar-width: thin;
+}
+
+.containedScrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.containedScrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+  margin-block: 24px;
+}
+
+.containedScrollbar::-webkit-scrollbar-thumb {
+  min-height: 44px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+  background-clip: padding-box;
+}
+
+.containedScrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+@media (max-width: 520px) {
+  .clientListScrollFrame {
+    --client-list-scroll-gutter: 8px;
+    --client-list-content-inset: 18px;
+  }
+}

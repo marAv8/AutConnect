@@ -1,5 +1,4 @@
 import {
-  CLIENT_ORB_FONT_SIZE,
   CLIENT_ORB_SIZE,
   GRID_VISIBLE_COLUMNS,
   GRID_VISIBLE_ROWS,
@@ -7,15 +6,11 @@ import {
   STATUS_BADGE_CLEARANCE,
 } from "./layoutConfig";
 import ModeContentFrame from "./ModeContentFrame";
-
-type Client = {
-  id: string;
-  firstName: string;
-  lastName: string;
-};
+import styles from "./GridClientView.module.css";
+import type { DashboardClient } from "./dashboardClientTypes";
 
 type Props = {
-  clients: Client[];
+  clients: DashboardClient[];
   palette: string[];
   initialsOf: (firstName: string, lastName: string) => string;
   animatedClientId?: string;
@@ -37,64 +32,82 @@ export default function GridClientView({
   return (
     <ModeContentFrame>
       <div
-        className="client-cavity-tray"
+        className={styles.clientListScrollFrame}
         style={{
           width: "100%",
           maxWidth: visibleWidth + 196,
           margin: "0 auto",
-          maxHeight: visibleHeight + STATUS_BADGE_CLEARANCE + 174,
-          overflowY: "auto",
-          overflowX: "hidden",
-          padding: `${STATUS_BADGE_CLEARANCE + 40}px clamp(32px, 7vw, 80px) 92px`,
-          boxSizing: "border-box",
-          scrollbarGutter: "stable both-edges",
         }}
       >
+        <div className={styles.clientListSurface} aria-hidden="true" />
+        <div className={styles.clientListFades} aria-hidden="true" />
         <div
+          className={`${styles.clientListScrollRegion} ${styles.containedScrollbar}`}
           style={{
-            position: "relative",
-            zIndex: 1,
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "center",
-            gap: MODE_GRID_GAP,
-            width: "100%",
-            minHeight: visibleHeight,
-            alignContent:
-              clients.length <= GRID_VISIBLE_COLUMNS ? "center" : "flex-start",
+            maxHeight: visibleHeight + STATUS_BADGE_CLEARANCE + 174,
+            overflowY: "auto",
+            overflowX: "hidden",
+            padding: `${STATUS_BADGE_CLEARANCE + 40}px calc(var(--client-list-content-inset) + var(--client-list-scroll-gutter)) 92px`,
+            boxSizing: "border-box",
+            scrollbarGutter: "stable both-edges",
           }}
         >
-          {clients.map((client, index) => (
-            <button
-              key={client.id}
-              type="button"
-              onClick={() => onClientClick(client.id)}
-              style={{
-                width: CLIENT_ORB_SIZE,
-                height: CLIENT_ORB_SIZE,
-                position: "relative",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flex: "0 0 auto",
-                borderRadius: "50%",
-                border: "none",
-                background: palette[index % palette.length],
-                color: "var(--foreground)",
-                boxShadow: "var(--shadow-dashboard-sphere)",
-                fontSize: CLIENT_ORB_FONT_SIZE,
-                fontWeight: 500,
-                cursor: "pointer",
-                animation:
-                  animatedClientId === client.id
-                    ? "client-bubble-in 280ms ease-out"
-                    : undefined,
-              }}
-              title={`${client.firstName} ${client.lastName}`}
-            >
-              {initialsOf(client.firstName, client.lastName)}
-            </button>
-          ))}
+          <div
+            style={{
+              position: "relative",
+              zIndex: 1,
+              display: "flex",
+              flexWrap: "wrap",
+              justifyContent: "center",
+              gap: MODE_GRID_GAP,
+              width: "100%",
+              minHeight: visibleHeight,
+              alignContent:
+                clients.length <= GRID_VISIBLE_COLUMNS ? "center" : "flex-start",
+            }}
+          >
+            {clients.map((client, index) => (
+              <button
+                key={client.id}
+                type="button"
+                className="glass-client-badge"
+                data-client-signal={
+                  client.signal?.color !== "neutral" && client.signal?.isUnread
+                    ? client.signal.color
+                    : undefined
+                }
+                data-client-signal-status={
+                  client.signal?.isUnread ? client.signal.status : undefined
+                }
+                aria-label={`Open ${client.firstName} ${client.lastName}`}
+                onClick={() => onClientClick(client.id)}
+                style={{
+                  width: CLIENT_ORB_SIZE,
+                  height: CLIENT_ORB_SIZE,
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flex: "0 0 auto",
+                  borderRadius: "50%",
+                  border: "none",
+                  background: palette[index % palette.length],
+                  color: "var(--foreground)",
+                  boxShadow: "var(--shadow-dashboard-sphere)",
+                  fontSize: 34,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  animation:
+                    animatedClientId === client.id
+                      ? "client-bubble-in 280ms ease-out"
+                      : undefined,
+                }}
+                title={initialsOf(client.firstName, client.lastName)}
+              >
+                {initialsOf(client.firstName, client.lastName)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </ModeContentFrame>

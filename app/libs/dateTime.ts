@@ -1,4 +1,4 @@
-const CLINICAL_TIME_ZONE = "America/Los_Angeles";
+export const CLINICAL_TIME_ZONE = "America/Los_Angeles";
 
 export function formatClinicalDateTime(value: Date | string | number) {
   return new Intl.DateTimeFormat(undefined, {

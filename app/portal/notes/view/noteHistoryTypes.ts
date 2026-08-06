@@ -36,6 +36,21 @@ export type NoteHistoryEntry = {
   sensoryObservations?: SensoryObservation[];
   communicationObservations?: SensoryObservation[];
   caretakerContextSections?: CaretakerContextSection[];
+  revisions?: NoteHistoryRevision[];
+};
+
+export type NoteHistoryRevision = {
+  id: string;
+  revisionNumber: number;
+  createdAt: string;
+  createdByName: string;
+  createdByRole: string;
+  changes: Array<{
+    path: string;
+    label: string;
+    before: unknown;
+    after: unknown;
+  }>;
 };
 
 export type CaretakerContextSection = {
@@ -61,6 +76,7 @@ export type NoteHistoryItem = {
     | null;
   rawValue: number | null;
   supportLevel: number | null;
+  observation?: string | null;
   goalDefinition: {
     targetValue: number | null;
     comparison: "LessThan" | "GreaterThan" | "Equal" | null;

@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   }
 
   const session = await getSession();
-  if (!session) {
+  if (!session || session.role !== "Supervisor") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -39,6 +39,7 @@ export async function GET(request: Request) {
     where: {
       clientId,
       providerId: session.providerId,
+      role: "Supervisor",
     },
     select: { id: true },
   });
@@ -47,7 +48,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const insightContext = await buildInsightContext(clientId, debugParsedQuestion);
+  const insightContext = await buildInsightContext(
+    clientId,
+    debugParsedQuestion,
+    {
+      viewerProviderId: session.providerId,
+      category: "overview",
+    }
+  );
 
   if (!insightContext) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 });

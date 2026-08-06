@@ -123,29 +123,21 @@ export default function DashboardAbcDataOverlay({ clientId, onClose, onSaved }: 
           </h2>
         </div>
 
-        <div className="grid gap-5">
-          <div className="grid gap-5 md:grid-cols-3">
-            {columns.map((column) => (
-              <div key={column.key} className="grid gap-2 text-center">
-                <h3 className="m-0 inline-flex justify-center text-[1.25rem] font-semibold text-foreground/78">
-                  <ContextualHelp
-                    {...getClinicalHelpContent(column.helpKey)!}
-                    label={column.title}
-                  />
-                </h3>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid gap-5">
-            {rows.map((row, rowIndex) => (
-              <div
-                key={rowIndex}
-                className="grid gap-5 border-t border-white/75 pt-5 md:grid-cols-3"
-              >
-                {columns.map((column) => (
+        <div className="grid gap-7">
+          {rows.map((row, rowIndex) => (
+            <div
+              key={rowIndex}
+              className="grid gap-5 border-t border-black/8 pt-5 md:grid-cols-3"
+            >
+              {columns.map((column) => (
+                <div key={column.key} className="grid gap-2 text-center">
+                  <h3 className="m-0 inline-flex justify-center text-[1.25rem] font-semibold text-foreground/78">
+                    <ContextualHelp
+                      {...getClinicalHelpContent(column.helpKey)!}
+                      label={column.title}
+                    />
+                  </h3>
                   <Textarea
-                    key={column.key}
                     aria-label={`${column.title} row ${rowIndex + 1}`}
                     value={row[column.key]}
                     onChange={(event) =>
@@ -153,37 +145,32 @@ export default function DashboardAbcDataOverlay({ clientId, onClose, onSaved }: 
                     }
                     className="min-h-[180px] resize-none p-4 text-[1rem]"
                   />
-                ))}
-              </div>
-            ))}
-          </div>
+                </div>
+              ))}
+            </div>
+          ))}
         </div>
 
-        <div className="mt-auto grid gap-6">
-          <Button
-            type="button"
-            onClick={addRow}
-            aria-label="Add A-B-C data row"
-            className="add-note-plus-control justify-self-start"
-            style={{
-              width: 82,
-              height: 82,
-              borderRadius: "50%",
-              border: "none",
-              background: "var(--glass-strong)",
-              color: "var(--foreground)",
-            }}
-          >
-            <Plus aria-hidden="true" strokeWidth={3} className="size-10" />
-          </Button>
+        <div className="mt-auto grid gap-4">
+          <div className="flex flex-nowrap items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={addRow}
+              aria-label="Add A-B-C data row"
+              title="Add another observation"
+              className="material-control more-icon-control dashboard-round-icon-control"
+            >
+              <Plus aria-hidden="true" size={25} strokeWidth={2} />
+            </button>
 
-          <Button
-            type="submit"
-            disabled={saveStatus === "saving"}
-            className="add-note-primary-control justify-self-center px-10 py-3 text-base"
-          >
-            {saveStatus === "saving" ? "Saving..." : "Save Observation"}
-          </Button>
+            <Button
+              type="submit"
+              disabled={saveStatus === "saving"}
+              className="add-note-primary-control px-10 py-3 text-base"
+            >
+              {saveStatus === "saving" ? "Saving..." : "Save Observation"}
+            </Button>
+          </div>
           {saveStatus === "error" ? (
             <p className="m-0 text-center text-sm font-medium text-red-700">
               Complete antecedent, behavior, and consequence before saving.

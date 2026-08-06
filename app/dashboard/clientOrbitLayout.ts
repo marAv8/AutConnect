@@ -78,3 +78,27 @@ export function providerOrbitPoint(index: number, count: number, distance: numbe
     y: Math.sin(angle) * distance,
   };
 }
+
+export function preferredCurrentProviderSlot(count: number) {
+  if (count <= 1) {
+    return 0;
+  }
+
+  const upperLeftTarget = { x: -0.75, y: -0.65 };
+  let preferredIndex = 0;
+  let preferredDistance = Number.POSITIVE_INFINITY;
+
+  for (let index = 0; index < count; index += 1) {
+    const point = providerOrbitPoint(index, count, 1);
+    const distance =
+      (point.x - upperLeftTarget.x) ** 2 +
+      (point.y - upperLeftTarget.y) ** 2;
+
+    if (distance < preferredDistance) {
+      preferredDistance = distance;
+      preferredIndex = index;
+    }
+  }
+
+  return preferredIndex;
+}

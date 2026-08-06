@@ -1,0 +1,103 @@
+.wrapper {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  border: 1px solid rgb(35 45 55 / 14%);
+  border-radius: 14px;
+  background: rgb(250 250 250 / 94%);
+  color: var(--foreground);
+  box-shadow:
+    0 1px 2px rgb(35 45 55 / 7%),
+    0 5px 12px rgb(35 45 55 / 8%),
+    inset 0 1px 0 rgb(255 255 255 / 92%);
+  font: inherit;
+}
+
+.wrapper:hover {
+  border-color: rgb(35 45 55 / 20%);
+  background: rgb(255 255 255 / 98%);
+}
+
+.wrapper:focus-within {
+  border-color: rgb(35 45 55 / 28%);
+  box-shadow:
+    0 1px 2px rgb(35 45 55 / 7%),
+    0 5px 12px rgb(35 45 55 / 8%),
+    0 0 0 3px rgb(35 45 55 / 8%),
+    inset 0 1px 0 rgb(255 255 255 / 92%);
+}
+
+.nativeSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: inherit;
+  padding: 10px 42px 10px 14px;
+  border: 0;
+  border-radius: inherit;
+  outline: 0;
+  background: transparent;
+  background-image: none !important;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nativeSelect option {
+  background: #ffffff;
+  color: #20242a;
+}
+
+.nativeSelect:focus {
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+}
+
+.nativeSelect:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+
+.icon {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  z-index: 1;
+  color: rgb(35 45 55 / 66%);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+:global(.dark) .wrapper {
+  border-color: rgb(255 255 255 / 24%);
+  background: rgb(78 86 98 / 96%);
+  color: #ffffff;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 24%),
+    0 5px 12px rgb(0 0 0 / 18%),
+    inset 0 1px 0 rgb(255 255 255 / 14%);
+}
+
+:global(.dark) .wrapper:hover {
+  border-color: rgb(255 255 255 / 34%);
+  background: rgb(86 95 108 / 98%);
+}
+
+:global(.dark) .wrapper:focus-within {
+  border-color: rgb(255 255 255 / 42%);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 22%),
+    0 5px 12px rgb(0 0 0 / 18%),
+    0 0 0 3px rgb(255 255 255 / 10%),
+    inset 0 1px 0 rgb(255 255 255 / 15%);
+}
+
+:global(.dark) .icon {
+  color: rgb(255 255 255 / 82%);
+}

@@ -1,0 +1,124 @@
+.editorCard {
+  box-sizing: border-box;
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  max-width: 1080px;
+  min-height: 320px;
+  margin: 0 auto;
+  padding: 18px 22px 22px;
+}
+
+.pager {
+  display: grid;
+  grid-template-columns: 44px minmax(76px, auto) 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.pagerButton {
+  width: 44px;
+  height: 44px;
+  padding: 0 !important;
+}
+
+.pagerCount {
+  min-width: 76px;
+  text-align: center;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.editorContent {
+  box-sizing: border-box;
+  display: grid;
+  align-content: center;
+  gap: 18px;
+  min-width: 0;
+  padding: 0 18px;
+}
+
+.cardTitle {
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.optionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 10px;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.optionButton {
+  box-sizing: border-box;
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  height: auto !important;
+  padding: 9px 14px 9px 48px !important;
+  border-radius: 12px;
+  white-space: normal !important;
+  text-align: left;
+  line-height: 1.2;
+}
+
+.editorActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-width: 0;
+  min-height: 44px;
+}
+
+@media (max-width: 600px) {
+  .editorCard {
+    gap: 14px;
+    min-height: 0;
+    padding: 16px 14px 18px;
+  }
+
+  .pager {
+    grid-template-columns: 40px minmax(70px, auto) 40px;
+    gap: 12px;
+  }
+
+  .pagerButton {
+    width: 40px;
+    height: 40px;
+  }
+
+  .editorContent {
+    gap: 14px;
+    padding: 0;
+  }
+
+  .cardTitle {
+    font-size: 1.35rem;
+  }
+
+  .optionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .optionButton {
+    min-height: 48px;
+    padding: 9px 10px 9px 44px !important;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 340px) {
+  .optionGrid {
+    grid-template-columns: 1fr;
+  }
+}

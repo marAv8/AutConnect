@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { EntryKind, EntryVisibility } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { ensureEntryRevision } from "@/app/libs/entryRevision";
 
 export async function updateEntryVisibility(formData: FormData) {
   const session = await getSession();
@@ -45,7 +46,7 @@ export async function updateEntryVisibility(formData: FormData) {
         kind,
       },
     },
-    select: { id: true },
+    select: { id: true, status: true, completedAt: true, visibility: true },
   });
 
   if (!entry) {
@@ -57,10 +58,26 @@ export async function updateEntryVisibility(formData: FormData) {
       ? await getAssignedProviderIds(clientId)
       : [];
 
-  await db.entry.update({
-    where: { id: entry.id },
-    data: { visibility },
-  });
+  if (entry.visibility !== visibility && entry.status === "COMPLETED") {
+    await db.$transaction(async (tx) => {
+      await ensureEntryRevision(
+        tx,
+        entry.id,
+        session.providerId,
+        entry.completedAt ?? undefined
+      );
+      await tx.entry.update({
+        where: { id: entry.id },
+        data: { visibility },
+      });
+      await ensureEntryRevision(tx, entry.id, session.providerId);
+    });
+  } else {
+    await db.entry.update({
+      where: { id: entry.id },
+      data: { visibility },
+    });
+  }
   await resetEntryReads(entry.id, providerIds, visibility);
 
   revalidatePath("/dashboard");

@@ -1,0 +1,94 @@
+.lab {
+  position: relative;
+  min-height: 100svh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 12%, rgb(248 251 255 / 94%), transparent 38%),
+    radial-gradient(circle at 78% 74%, rgb(136 151 174 / 38%), transparent 44%),
+    linear-gradient(128deg, #e3e9f2 0%, #c0cad8 50%, #919eb2 100%);
+  color: #252b34;
+}
+
+.header {
+  position: absolute;
+  top: max(22px, env(safe-area-inset-top));
+  left: max(24px, env(safe-area-inset-left));
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.backLink {
+  border: 1px solid rgb(255 255 255 / 54%);
+  background: rgb(237 243 250 / 58%);
+  box-shadow: 0 18px 42px rgb(48 61 79 / 14%), inset 0 1px 0 rgb(255 255 255 / 70%);
+  backdrop-filter: blur(22px) saturate(118%);
+}
+
+.backLink {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  padding: 0 11px;
+  border-radius: 10px;
+  color: rgb(37 43 52 / 72%);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.title,
+.subtitle { margin: 0; }
+.title { font-size: 15px; font-weight: 650; }
+.subtitle { margin-top: 3px; color: rgb(37 43 52 / 55%); font-size: 12px; }
+
+.stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(36px, 8vw, 110px);
+}
+
+.clientBadge,
+.providerBadge {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.clientBadge {
+  width: clamp(170px, 21vw, 260px);
+  height: clamp(170px, 21vw, 260px);
+  border-radius: 50%;
+  font-size: clamp(25px, 3vw, 38px);
+  font-weight: 570;
+}
+
+.providerBadge {
+  width: clamp(118px, 15vw, 178px);
+  height: clamp(118px, 15vw, 178px);
+  flex-direction: column;
+  border-radius: 50%;
+}
+
+.providerBadge strong { position: relative; z-index: 2; font-size: clamp(16px, 2vw, 24px); font-weight: 570; }
+.providerBadge span { position: relative; z-index: 2; margin-top: 5px; color: rgb(37 43 52 / 58%); font-size: clamp(11px, 1.2vw, 14px); }
+.providerBadge > i {
+  top: -5px;
+  right: -5px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 18px;
+}
+
+@media (max-width: 640px) {
+  .stage { gap: 24px; padding: 0 22px; }
+  .clientBadge { width: 146px; height: 146px; }
+  .providerBadge { width: 100px; height: 100px; }
+}

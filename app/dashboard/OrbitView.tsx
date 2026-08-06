@@ -9,6 +9,7 @@ type Props = {
   activeClientId?: string;
   onActiveClientChange: (clientId: string) => void;
   onEntryRead?: (clientId: string, authorProviderId: string) => void;
+  onClientSignalRead?: (clientId: string) => void;
   onEntrySaved?: (
     clientId: string,
     authorProviderId: string,
@@ -26,6 +27,7 @@ export default function OrbitView({
   activeClientId,
   onActiveClientChange,
   onEntryRead,
+  onClientSignalRead,
   onEntrySaved,
   onTeamFocusSaved,
 }: Props) {
@@ -34,13 +36,13 @@ export default function OrbitView({
   return (
     <ModeContentFrame>
       <ClientCarousel
-        key={activeClientId ?? "orbit"}
         clients={clients}
         currentProviderId={currentProviderId}
         viewerRole={viewerRole}
         initialClientId={activeClientId}
         onActiveClientChange={onActiveClientChange}
         onEntryRead={onEntryRead}
+        onClientSignalRead={onClientSignalRead}
         onEntrySaved={onEntrySaved}
         onTeamFocusSaved={onTeamFocusSaved}
       />

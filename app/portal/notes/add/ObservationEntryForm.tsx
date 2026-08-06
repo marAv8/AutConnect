@@ -8,8 +8,10 @@
 
 import type { FormEvent, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { ChevronControl } from "@/components/ui/ChevronControl";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useGuardedSwipe } from "@/components/useGuardedSwipe";
 import {
   communicationObservationCategoryOptions,
   communicationRecommendationOptions,
@@ -19,6 +21,7 @@ import {
 } from "./entryFormConfig";
 import type { ObservationItemDraft } from "./entryFormClinicalModel";
 import type { EntryFormSaveStatus } from "./EntrySpecializedForms";
+import styles from "./ObservationEntryForm.module.css";
 
 type ObservationNoteKind =
   | "SupervisorObservation"
@@ -112,7 +115,18 @@ export function ObservationEntryForm({
     ? "Sensory Observation"
     : isCommunicationObservationMode
       ? "Communication Observation"
-      : "Observation Session";
+      : "Observation";
+  const observationHeaderTitle =
+    noteKind === "SupervisorObservation"
+      ? "Observation Session"
+      : observationTitle;
+  const observationSwipe = useGuardedSwipe({
+    onSwipeLeft: onNext,
+    onSwipeRight: onPrevious,
+    canSwipeLeft: activeIndex < observationCardCount - 1,
+    canSwipeRight: activeIndex > 0,
+    disabled: !isAddingObservation,
+  });
 
   return (
     <form
@@ -123,7 +137,7 @@ export function ObservationEntryForm({
       <div className="add-note-header-text" style={{ marginBottom: 14, opacity: 0.7 }}>
         <div>{clientName}</div>
         <div>
-          {providerName} -- {observationTitle}
+          {providerName} — {observationHeaderTitle}
         </div>
         <div>{todayLabel}</div>
       </div>
@@ -131,60 +145,43 @@ export function ObservationEntryForm({
       {isAddingObservation ? (
         <>
           <div
-            className="paper-surface"
+            className={`paper-surface ${styles.editorCard}`}
             style={{
-              padding: "18px 22px 20px",
-              maxWidth: 1080,
-              margin: "0 auto",
-              height: 320,
-              boxSizing: "border-box",
+              touchAction: "pan-y",
+              transform: `translateX(${observationSwipe.dragOffset}px)`,
+              transition: observationSwipe.dragOffset === 0 ? "transform 160ms ease-out" : "none",
             }}
+            {...observationSwipe.swipeHandlers}
           >
             <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 28,
-                marginBottom: 12,
-              }}
+              className={styles.pager}
             >
-              <Button type="button" variant="ghost" onClick={onPrevious}>
-                ‹
-              </Button>
-              <div style={{ display: "grid", justifyItems: "center", gap: 6, minWidth: 76 }}>
-                <div style={{ fontWeight: 600 }}>
-                  {activeIndex + 1} of {observationCardCount}
-                </div>
+              <ChevronControl
+                direction="left"
+                className={styles.pagerButton}
+                onClick={onPrevious}
+                disabled={activeIndex === 0}
+                aria-label="Previous observation step"
+              />
+              <div className={styles.pagerCount}>
+                {activeIndex + 1} of {observationCardCount}
               </div>
-              <Button type="button" variant="ghost" onClick={onNext}>
-                ›
-              </Button>
+              <ChevronControl
+                direction="right"
+                className={styles.pagerButton}
+                onClick={onNext}
+                disabled={activeIndex === observationCardCount - 1}
+                aria-label="Next observation step"
+              />
             </div>
 
-            <div
-              style={{
-                display: "grid",
-                alignContent: "center",
-                gap: 18,
-                height: "calc(100% - 58px)",
-                padding: "8px 18px 0",
-                boxSizing: "border-box",
-              }}
-            >
+            <div className={styles.editorContent}>
               {activeIndex === 0 ? (
                 <>
-                  <div style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}>
+                  <div className={styles.cardTitle}>
                     Observations
                   </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      justifyContent: "center",
-                      gap: 10,
-                    }}
-                  >
+                  <div className={styles.optionGrid}>
                     {activeObservationCategories.map((option) => {
                       const selected = draftCategory === option;
 
@@ -193,11 +190,10 @@ export function ObservationEntryForm({
                           key={option}
                           type="button"
                           variant="ghost"
+                          className={`${styles.optionButton} clinical-selection-control`}
+                          aria-pressed={selected}
                           onClick={() => onCategoryChange(option)}
                           style={{
-                            minHeight: 40,
-                            padding: "9px 14px",
-                            borderRadius: 12,
                             background: selected ? "rgb(0 0 0 / 9%)" : "var(--glass-strong)",
                             boxShadow: selected ? "var(--inset-paper)" : "var(--shadow-soft)",
                           }}
@@ -212,7 +208,7 @@ export function ObservationEntryForm({
 
               {activeIndex === 1 ? (
                 <>
-                  <div style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}>
+                  <div className={styles.cardTitle}>
                     Observation
                   </div>
                   <Textarea
@@ -237,17 +233,10 @@ export function ObservationEntryForm({
 
               {isImmediateObservationMode && activeIndex === 2 ? (
                 <>
-                  <div style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}>
+                  <div className={styles.cardTitle}>
                     Recommendation
                   </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      justifyContent: "center",
-                      gap: 10,
-                    }}
-                  >
+                  <div className={styles.optionGrid}>
                     {activeRecommendationOptions.map((option) => {
                       const selected = draftRecommendation === option;
 
@@ -256,11 +245,10 @@ export function ObservationEntryForm({
                           key={option}
                           type="button"
                           variant="ghost"
+                          className={`${styles.optionButton} clinical-selection-control`}
+                          aria-pressed={selected}
                           onClick={() => onRecommendationChange(option)}
                           style={{
-                            minHeight: 40,
-                            padding: "9px 14px",
-                            borderRadius: 12,
                             background: selected ? "rgb(0 0 0 / 9%)" : "var(--glass-strong)",
                             boxShadow: selected ? "var(--inset-paper)" : "var(--shadow-soft)",
                           }}
@@ -284,15 +272,14 @@ export function ObservationEntryForm({
           </div>
 
           <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              gap: 14,
-              minHeight: 44,
-            }}
+            className={styles.editorActions}
           >
-            <Button type="button" variant="ghost" onClick={onCancelEditor}>
+            <Button
+              type="button"
+              variant="ghost"
+              className="action-secondary"
+              onClick={onCancelEditor}
+            >
               Cancel
             </Button>
             <Button
@@ -312,13 +299,14 @@ export function ObservationEntryForm({
           <div
             className="paper-surface"
             style={{
-              padding: 28,
+              padding: "18px 22px 20px",
+              width: "100%",
               maxWidth: 1080,
               margin: "0 auto",
               minHeight: 360,
               boxSizing: "border-box",
               display: "grid",
-              gap: 18,
+              gap: 14,
             }}
           >
             <div style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}>
@@ -329,10 +317,10 @@ export function ObservationEntryForm({
             <Button
               type="button"
               onClick={onStartNew}
-              className="material-control"
-              style={{ justifySelf: "start" }}
+              className="material-control action-positive"
+              style={{ justifySelf: "center" }}
             >
-              + Add Observation
+              Add Observation
             </Button>
 
             <div style={{ display: "grid", gap: 14 }}>
@@ -393,9 +381,9 @@ export function ObservationEntryForm({
               onChange={(event) => onOverallCommentChange(event.target.value)}
               placeholder="Overall Comment (optional)"
               style={{
-                minHeight: 90,
+                minHeight: 122,
                 padding: "12px 14px",
-                resize: "vertical",
+                resize: "none",
                 ...fieldInputStyle,
               }}
             />
@@ -427,6 +415,7 @@ export function ObservationEntryForm({
               <Button
                 type="button"
                 variant="ghost"
+                className="action-negative"
                 onClick={onDelete}
                 disabled={saveStatus === "saving"}
               >

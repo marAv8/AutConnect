@@ -5,6 +5,8 @@ import { getSession } from "@/lib/session";
 import { createEntrySchema } from "@/app/libs/schemas/entry";
 import { parseAssessmentItems } from "@/app/libs/entryItems";
 import { calculateSessionScore } from "@/lib/sessionScoring";
+import { ensureEntryRevision } from "@/app/libs/entryRevision";
+import { statusAfterEntrySave } from "@/app/libs/entryLifecycle";
 import { EntryKind, EntryVisibility, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
@@ -44,7 +46,16 @@ export async function updateOwnEntry(formData: FormData) {
         kind,
       },
     },
-    select: { id: true },
+    select: {
+      id: true,
+      status: true,
+      completedAt: true,
+      _count: {
+        select: {
+          revisions: true,
+        },
+      },
+    },
   });
 
   if (!existingEntry) {
@@ -120,26 +131,50 @@ export async function updateOwnEntry(formData: FormData) {
     isSupervisorDocumentation ||
     isSensoryObservation ||
     isCommunicationObservation;
+  const nextStatus = statusAfterEntrySave(
+    existingEntry.status,
+    existingEntry._count.revisions
+  );
+  const isCompletedUpdate = nextStatus === "COMPLETED";
+  const nextCompletedAt = isCompletedUpdate ? new Date() : null;
 
   if (shouldStoreContextData || parsed.data.items.length === 0) {
-    await db.entry.update({
-      where: { id: existingEntry.id },
-      data: {
-        note: parsed.data.note || null,
-        visibility,
-        status: "IN_PROGRESS",
-        completedAt: null,
-        clinicalReflection: null,
-        contextData: shouldStoreContextData
-          ? parseContextData(formData.get("contextData")) ?? Prisma.JsonNull
-          : undefined,
-      },
+    await db.$transaction(async (tx) => {
+      if (isCompletedUpdate) {
+        await ensureEntryRevision(
+          tx,
+          existingEntry.id,
+          session.providerId,
+          existingEntry.completedAt ?? undefined
+        );
+      }
+      await tx.entry.update({
+        where: { id: existingEntry.id },
+        data: {
+          note: parsed.data.note || null,
+          visibility,
+          status: nextStatus,
+          completedAt: nextCompletedAt,
+          clinicalReflection: null,
+          contextData: shouldStoreContextData
+            ? parseContextData(formData.get("contextData")) ?? Prisma.JsonNull
+            : undefined,
+        },
+      });
+      if (isCompletedUpdate) {
+        await ensureEntryRevision(
+          tx,
+          existingEntry.id,
+          session.providerId,
+          nextCompletedAt ?? undefined
+        );
+      }
     });
 
     await resetEntryReads(existingEntry.id, providerIds, visibility);
 
     revalidatePath("/dashboard");
-    return { ok: true, status: "IN_PROGRESS" as const };
+    return { ok: true, status: nextStatus };
   }
 
   const goalIds = [
@@ -180,37 +215,56 @@ export async function updateOwnEntry(formData: FormData) {
     }))
   );
 
-  await db.entry.update({
-    where: { id: existingEntry.id },
-    data: {
-      note: parsed.data.note || null,
-      visibility,
-      status: "IN_PROGRESS",
-      completedAt: null,
-      clinicalReflection: null,
-      finalScore,
-      items: {
-        deleteMany: {},
-        create: parsed.data.items.map((item) => ({
-          goalId: item.goalId ?? null,
-          target: item.target,
-          goal: item.goal,
-          score: item.score ?? null,
-          metricType: item.metricType,
-          domain:
-            item.domain ??
-            (item.goalId ? goalDefinitionsById.get(item.goalId)?.domain ?? null : null),
-          rawValue: item.rawValue ?? null,
-          supportLevel: item.supportLevel ?? null,
-        })),
+  await db.$transaction(async (tx) => {
+    if (isCompletedUpdate) {
+      await ensureEntryRevision(
+        tx,
+        existingEntry.id,
+        session.providerId,
+        existingEntry.completedAt ?? undefined
+      );
+    }
+    await tx.entry.update({
+      where: { id: existingEntry.id },
+      data: {
+        note: parsed.data.note || null,
+        visibility,
+        status: nextStatus,
+        completedAt: nextCompletedAt,
+        clinicalReflection: null,
+        finalScore,
+        items: {
+          deleteMany: {},
+          create: parsed.data.items.map((item) => ({
+            goalId: item.goalId ?? null,
+            target: item.target,
+            goal: item.goal,
+            score: item.score ?? null,
+            metricType: item.metricType,
+            domain:
+              item.domain ??
+              (item.goalId ? goalDefinitionsById.get(item.goalId)?.domain ?? null : null),
+            rawValue: item.rawValue ?? null,
+            supportLevel: item.supportLevel ?? null,
+            observation: item.observation ?? null,
+          })),
+        },
       },
-    },
+    });
+    if (isCompletedUpdate) {
+      await ensureEntryRevision(
+        tx,
+        existingEntry.id,
+        session.providerId,
+        nextCompletedAt ?? undefined
+      );
+    }
   });
 
   await resetEntryReads(existingEntry.id, providerIds, visibility);
 
   revalidatePath("/dashboard");
-  return { ok: true, status: "IN_PROGRESS" as const };
+  return { ok: true, status: nextStatus };
 }
 
 async function resetEntryReads(

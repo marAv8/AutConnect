@@ -1,4 +1,6 @@
 import { completeProfile } from "@/app/actions/completeProfile";
+import AuthHeader from "@/app/components/auth/AuthHeader";
+import { MaterialSelect } from "@/components/ui/MaterialSelect";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
@@ -25,6 +27,7 @@ export default async function CompleteProfilePage() {
 
   return (
     <main className="auth-shell">
+      <AuthHeader />
       <div className="auth-page">
         <section className="auth-card auth-card-login">
           <div className="auth-form-wrap">
@@ -55,15 +58,21 @@ export default async function CompleteProfilePage() {
 
               <div className="auth-field">
                 <label htmlFor="role">Provider Role</label>
-                <select id="role" name="role" required>
-                  <option value="">Select</option>
-                  <option value="Supervisor">Supervisor</option>
-                  <option value="SpeechPathologist">Speech Pathologist</option>
-                  <option value="BehaviorTherapist">Behavior Therapist</option>
-                  <option value="OccupationalTherapist">Occupational Therapist</option>
-                  <option value="Caregiver">Caretaker</option>
-                  <option value="Educator">Educator</option>
-                </select>
+                <MaterialSelect
+                  id="role"
+                  name="role"
+                  required
+                  style={{ width: "100%" }}
+                  options={[
+                    { value: "", label: "Select" },
+                    { value: "Supervisor", label: "Supervisor" },
+                    { value: "SpeechPathologist", label: "Speech Pathologist" },
+                    { value: "BehaviorTherapist", label: "Behavior Therapist" },
+                    { value: "OccupationalTherapist", label: "Occupational Therapist" },
+                    { value: "Caregiver", label: "Caretaker" },
+                    { value: "Educator", label: "Educator" },
+                  ]}
+                />
               </div>
 
               <button type="submit" className="auth-button">

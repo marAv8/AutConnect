@@ -1,4 +1,3 @@
-import { generateClinicalReflectionForEntry } from "@/app/api/insights/clinicalReflectionEngine";
 import { buildGatewayContextForEntry } from "./gatewayBuilder";
 import { generateClinicalHandoff, type ClinicalHandoff } from "./clinicalHandoff";
 import type { GatewayContext } from "./types";
@@ -15,7 +14,6 @@ export type ClinicalHandoffValidationDiagnostics = {
 };
 
 export type ClinicalHandoffValidationResult = {
-  legacyReflection: string | null;
   clinicalHandoff: ClinicalHandoff | null;
   gatewayContext: GatewayContext | null;
   diagnostics: ClinicalHandoffValidationDiagnostics;
@@ -25,7 +23,6 @@ export async function generateClinicalHandoffValidation(
   entryId: string
 ): Promise<ClinicalHandoffValidationResult> {
   const startedAt = Date.now();
-  const legacyReflection = await generateClinicalReflectionForEntry(entryId);
   let gatewayContext: GatewayContext | null = null;
   let clinicalHandoff: ClinicalHandoff | null = null;
   let failureStage: ClinicalHandoffValidationDiagnostics["failureStage"] = null;
@@ -58,7 +55,6 @@ export async function generateClinicalHandoffValidation(
   logValidationDiagnostics(diagnostics);
 
   return {
-    legacyReflection,
     clinicalHandoff,
     gatewayContext,
     diagnostics,

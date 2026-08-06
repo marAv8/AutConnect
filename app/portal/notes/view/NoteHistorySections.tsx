@@ -10,9 +10,11 @@ import type { ReactNode } from "react";
 import { formatClinicalDateTime } from "@/app/libs/dateTime";
 import type {
   NoteHistoryEntry,
+  NoteHistoryRevision,
   SensoryObservation,
   SupervisorObservation,
 } from "./noteHistoryTypes";
+import { formatRevisionUpdate } from "./noteHistoryRevision";
 
 export function NotePreviewCard({
   entry,
@@ -30,9 +32,6 @@ export function NotePreviewCard({
   if (!entry) {
     return <div aria-hidden="true" />;
   }
-
-  const overallPercent =
-    entry.finalScore !== null && entry.finalScore !== undefined ? entry.finalScore * 10 : null;
 
   return (
     <div
@@ -57,7 +56,7 @@ export function NotePreviewCard({
         transform,
         transition,
         pointerEvents: "none",
-        boxShadow: "var(--shadow-soft), var(--inset-paper)",
+        boxShadow: "none",
         willChange: "transform",
       }}
     >
@@ -78,9 +77,6 @@ export function NotePreviewCard({
       >
         {entry.note || "No comment."}
       </div>
-      <div style={{ fontSize: 13, fontWeight: 600 }}>
-        Overall: {overallPercent !== null ? `${overallPercent}%` : "Not enough data"}
-      </div>
     </div>
   );
 }
@@ -99,17 +95,19 @@ export function CollapsibleRecordSection({
           marginBottom: 8,
           fontWeight: 600,
           cursor: "pointer",
+          textAlign: "center",
+          padding: "8px 12px",
         }}
       >
         {title}
       </summary>
       <div
         style={{
-          border: "none",
-          borderRadius: 14,
+          border: "1px solid rgb(35 45 55 / 9%)",
+          borderRadius: 10,
           padding: 12,
-          boxShadow:
-            "inset 0 2px 3px rgb(0 0 0 / 10%), inset 0 1px 1px rgb(0 0 0 / 5%), inset 0 -2px 2px rgb(255 255 255 / 42%)",
+          background: "var(--surface)",
+          boxShadow: "none",
         }}
       >
         {children}
@@ -196,6 +194,75 @@ export function SupervisorObservationSection({
               <span style={{ fontWeight: 600 }}>Author: </span>
               {observation.author || fallbackAuthor}
             </div>
+          </div>
+        ))}
+      </div>
+    </CollapsibleRecordSection>
+  );
+}
+
+export function RevisionHistorySection({
+  revisions,
+}: {
+  revisions: NoteHistoryRevision[];
+}) {
+  const updates = revisions
+    .filter((revision) => revision.revisionNumber > 1)
+    .map((revision) => ({
+      ...revision,
+      visibleChanges: revision.changes
+        .map((change) => ({
+          ...change,
+          displayValue: formatRevisionUpdate(change.before, change.after),
+        }))
+        .filter(
+          (
+            change
+          ): change is typeof change & {
+            displayValue: string;
+          } => Boolean(change.displayValue)
+        ),
+    }))
+    .filter((revision) => revision.visibleChanges.length > 0)
+    .sort((left, right) => right.revisionNumber - left.revisionNumber);
+
+  if (updates.length === 0) {
+    return null;
+  }
+
+  return (
+    <CollapsibleRecordSection
+      title={`Updates (${updates.length})`}
+    >
+      <div style={{ display: "grid", gap: 16 }}>
+        {updates.map((revision) => (
+          <div
+            key={revision.id}
+            style={{
+              display: "grid",
+              gap: 10,
+              paddingBottom: 16,
+              borderBottom: "1px solid rgb(35 45 55 / 9%)",
+            }}
+          >
+            <div style={{ fontSize: 13, opacity: 0.68 }}>
+              Updated {formatClinicalDateTime(revision.createdAt)} by{" "}
+              {revision.createdByName}
+            </div>
+            {revision.visibleChanges.map((change) => (
+              <div key={`${revision.id}-${change.path}`} style={{ display: "grid", gap: 4 }}>
+                <div style={{ fontWeight: 600 }}>{change.label}</div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    lineHeight: 1.45,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {change.displayValue}
+                </div>
+              </div>
+            ))}
           </div>
         ))}
       </div>

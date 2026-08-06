@@ -3,6 +3,8 @@
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { revalidatePath } from "next/cache";
+import { clientDisplayText } from "@/app/libs/clientIdentity";
+import { isTeamFocusVisible } from "@/app/libs/teamFocusLifecycle";
 
 export async function updateTeamFocus(formData: FormData) {
   const session = await getSession();
@@ -28,14 +30,50 @@ export async function updateTeamFocus(formData: FormData) {
       providerId: session.providerId,
       role: "Supervisor",
     },
-    select: { id: true },
+    select: {
+      id: true,
+      client: {
+        select: {
+          firstName: true,
+          lastName: true,
+        },
+      },
+    },
   });
 
   if (!canEdit) {
     return { ok: false, reason: "forbidden" as const };
   }
 
+  const safeTitle = clientDisplayText(
+    title,
+    canEdit.client.firstName,
+    canEdit.client.lastName
+  );
+  const safeContent = clientDisplayText(
+    content,
+    canEdit.client.firstName,
+    canEdit.client.lastName
+  );
+
+  const now = new Date();
   const teamFocus = await db.$transaction(async (tx) => {
+    const currentTeamFocus = await tx.teamFocus.findFirst({
+      where: {
+        clientId,
+        isActive: true,
+      },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        displayStartedAt: true,
+      },
+    });
+    const displayStartedAt =
+      currentTeamFocus &&
+      isTeamFocusVisible(currentTeamFocus.displayStartedAt, now)
+        ? currentTeamFocus.displayStartedAt
+        : now;
+
     await tx.teamFocus.updateMany({
       where: {
         clientId,
@@ -48,14 +86,16 @@ export async function updateTeamFocus(formData: FormData) {
       data: {
         clientId,
         authorId: session.providerId,
-        title: title || null,
-        content,
+        title: safeTitle || null,
+        content: safeContent,
         isActive: true,
+        displayStartedAt,
       },
       select: {
         id: true,
         title: true,
         content: true,
+        displayStartedAt: true,
         updatedAt: true,
         author: {
           select: {

@@ -6,6 +6,8 @@ import { type AssessmentItemInput, createEntrySchema } from "@/app/libs/schemas/
 import { parseAssessmentItems } from "@/app/libs/entryItems";
 import { EntryKind, EntryVisibility, Prisma } from "@prisma/client";
 import { calculateSessionScore, normalizeItem } from "@/lib/sessionScoring";
+import { ensureEntryRevision } from "@/app/libs/entryRevision";
+import { statusAfterEntrySave } from "@/app/libs/entryLifecycle";
 import { revalidatePath } from "next/cache";
 
 export async function createEntry(formData: FormData) {
@@ -113,21 +115,55 @@ export async function createEntry(formData: FormData) {
             kind: parsed.data.kind,
           },
         },
-        select: { id: true },
+        select: {
+          id: true,
+          status: true,
+          completedAt: true,
+          _count: {
+            select: {
+              revisions: true,
+            },
+          },
+        },
       });
 
       if (existingEntry) {
+        const nextStatus = statusAfterEntrySave(
+          existingEntry.status,
+          existingEntry._count.revisions
+        );
+        const isCompletedUpdate = nextStatus === "COMPLETED";
+        const nextCompletedAt = isCompletedUpdate ? new Date() : null;
         const [entry, providerIds] = await Promise.all([
-          db.entry.update({
-            where: { id: existingEntry.id },
-            data: {
-              note: parsed.data.note || null,
-              visibility,
-              status: "IN_PROGRESS",
-              completedAt: null,
-              clinicalReflection: null,
-            },
-            select: { id: true },
+          db.$transaction(async (tx) => {
+            if (isCompletedUpdate) {
+              await ensureEntryRevision(
+                tx,
+                existingEntry.id,
+                session.providerId,
+                existingEntry.completedAt ?? undefined
+              );
+            }
+            const updatedEntry = await tx.entry.update({
+              where: { id: existingEntry.id },
+              data: {
+                note: parsed.data.note || null,
+                visibility,
+                status: nextStatus,
+                completedAt: nextCompletedAt,
+                clinicalReflection: null,
+              },
+              select: { id: true },
+            });
+            if (isCompletedUpdate) {
+              await ensureEntryRevision(
+                tx,
+                existingEntry.id,
+                session.providerId,
+                nextCompletedAt ?? undefined
+              );
+            }
+            return updatedEntry;
           }),
           getAssignedProviderIds(parsed.data.clientId),
         ]);
@@ -135,7 +171,7 @@ export async function createEntry(formData: FormData) {
         await resetEntryReads(entry.id, providerIds, visibility);
 
         revalidatePath("/dashboard");
-        return { ok: true, entryId: entry.id, visibility, status: "IN_PROGRESS" as const };
+        return { ok: true, entryId: entry.id, visibility, status: nextStatus };
       }
     }
 
@@ -177,11 +213,38 @@ export async function createEntry(formData: FormData) {
       }))
     );
 
+    const existingEntry = await db.entry.findUnique({
+      where: {
+        providerId_clientId_date_kind: {
+          providerId: session.providerId,
+          clientId: parsed.data.clientId,
+          date: today,
+          kind: parsed.data.kind,
+        },
+      },
+      select: {
+        id: true,
+        status: true,
+        completedAt: true,
+        _count: {
+          select: {
+            revisions: true,
+          },
+        },
+      },
+    });
+    const nextStatus = statusAfterEntrySave(
+      existingEntry?.status,
+      existingEntry?._count.revisions ?? 0
+    );
+    const isCompletedUpdate = nextStatus === "COMPLETED";
+    const nextCompletedAt = isCompletedUpdate ? new Date() : null;
+
     const entryData = {
       note: parsed.data.note || null,
       visibility,
-      status: "IN_PROGRESS" as const,
-      completedAt: null,
+      status: nextStatus,
+      completedAt: nextCompletedAt,
       clinicalReflection: null,
       finalScore: shouldStoreContextData ? null : finalScore,
       contextData: shouldStoreContextData ? contextData : undefined,
@@ -199,35 +262,56 @@ export async function createEntry(formData: FormData) {
                   (item.goalId ? goalDefinitionsById.get(item.goalId)?.domain ?? null : null),
                 rawValue: item.rawValue ?? null,
                 supportLevel: item.supportLevel ?? null,
+                observation: item.observation ?? null,
               })),
             }
           : undefined,
     };
 
-    const entry = await db.entry.upsert({
-      where: {
-        providerId_clientId_date_kind: {
+    const entry = await db.$transaction(async (tx) => {
+      if (existingEntry && isCompletedUpdate) {
+        await ensureEntryRevision(
+          tx,
+          existingEntry.id,
+          session.providerId,
+          existingEntry.completedAt ?? undefined
+        );
+      }
+
+      const updatedEntry = await tx.entry.upsert({
+        where: {
+          providerId_clientId_date_kind: {
+            providerId: session.providerId,
+            clientId: parsed.data.clientId,
+            date: today,
+            kind: parsed.data.kind,
+          },
+        },
+        create: {
           providerId: session.providerId,
           clientId: parsed.data.clientId,
           date: today,
           kind: parsed.data.kind,
+          ...entryData,
         },
-      },
-      create: {
-        providerId: session.providerId,
-        clientId: parsed.data.clientId,
-        date: today,
-        kind: parsed.data.kind,
-        ...entryData,
-      },
-      update: {
-        ...entryData,
-        items: {
-          deleteMany: {},
-          ...(entryData.items ?? {}),
+        update: {
+          ...entryData,
+          items: {
+            deleteMany: {},
+            ...(entryData.items ?? {}),
+          },
         },
-      },
-      select: { id: true },
+        select: { id: true },
+      });
+      if (existingEntry && isCompletedUpdate) {
+        await ensureEntryRevision(
+          tx,
+          existingEntry.id,
+          session.providerId,
+          nextCompletedAt ?? undefined
+        );
+      }
+      return updatedEntry;
     });
 
     if (!shouldStoreContextData) {
@@ -237,7 +321,7 @@ export async function createEntry(formData: FormData) {
     await resetEntryReads(entry.id, providerIds, visibility);
 
     revalidatePath("/dashboard");
-    return { ok: true, entryId: entry.id, visibility, status: "IN_PROGRESS" as const };
+    return { ok: true, entryId: entry.id, visibility, status: nextStatus };
   } catch (error) {
     // Keep the response stable if a concurrent save hits the same daily entry.
     if (

@@ -6,7 +6,7 @@
  * ClientOrbit; the overlays themselves remain focused presentation modules.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import type { CaretakerContextKind } from "@/app/libs/caretakerContext";
 import type { NoteEntryKind } from "@/app/libs/entryKinds";
@@ -16,7 +16,11 @@ import DashboardClientHandoffOverlay from "./DashboardClientHandoffOverlay";
 import DashboardNoteOverlay from "./DashboardNoteOverlay";
 import DashboardTeamFocusOverlay from "./DashboardTeamFocusOverlay";
 import { ClientCarouselNavigation } from "./ClientCarouselNavigation";
+import { ClientCarouselSlide } from "./ClientCarouselSlide";
+import { TeamFocusBanner } from "./TeamFocusBanner";
+import { useGuardedSwipe } from "@/components/useGuardedSwipe";
 import { applyDashboardEntryMutations } from "./clientCarouselModel";
+import { markClientSignalRead } from "@/app/actions/markClientSignalRead";
 import type {
   DashboardClient,
   DashboardEntryMutation,
@@ -41,6 +45,7 @@ type ClientCarouselProps = {
   initialClientId?: string;
   onActiveClientChange?: (clientId: string) => void;
   onEntryRead?: (clientId: string, authorProviderId: string) => void;
+  onClientSignalRead?: (clientId: string) => void;
   onEntrySaved?: (
     clientId: string,
     authorProviderId: string,
@@ -52,7 +57,7 @@ type ClientCarouselProps = {
 };
 
 const SCENE_WIDTH = 980;
-const SCENE_SIDE_PADDING = 24;
+const DASHBOARD_OVERLAY_HISTORY_KEY = "autConnectDashboardOverlay";
 
 export default function ClientCarousel({
   clients,
@@ -61,6 +66,7 @@ export default function ClientCarousel({
   initialClientId,
   onActiveClientChange,
   onEntryRead,
+  onClientSignalRead,
   onEntrySaved,
   onTeamFocusSaved,
 }: ClientCarouselProps) {
@@ -80,12 +86,60 @@ export default function ClientCarousel({
     useState<CaretakerContextKind | null>(null);
   const [activeNoteKind, setActiveNoteKind] = useState<NoteEntryKind | null>(null);
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
-  const closeOverlay = useCallback(() => {
+  const [useCompactOverlayMotion, setUseCompactOverlayMotion] = useState(false);
+  const overlayHistoryActiveRef = useRef(false);
+  const clearOverlay = useCallback(() => {
     setOverlayType(null);
     setActiveProviderId(null);
     setActiveContextKind(null);
     setActiveNoteKind(null);
   }, []);
+  const closeOverlay = useCallback(() => {
+    if (overlayHistoryActiveRef.current) {
+      window.history.back();
+      return;
+    }
+    clearOverlay();
+  }, [clearOverlay]);
+  const prepareOverlayHistory = useCallback(() => {
+    if (overlayHistoryActiveRef.current) {
+      return;
+    }
+
+    overlayHistoryActiveRef.current = true;
+    window.history.pushState(
+      {
+        ...window.history.state,
+        [DASHBOARD_OVERLAY_HISTORY_KEY]: true,
+      },
+      ""
+    );
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 700px)");
+    const updateMotionPreference = () => {
+      setUseCompactOverlayMotion(mediaQuery.matches);
+    };
+
+    updateMotionPreference();
+    mediaQuery.addEventListener?.("change", updateMotionPreference);
+    return () => mediaQuery.removeEventListener?.("change", updateMotionPreference);
+  }, []);
+
+  useEffect(() => {
+    const onPopState = () => {
+      if (!overlayHistoryActiveRef.current) {
+        return;
+      }
+
+      overlayHistoryActiveRef.current = false;
+      clearOverlay();
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [clearOverlay]);
 
   useEffect(() => {
     if (visibleClients.length === 0 || !onActiveClientChange) return;
@@ -118,14 +172,27 @@ export default function ClientCarousel({
 
   const safeIndex = Math.min(index, visibleClients.length - 1);
   const client = visibleClients[safeIndex];
+  const clientEntries = client?.entries;
   const activeClientId = client?.id ?? "";
 
-  const prev = () =>
-    setIndex((i) => (i === 0 ? visibleClients.length - 1 : i - 1));
-  const next = () =>
-    setIndex((i) => (i === visibleClients.length - 1 ? 0 : i + 1));
+  const prev = useCallback(() => {
+    setIndex((current) => Math.max(0, current - 1));
+  }, []);
+  const next = useCallback(() => {
+    setIndex((current) =>
+      Math.min(Math.max(visibleClients.length - 1, 0), current + 1)
+    );
+  }, [visibleClients.length]);
+  const clientSwipe = useGuardedSwipe({
+    onSwipeLeft: next,
+    onSwipeRight: prev,
+    canSwipeLeft: safeIndex < visibleClients.length - 1,
+    canSwipeRight: safeIndex > 0,
+    disabled: overlayType !== null || visibleClients.length < 2,
+  });
 
   const openNotesOverlay = (providerId: string) => {
+    prepareOverlayHistory();
     setActiveProviderId(providerId);
     setOverlayType("view");
   };
@@ -134,6 +201,7 @@ export default function ClientCarousel({
     nextOverlayType: "add" | "update",
     entryKind?: CaretakerContextKind | NoteEntryKind
   ) => {
+    prepareOverlayHistory();
     setActiveProviderId(providerId);
     setActiveContextKind(
       entryKind === "MorningContext" || entryKind === "EveningContext"
@@ -153,24 +221,40 @@ export default function ClientCarousel({
     setOverlayType(nextOverlayType);
   };
   const openAbcDataOverlay = (providerId: string) => {
+    prepareOverlayHistory();
     setActiveProviderId(providerId);
     setActiveContextKind(null);
     setActiveNoteKind("SessionNote");
     setOverlayType("abc");
   };
   const openTeamFocusOverlay = () => {
+    prepareOverlayHistory();
     setActiveProviderId(currentProviderId);
     setOverlayType("teamFocus");
   };
   const openTeamFocusViewOverlay = () => {
+    prepareOverlayHistory();
     setActiveProviderId(currentProviderId);
     setOverlayType("teamFocusView");
   };
   const openClientHandoffOverlay = () => {
+    if (
+      client.signal?.color !== "neutral" &&
+      client.signal?.isUnread &&
+      client.signal.sessionDate
+    ) {
+      onClientSignalRead?.(client.id);
+      void markClientSignalRead({
+        clientId: client.id,
+        sessionDate: client.signal.sessionDate,
+      });
+    }
+    prepareOverlayHistory();
     setActiveProviderId(null);
     setOverlayType("clientHandoff");
   };
   const openEducatorTargetOverlay = (progressKind: NoteEntryKind = "SessionNote") => {
+    prepareOverlayHistory();
     setActiveProviderId(currentProviderId);
     setActiveContextKind(null);
     setActiveNoteKind(progressKind);
@@ -222,11 +306,51 @@ export default function ClientCarousel({
     ]);
     onEntrySaved?.(activeClientId, authorProviderId, entryId, visibility, status);
   }, [activeClientId, activeContextKind, activeNoteKind, onEntrySaved]);
+  const markProviderSessionCompleted = useCallback((
+    authorProviderId: string,
+    completedEntryIds: string[]
+  ) => {
+    if (!activeClientId || completedEntryIds.length === 0) return;
+
+    const entriesById = new Map(
+      (clientEntries ?? []).map((entry) => [entry.id, entry])
+    );
+    setEntryMutations((current) => [
+      ...current,
+      ...completedEntryIds.map((entryId) => {
+        const entry = entriesById.get(entryId);
+        return {
+          type: "saved" as const,
+          clientId: activeClientId,
+          authorProviderId,
+          entryId,
+          kind: entry?.kind,
+          visibility: entry?.visibility,
+          status: "COMPLETED",
+        };
+      }),
+    ]);
+
+    completedEntryIds.forEach((entryId) => {
+      const entry = entriesById.get(entryId);
+      onEntrySaved?.(
+        activeClientId,
+        authorProviderId,
+        entryId,
+        entry?.visibility === "Private" ? "Private" : "Shared",
+        "COMPLETED"
+      );
+    });
+  }, [activeClientId, clientEntries, onEntrySaved]);
 
   if (visibleClients.length === 0 || !client) return null;
 
   const shouldShowPosition = !(viewerRole === "Caregiver" && visibleClients.length === 1);
   const activeTeamFocus = client.teamFocusItems?.[0] ?? null;
+  const usesFullScreenWorkspacePanel =
+    overlayType === "abc" ||
+    overlayType === "teamFocus" ||
+    isNoteOverlayType(overlayType);
   return (
     <div
       className="client-workspace-shell"
@@ -235,29 +359,22 @@ export default function ClientCarousel({
         height: "100%",
       }}
     >
-      {activeTeamFocus ? (
-        <button
-          type="button"
-          className="team-focus-indicator"
-          aria-label="Open Team Focus"
-          onClick={openTeamFocusViewOverlay}
-        />
-      ) : null}
-
       <div
         className="client-carousel-stage"
         style={{
           width: "min(100%, 980px)",
           maxWidth: SCENE_WIDTH,
-          paddingLeft: SCENE_SIDE_PADDING,
-          paddingRight: SCENE_SIDE_PADDING,
+          paddingLeft: "clamp(10px, 4vw, 24px)",
+          paddingRight: "clamp(10px, 4vw, 24px)",
           boxSizing: "border-box",
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
           height: "100%",
+          touchAction: "pan-y",
         }}
+        {...clientSwipe.swipeHandlers}
       >
         <ClientCarouselNavigation
           currentIndex={safeIndex}
@@ -265,20 +382,37 @@ export default function ClientCarousel({
           showPosition={shouldShowPosition}
           onPrevious={prev}
           onNext={next}
+          canPrevious={safeIndex > 0}
+          canNext={safeIndex < visibleClients.length - 1}
         />
 
-        <ClientOrbit
+        <ClientCarouselSlide
           key={client.id}
-          client={client}
-          currentProviderId={currentProviderId}
-          viewerRole={viewerRole}
-          onOpenNotes={openNotesOverlay}
-          onOpenEntryForm={openEntryOverlay}
-          onOpenAbcData={openAbcDataOverlay}
-          onOpenTeamFocus={openTeamFocusOverlay}
-          onOpenClientHandoff={openClientHandoffOverlay}
-          onOpenEducatorTarget={openEducatorTargetOverlay}
-        />
+          dragOffset={clientSwipe.dragOffset}
+        >
+          {activeTeamFocus ? (
+            <TeamFocusBanner
+              key={`${activeTeamFocus.id}:${new Date(activeTeamFocus.updatedAt).toISOString()}`}
+              teamFocus={activeTeamFocus}
+              viewerProviderId={currentProviderId}
+              onOpen={openTeamFocusViewOverlay}
+            />
+          ) : null}
+
+          <ClientOrbit
+            client={client}
+            currentProviderId={currentProviderId}
+            viewerRole={viewerRole}
+            suspendMenuDismiss={overlayType !== null}
+            onOpenNotes={openNotesOverlay}
+            onOpenEntryForm={openEntryOverlay}
+            onOpenAbcData={openAbcDataOverlay}
+            onOpenTeamFocus={openTeamFocusOverlay}
+            onOpenClientHandoff={openClientHandoffOverlay}
+            onOpenEducatorTarget={openEducatorTargetOverlay}
+            onSessionCompleted={markProviderSessionCompleted}
+          />
+        </ClientCarouselSlide>
       </div>
       <AnimatePresence>
         {overlayType && (activeProviderId || overlayType === "clientHandoff") ? (
@@ -287,7 +421,7 @@ export default function ClientCarousel({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: useCompactOverlayMotion ? 0.06 : 0.15 }}
               className="absolute inset-0 bg-black/25 backdrop-blur-[3px]"
               onClick={
                 overlayType === "teamFocusView" || overlayType === "clientHandoff"
@@ -296,7 +430,13 @@ export default function ClientCarousel({
               }
             />
             <div
-              className="absolute inset-0 flex items-center justify-center p-6"
+              className={`absolute inset-0 flex items-center justify-center ${
+                usesFullScreenWorkspacePanel
+                  ? "p-6 max-[700px]:p-0"
+                  : overlayType === "clientHandoff" || overlayType === "teamFocusView"
+                    ? "p-6 max-[700px]:p-2"
+                  : "p-6"
+              }`}
               onClick={
                 overlayType === "teamFocusView" || overlayType === "clientHandoff"
                   ? closeOverlay
@@ -304,11 +444,32 @@ export default function ClientCarousel({
               }
             >
               <motion.div
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
-                className="paper-surface add-note-overlay-panel max-h-[calc(100vh-48px)] w-[min(1280px,92vw)] overflow-y-auto p-8"
+                initial={
+                  useCompactOverlayMotion
+                    ? { opacity: 0 }
+                    : { opacity: 0, scale: 0.96 }
+                }
+                animate={
+                  useCompactOverlayMotion
+                    ? { opacity: 1 }
+                    : { opacity: 1, scale: 1 }
+                }
+                exit={
+                  useCompactOverlayMotion
+                    ? { opacity: 0 }
+                    : { opacity: 0, scale: 0.96 }
+                }
+                transition={{
+                  duration: useCompactOverlayMotion ? 0.08 : 0.18,
+                  ease: "easeOut",
+                }}
+                className={`paper-surface add-note-overlay-panel max-h-[calc(100vh-48px)] w-[min(1280px,92vw)] overflow-y-auto p-8 ${
+                  usesFullScreenWorkspacePanel
+                    ? "clinical-note-overlay-panel"
+                    : overlayType === "clientHandoff" || overlayType === "teamFocusView"
+                      ? "dashboard-reading-overlay-panel"
+                    : ""
+                }`}
                 onClick={(event) => event.stopPropagation()}
               >
                 {overlayType === "clientHandoff" ? (
@@ -389,27 +550,30 @@ function TeamFocusReadOverlay({
 
   return (
     <div
+      className="team-focus-read-layout"
       style={{
         position: "relative",
         display: "grid",
         justifyItems: "center",
         gap: 22,
-        color: "rgb(0 0 0 / 78%)",
+        color: "var(--team-focus-text)",
       }}
     >
       <button
         type="button"
         onClick={onClose}
-        className="team-focus-close-button"
-        aria-label="Close Team Focus"
+        className="back-link overlay-client-back-control"
+        aria-label="Back to Client"
       >
-        ×
+        Client
       </button>
 
-      <div style={{ fontSize: 24, fontWeight: 650 }}>Team Focus</div>
+      <div className="team-focus-read-heading" style={{ fontSize: 24, fontWeight: 650 }}>
+        Team Focus
+      </div>
 
       <div
-        className="paper-surface"
+        className="paper-surface team-focus-read-card"
         style={{
           width: "min(420px, 82vw)",
           minHeight: 420,
@@ -422,7 +586,10 @@ function TeamFocusReadOverlay({
         }}
       >
         {teamFocus.title ? (
-          <div style={{ fontSize: 18, fontWeight: 650, lineHeight: 1.35 }}>
+          <div
+            className="team-focus-read-title"
+            style={{ fontSize: 18, fontWeight: 650, lineHeight: 1.35 }}
+          >
             {teamFocus.title}
           </div>
         ) : null}

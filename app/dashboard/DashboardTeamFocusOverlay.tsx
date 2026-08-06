@@ -10,6 +10,7 @@ type TeamFocusData = {
   id: string;
   title?: string | null;
   content: string;
+  displayStartedAt: Date | string;
   updatedAt: Date | string;
   author: {
     firstName: string;
@@ -33,17 +34,7 @@ export default function DashboardTeamFocusOverlay({
 }: Props) {
   const [title, setTitle] = useState(teamFocus?.title ?? "");
   const [content, setContent] = useState(teamFocus?.content ?? "");
-  const [activeIndex, setActiveIndex] = useState(0);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const cardCount = 2;
-
-  const prevCard = () => {
-    setActiveIndex((current) => (current === 0 ? cardCount - 1 : current - 1));
-  };
-
-  const nextCard = () => {
-    setActiveIndex((current) => (current === cardCount - 1 ? 0 : current + 1));
-  };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -61,7 +52,11 @@ export default function DashboardTeamFocusOverlay({
 
     setStatus("saved");
     onSaved?.(result.teamFocus);
-    onClose();
+    // Let the updated banner settle behind the overlay before revealing it.
+    // This avoids exposing the carousel's necessary layout update to the user.
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(onClose);
+    });
   };
 
   return (
@@ -75,80 +70,42 @@ export default function DashboardTeamFocusOverlay({
       <div
         className="paper-surface"
         style={{
-          padding: "18px 22px 20px",
-          height: 320,
+          padding: "24px clamp(18px, 5vw, 40px) 28px",
+          minHeight: 320,
           boxSizing: "border-box",
+          display: "grid",
+          alignContent: "center",
+          gap: 16,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: 28,
-            marginBottom: 12,
-          }}
-        >
-          <Button type="button" variant="ghost" onClick={prevCard}>
-            ‹
-          </Button>
-          <div style={{ display: "grid", justifyItems: "center", gap: 6, minWidth: 76 }}>
-            <div style={{ fontWeight: 600 }}>{activeIndex + 1} of {cardCount}</div>
-          </div>
-          <Button type="button" variant="ghost" onClick={nextCard}>
-            ›
-          </Button>
+        <div style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}>
+          Team Focus
         </div>
-
-        <div
+        <Input
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          placeholder="Name this focus"
+          aria-label="Team Focus name"
           style={{
-            display: "grid",
-            alignContent: "center",
-            gap: 18,
-            height: "calc(100% - 58px)",
-            padding: "8px 18px 0",
+            minHeight: 44,
+            padding: "10px 12px",
+            border: "none",
             boxSizing: "border-box",
           }}
-        >
-          {activeIndex === 0 ? (
-            <>
-              <div style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}>
-                Focus Title
-              </div>
-              <Input
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder="Transition Independence"
-                style={{
-                  minHeight: 44,
-                  padding: "10px 12px",
-                  border: "none",
-                  boxSizing: "border-box",
-                }}
-              />
-            </>
-          ) : null}
-
-          {activeIndex === 1 ? (
-            <>
-              <div style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}>
-                Team Focus
-              </div>
-              <Textarea
-                value={content}
-                onChange={(event) => setContent(event.target.value)}
-                placeholder="What should every provider keep in mind?"
-                style={{
-                  minHeight: 122,
-                  padding: "12px 14px",
-                  resize: "none",
-                  border: "none",
-                  boxSizing: "border-box",
-                }}
-              />
-            </>
-          ) : null}
-        </div>
+        />
+        <Textarea
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          placeholder="What should every provider keep in mind?"
+          aria-label="Team Focus details"
+          style={{
+            minHeight: 132,
+            padding: "12px 14px",
+            resize: "none",
+            border: "none",
+            boxSizing: "border-box",
+          }}
+        />
       </div>
 
       <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>

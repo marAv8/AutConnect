@@ -1,23 +1,31 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
-import { buildInsight } from "./insightsEngine";
+import { buildInsight, parseQuestion } from "./insightsEngine";
+import { buildInsightContext } from "./insightContext";
+import {
+  annotateDeterministicInsight,
+  shouldAttemptSynthesis,
+} from "./insightAnswerContract";
+import { synthesizeInsight } from "./insightSynthesis";
+import { isInsightCategory } from "@/app/libs/insights/categories";
 
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session) {
+  if (!session || session.role !== "Supervisor") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = (await request.json().catch(() => null)) as
-    | { clientId?: unknown; question?: unknown }
+    | { clientId?: unknown; question?: unknown; category?: unknown }
     | null;
   const clientId = typeof body?.clientId === "string" ? body.clientId : "";
   const question = typeof body?.question === "string" ? body.question.trim() : "";
+  const category = isInsightCategory(body?.category) ? body.category : null;
 
-  if (!clientId || !question) {
+  if (!clientId || !question || !category) {
     return NextResponse.json(
-      { error: "clientId and question are required" },
+      { error: "clientId, category, and question are required" },
       { status: 400 }
     );
   }
@@ -26,6 +34,7 @@ export async function POST(request: Request) {
     where: {
       clientId,
       providerId: session.providerId,
+      role: "Supervisor",
     },
     select: { id: true },
   });
@@ -34,6 +43,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const insight = await buildInsight(clientId, question);
-  return NextResponse.json(insight);
+  const context = await buildInsightContext(clientId, parseQuestion(question), {
+    category,
+    viewerProviderId: session.providerId,
+  });
+  const deterministic = annotateDeterministicInsight(
+    await buildInsight(clientId, question, {
+      category,
+      viewerProviderId: session.providerId,
+      context,
+    }),
+    question,
+    category
+  );
+
+  if (
+    context &&
+    shouldAttemptSynthesis(question, category, deterministic)
+  ) {
+    const synthesized = await synthesizeInsight({
+      question,
+      category,
+      context,
+      deterministic,
+      viewerProviderId: session.providerId,
+    });
+    if (synthesized) {
+      return NextResponse.json(synthesized);
+    }
+  }
+
+  return NextResponse.json(deterministic);
 }

@@ -5,6 +5,10 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { Role } from "@prisma/client";
 
+function normalizedOrganizationName(name: string) {
+  return name.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+}
+
 export async function createClientWithProviders(formData: FormData) {
   const session = await getSession();
   if (!session || session.role !== "Supervisor") {
@@ -15,6 +19,7 @@ export async function createClientWithProviders(formData: FormData) {
   const fullNameValue = typeof fullName === "string" ? fullName.trim() : "";
   const receivesPrescribedMedication =
     formData.get("receivesPrescribedMedication") === "true";
+  const agencyName = formData.get("agencyName")?.toString().trim() ?? "";
 
   if (!fullNameValue) {
     throw new Error("Client name required");
@@ -31,8 +36,38 @@ export async function createClientWithProviders(formData: FormData) {
   const providerIds = formData
     .getAll("providerIds")
     .filter((id): id is string => typeof id === "string");
+  const selectedProviderIds = new Set(providerIds);
+  const agencyProviderIds = new Set(
+    formData
+      .getAll("agencyProviderIds")
+      .filter(
+        (id): id is string =>
+          typeof id === "string" && selectedProviderIds.has(id)
+      )
+  );
+
+  if (agencyProviderIds.size > 0 && !agencyName) {
+    throw new Error("Add the agency name before identifying its providers.");
+  }
 
   await db.$transaction(async (tx) => {
+    const agency = agencyName
+      ? await tx.organization.upsert({
+          where: {
+            normalizedName: normalizedOrganizationName(agencyName),
+          },
+          create: {
+            name: agencyName.replace(/\s+/g, " "),
+            normalizedName: normalizedOrganizationName(agencyName),
+            type: "AGENCY",
+          },
+          update: {
+            name: agencyName.replace(/\s+/g, " "),
+          },
+          select: { id: true },
+        })
+      : null;
+
     // 1. Create client
     const client = await tx.client.create({
       data: { firstName, lastName, receivesPrescribedMedication },
@@ -44,6 +79,7 @@ export async function createClientWithProviders(formData: FormData) {
         providerId: session.providerId,
         clientId: client.id,
         role: Role.Supervisor,
+        organizationId: agency?.id ?? null,
       },
     });
 
@@ -62,8 +98,47 @@ export async function createClientWithProviders(formData: FormData) {
           providerId: p.id,
           clientId: client.id,
           role: p.role as Role,
+          organizationId:
+            agency && agencyProviderIds.has(p.id) ? agency.id : null,
         })),
       });
+    }
+
+    if (agency) {
+      await tx.organizationMembership.upsert({
+        where: {
+          organizationId_providerId: {
+            organizationId: agency.id,
+            providerId: session.providerId,
+          },
+        },
+        create: {
+          organizationId: agency.id,
+          providerId: session.providerId,
+          role: "OWNER",
+        },
+        update: {
+          role: "OWNER",
+          active: true,
+        },
+      });
+
+      for (const providerId of agencyProviderIds) {
+        await tx.organizationMembership.upsert({
+          where: {
+            organizationId_providerId: {
+              organizationId: agency.id,
+              providerId,
+            },
+          },
+          create: {
+            organizationId: agency.id,
+            providerId,
+            role: "MEMBER",
+          },
+          update: { active: true },
+        });
+      }
     }
   });
 

@@ -45,6 +45,9 @@ function entry(overrides) {
     clinicalDate: overrides.clinicalDate ?? clinicalDate,
     occurredAt: overrides.occurredAt ?? completedAt,
     completedAt,
+    revisionNumber: overrides.revisionNumber,
+    revisedAt: overrides.revisedAt,
+    revisionChangeLabels: overrides.revisionChangeLabels,
   };
 }
 
@@ -159,6 +162,28 @@ test("routine single-provider day stays low-detail and traceable", () => {
   assert.equal(result.routineEventCount, 1);
   assert.deepEqual(result.contributingProviderRoles, ["BehaviorTherapist"]);
   assert.equal(result.sourceReferences.some((reference) => reference.entryId === "entry-bt"), true);
+});
+
+test("marks revised documentation without duplicating the prior note", () => {
+  const revised = entry({
+    entryId: "entry-revised",
+    completedAt: therapy,
+    sessionObservation: "Client transitioned with one reminder.",
+    revisionNumber: 2,
+    revisedAt: "2026-07-19T13:00:00.000Z",
+    revisionChangeLabels: ["Provider note", "Targets and responses"],
+  });
+
+  const result = context({ completedEntries: [revised] });
+  const reference = result.sourceReferences[0];
+
+  assert.equal(reference.label, "Updated Session Observation");
+  assert.equal(reference.snippet, "Client transitioned with one reminder.");
+  assert.equal(reference.revisionNumber, 2);
+  assert.deepEqual(reference.revisionChangeLabels, [
+    "Provider note",
+    "Targets and responses",
+  ]);
 });
 
 test("interdisciplinary day orders sources and preserves provider roles", () => {

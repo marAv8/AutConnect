@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { EntryKind } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { ensureEntryRevision } from "@/app/libs/entryRevision";
 
 export async function updateSupervisorNote(formData: FormData) {
   const session = await getSession();
@@ -38,17 +39,33 @@ export async function updateSupervisorNote(formData: FormData) {
         kind: EntryKind.SessionNote,
       },
     },
-    select: { id: true },
+    select: { id: true, status: true, completedAt: true },
   });
 
   if (!existingEntry) {
     return { ok: false, reason: "missing_entry" as const };
   }
 
-  await db.entry.update({
-    where: { id: existingEntry.id },
-    data: { note },
-  });
+  if (existingEntry.status === "COMPLETED") {
+    await db.$transaction(async (tx) => {
+      await ensureEntryRevision(
+        tx,
+        existingEntry.id,
+        session.providerId,
+        existingEntry.completedAt ?? undefined
+      );
+      await tx.entry.update({
+        where: { id: existingEntry.id },
+        data: { note },
+      });
+      await ensureEntryRevision(tx, existingEntry.id, session.providerId);
+    });
+  } else {
+    await db.entry.update({
+      where: { id: existingEntry.id },
+      data: { note },
+    });
+  }
 
   revalidatePath("/dashboard");
   return { ok: true };

@@ -6,12 +6,16 @@
  * ClientCarousel remains responsible for choosing the active client.
  */
 
+import { ChevronControl } from "@/components/ui/ChevronControl";
+
 type Props = {
   currentIndex: number;
   clientCount: number;
   showPosition: boolean;
   onPrevious: () => void;
   onNext: () => void;
+  canPrevious?: boolean;
+  canNext?: boolean;
 };
 
 const NAV_BUTTON_SIZE = 44;
@@ -22,23 +26,9 @@ export function ClientCarouselNavigation({
   showPosition,
   onPrevious,
   onNext,
+  canPrevious = true,
+  canNext = true,
 }: Props) {
-  const canNavigate = clientCount > 1;
-  const buttonStyle = {
-    width: NAV_BUTTON_SIZE,
-    height: NAV_BUTTON_SIZE,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 36,
-    lineHeight: 1,
-    background: "none",
-    border: "none",
-    cursor: canNavigate ? "pointer" : "default",
-    color: "rgb(0 0 0 / 60%)",
-    opacity: canNavigate ? 1 : 0,
-  } as const;
-
   return (
     <div
       style={{
@@ -47,35 +37,31 @@ export function ClientCarouselNavigation({
         alignItems: "center",
         justifyContent: "center",
         columnGap: 24,
-        color: "rgb(0 0 0 / 64%)",
+        color: "var(--carousel-navigation-text, rgb(0 0 0 / 64%))",
         fontSize: 16,
         fontWeight: 500,
         lineHeight: 1,
       }}
     >
-      <button
-        type="button"
+      <ChevronControl
+        direction="left"
+        treatment="carousel"
         onClick={onPrevious}
-        disabled={!canNavigate}
-        style={buttonStyle}
+        disabled={!canPrevious}
         aria-label="Previous client"
-      >
-        ‹
-      </button>
+      />
 
       <div style={{ textAlign: "center" }}>
         {showPosition ? `${currentIndex + 1} of ${clientCount}` : null}
       </div>
 
-      <button
-        type="button"
+      <ChevronControl
+        direction="right"
+        treatment="carousel"
         onClick={onNext}
-        disabled={!canNavigate}
-        style={buttonStyle}
+        disabled={!canNext}
         aria-label="Next client"
-      >
-        ›
-      </button>
+      />
     </div>
   );
 }

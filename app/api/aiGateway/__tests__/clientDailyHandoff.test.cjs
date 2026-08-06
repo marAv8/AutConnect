@@ -128,6 +128,7 @@ function dayContext(overrides) {
     date: overrides.date ?? clinicalDate,
     status: overrides.status ?? "LIVE",
     completedEntries: overrides.completedEntries ?? [],
+    inProgressEntries: overrides.inProgressEntries ?? [],
     clinicalEvents: overrides.clinicalEvents ?? [],
     attentionEvents: overrides.attentionEvents ?? [],
     supervisorDirectives: overrides.supervisorDirectives ?? [],
@@ -177,7 +178,9 @@ test("routine day generates a calm concise overview without rich sections", () =
   assert.equal(handoff.keyEvents.length, 0);
   assert.equal(handoff.currentConsiderations.length, 0);
   assert.equal(handoff.positiveDevelopments.length, 0);
-  assert.equal(handoff.supportingReferences.length, 0);
+  assert.equal(handoff.supportingReferences.length, 1);
+  assert.equal(handoff.supportingReferences[0].entryId, btEntry.entryId);
+  assert.equal(handoff.supportingReferences[0].sourceCategory, "target_progress");
   assert.ok(sentenceCount(handoff.overview) <= 4);
 });
 
@@ -423,6 +426,116 @@ test("empty current day explains that the live handoff will update after complet
   assert.equal(handoff.supportingReferences.length, 0);
 });
 
+test("live handoff includes meaningful in-progress documentation as provisional", () => {
+  const inProgressEntry = entry({
+    entryId: "entry-live-transition",
+    sessionObservation:
+      "The client transitioned with physical support and then engaged happily.",
+  });
+  const transition = event({
+    id: "event-live-transition",
+    entryId: inProgressEntry.entryId,
+    category: "abc_observation",
+    eventType: "abc_observation_documented",
+    title: "Transition response",
+    summary:
+      "The client transitioned with physical support and then engaged happily.",
+    significance: "important",
+    tags: ["abc", "transition", "engagement"],
+  });
+
+  const handoff = generateClientDailyHandoff(
+    dayContext({
+      completedEntries: [],
+      inProgressEntries: [{ ...inProgressEntry, status: "IN_PROGRESS" }],
+      clinicalEvents: [transition],
+    })
+  );
+
+  assert.equal(handoff.completedEntryCount, 0);
+  assert.equal(handoff.inProgressEntryCount, 1);
+  assert.match(handoff.overview, /Live documentation is still in progress/);
+  assert.match(handoff.overview, /engaged happily/);
+  assert.equal(handoff.hasMeaningfulEvents, true);
+  assertTraceable(handoff);
+});
+
+test("live handoff omits medication and balances a transition challenge with a positive response", () => {
+  const caregiverEntry = entry({
+    entryId: "entry-live-caregiver",
+    providerRole: "Caregiver",
+    completedAt: morning,
+  });
+  const btEntry = entry({
+    entryId: "entry-live-bt",
+    providerRole: "BehaviorTherapist",
+    completedAt: therapy,
+    sessionObservation:
+      "After the supported transition, the client was happy and engaged and used expressive language.",
+  });
+  const medication = event({
+    id: "event-live-medication",
+    entryId: caregiverEntry.entryId,
+    providerRole: "Caregiver",
+    category: "caregiver_context",
+    eventType: "caregiver_medication_context",
+    title: "Medication",
+    summary: "The caregiver reported that prescribed medication was given.",
+    details: { key: "medication", label: "Medication", value: "Given" },
+    significance: "important",
+  });
+  const abc = event({
+    id: "event-live-abc",
+    entryId: btEntry.entryId,
+    category: "abc_observation",
+    eventType: "abc_observation_documented",
+    title: "A-B-C Observation",
+    summary: "The client resisted the transition.",
+    details: {
+      antecedent: "The client was dropped off at the front of the school",
+      behavior: "Client dropped to the floor and resisted the transition",
+      consequence: "The provider supported the transition",
+    },
+    significance: "important",
+  });
+  const positiveResponse = event({
+    id: "event-live-positive-response",
+    entryId: btEntry.entryId,
+    category: "provider_observation",
+    eventType: "positive_response_observed",
+    title: "Positive response observed",
+    summary:
+      "Behavior therapy observed positive engagement and expressive language following the documented support.",
+    details: {
+      positiveEngagement: true,
+      expressiveCommunication: true,
+      transitionContext: true,
+    },
+    significance: "important",
+  });
+
+  const handoff = generateClientDailyHandoff(
+    dayContext({
+      completedEntries: [],
+      inProgressEntries: [
+        { ...caregiverEntry, status: "IN_PROGRESS" },
+        { ...btEntry, status: "IN_PROGRESS" },
+      ],
+      clinicalEvents: [medication, abc, positiveResponse],
+    })
+  );
+
+  assert.doesNotMatch(handoff.overview, /medication/i);
+  assert.doesNotMatch(
+    JSON.stringify(handoff.supportingReferences),
+    /medication/i
+  );
+  assert.match(handoff.overview, /resisted the transition during school arrival/i);
+  assert.doesNotMatch(handoff.overview, /dropped to the floor/i);
+  assert.match(handoff.overview, /positive engagement and expressive language/i);
+  assert.match(handoff.overview, /following the documented support/i);
+});
+
 test("safety attention becomes the highest level and remains traceable", () => {
   const btEntry = entry({ entryId: "entry-bt", providerRole: "BehaviorTherapist" });
   const safety = event({
@@ -456,5 +569,149 @@ test("safety attention becomes the highest level and remains traceable", () => {
   assert.equal(handoff.highestAttentionLevel, "high");
   assert.equal(handoff.keyEvents[0].title, "Safety-related A-B-C observation");
   assert.equal(handoff.currentConsiderations[0].title, "Safety-related A-B-C observation");
+  assertTraceable(handoff);
+});
+
+test("complex interdisciplinary day becomes a natural three-sentence briefing", () => {
+  const caregiverEntry = entry({
+    entryId: "entry-caregiver-complex",
+    providerRole: "Caregiver",
+    providerName: "Mona Av",
+    completedAt: morning,
+  });
+  const btEntry = entry({
+    entryId: "entry-bt-complex",
+    providerRole: "BehaviorTherapist",
+    providerName: "tina b",
+    completedAt: therapy,
+  });
+  const slpEntry = entry({
+    entryId: "entry-slp-complex",
+    providerRole: "SpeechPathologist",
+    completedAt: afternoon,
+  });
+  const otEntry = entry({
+    entryId: "entry-ot-complex",
+    providerRole: "OccupationalTherapist",
+    completedAt: afternoon,
+  });
+  const sleep = event({
+    id: "event-complex-sleep",
+    entryId: caregiverEntry.entryId,
+    providerRole: "Caregiver",
+    providerName: "Mona Av",
+    occurredAt: morning,
+    category: "caregiver_context",
+    eventType: "caregiver_sleep_context",
+    title: "Sleep",
+    summary: "Mona Av reported sleep: Woke early.",
+    details: { key: "sleep", label: "Sleep", value: "Woke early" },
+    significance: "important",
+  });
+  const breakfast = event({
+    id: "event-complex-breakfast",
+    entryId: caregiverEntry.entryId,
+    providerRole: "Caregiver",
+    providerName: "Mona Av",
+    occurredAt: morning,
+    category: "caregiver_context",
+    eventType: "caregiver_breakfast_context",
+    title: "Breakfast",
+    summary: "Mona Av reported breakfast: Skipped.",
+    details: { key: "breakfast", label: "Breakfast", value: "Skipped" },
+    significance: "important",
+  });
+  const abc = event({
+    id: "event-complex-abc",
+    entryId: btEntry.entryId,
+    providerRole: "BehaviorTherapist",
+    providerName: "tina b",
+    occurredAt: therapy,
+    category: "abc_observation",
+    eventType: "abc_observation_documented",
+    title: "A-B-C Observation",
+    summary: "tina b documented a classroom transition concern.",
+    details: {
+      antecedent: "Waiting for the teacher before the classroom unpacking routine",
+      behavior: "Client collapsed to the floor and refused to enter",
+      consequence: "Manding was prompted and reinforced before returning to the routine",
+    },
+    significance: "important",
+  });
+  const support = event({
+    id: "event-complex-support",
+    entryId: btEntry.entryId,
+    providerRole: "BehaviorTherapist",
+    providerName: "tina b",
+    occurredAt: therapy,
+    category: "target_progress",
+    eventType: "behavior_therapy_target_progress",
+    title: "Following Classroom Routine",
+    summary: "tina b documented full physical prompting for the classroom routine.",
+    target: {
+      target: "Following Classroom Routine",
+      goal: "Follow the classroom unpacking routine",
+      measurementProfile: "PromptLevel",
+    },
+    measurement: { score: 1, direction: "higher_is_better" },
+  });
+  const communication = event({
+    id: "event-complex-communication",
+    entryId: slpEntry.entryId,
+    providerRole: "SpeechPathologist",
+    occurredAt: afternoon,
+    category: "communication_observation",
+    eventType: "communication_observation_documented",
+    title: "Expressive Language Observation",
+    summary: "Expressive language targets are being established.",
+    significance: "important",
+  });
+  const grossMotor = event({
+    id: "event-complex-gross-motor",
+    entryId: otEntry.entryId,
+    providerRole: "OccupationalTherapist",
+    occurredAt: afternoon,
+    category: "sensory_observation",
+    eventType: "sensory_observation_documented",
+    title: "Gross Motor Observation",
+    summary: "Step-to gait needs continued observation on playground equipment.",
+    significance: "important",
+  });
+
+  const handoff = generateClientDailyHandoff(
+    dayContext({
+      completedEntries: [caregiverEntry, btEntry, slpEntry, otEntry],
+      clinicalEvents: [sleep, breakfast, abc, support, communication, grossMotor],
+      attentionEvents: [
+        attention({
+          id: "attention-complex-abc",
+          clinicalEvent: abc,
+          attentionType: "behavior_change",
+          title: "Transition concern",
+        }),
+        attention({
+          id: "attention-complex-gross-motor",
+          clinicalEvent: grossMotor,
+          attentionType: "sensory_update",
+          title: "Gross motor observation",
+        }),
+      ],
+    })
+  );
+
+  assert.match(handoff.overview, /^The caregiver reported that the client woke early/);
+  assert.match(handoff.overview, /skipped breakfast/);
+  assert.match(handoff.overview, /Behavior therapy observed/);
+  assert.match(handoff.overview, /functional communication prompted and reinforced/);
+  assert.match(handoff.overview, /full support required/);
+  assert.match(handoff.overview, /Speech and occupational therapy/);
+  assert.doesNotMatch(handoff.overview, /Mona Av|tina b|documented|;/i);
+  assert.ok(sentenceCount(handoff.overview) <= 3);
+  assert.equal(
+    handoff.supportingReferences.some(
+      (reference) => reference.sourceCategory === "attention_event"
+    ),
+    false
+  );
   assertTraceable(handoff);
 });

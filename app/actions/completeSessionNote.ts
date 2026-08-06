@@ -1,6 +1,7 @@
 "use server";
 
 import { generateClinicalHandoffValidation } from "@/app/api/aiGateway";
+import { ensureEntryRevision } from "@/app/libs/entryRevision";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { EntryVisibility } from "@prisma/client";
@@ -50,36 +51,48 @@ export async function completeSessionNote(formData: FormData) {
   }
 
   const completedAt = new Date();
-  await db.entry.updateMany({
-    where: {
-      id: {
-        in: entries.map((entry) => entry.id),
-      },
-    },
-    data: {
-      status: "COMPLETED",
-      completedAt,
-    },
+  const revisedEntryIds = await db.$transaction(async (tx) => {
+    const revisedIds: string[] = [];
+
+    for (const entry of entries) {
+      await tx.entry.update({
+        where: { id: entry.id },
+        data: {
+          status: "COMPLETED",
+          completedAt,
+        },
+      });
+
+      const revision = await ensureEntryRevision(
+        tx,
+        entry.id,
+        session.providerId,
+        completedAt
+      );
+      if (revision.created) {
+        revisedIds.push(entry.id);
+      }
+    }
+
+    return revisedIds;
   });
 
   const providerIds = await getAssignedProviderIds(clientId);
   await Promise.all(
     entries.map(async (entry) => {
-      const { legacyReflection } = await generateClinicalHandoffValidation(entry.id);
-      await Promise.all([
-        db.entry.update({
-          where: { id: entry.id },
-          data: { clinicalReflection: legacyReflection },
-        }),
-        resetEntryReads(entry.id, providerIds, entry.visibility),
-      ]);
+      // Validate normalized clinical output when the provider finalizes the note.
+      // The provider note remains the source of truth; no generated prose is stored on it.
+      await generateClinicalHandoffValidation(entry.id);
+      if (revisedEntryIds.includes(entry.id)) {
+        await resetEntryReads(entry.id, providerIds, entry.visibility);
+      }
     })
   );
 
   revalidatePath("/dashboard");
   return {
     ok: true as const,
-    completedEntryIds: entries.map((entry) => entry.id),
+    completedEntryIds: revisedEntryIds,
   };
 }
 

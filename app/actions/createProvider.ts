@@ -18,8 +18,7 @@ export async function createProvider(formData: FormData): Promise<void> {
   const parsed = createProviderSchema.safeParse(raw);
 
   if (!parsed.success) {
-    console.error(parsed.error.flatten());
-    return;
+    redirect("/create-account?error=invalid");
   }
 
   const { password, firstName, lastName, role } = parsed.data;
@@ -38,37 +37,11 @@ export async function createProvider(formData: FormData): Promise<void> {
     },
   });
 
-  const passwordHash = await bcrypt.hash(password, 12);
-
-  if (existing?.passwordHash) {
-    redirect("/create-account?error=email-exists");
-    return;
-  }
-
   if (existing) {
-    const provider = await db.provider.update({
-      where: { id: existing.id },
-      data: {
-        passwordHash,
-        firstName,
-        lastName,
-        role,
-        providerRole: role,
-        authType: "email",
-      },
-      select: {
-        id: true,
-        role: true,
-      },
-    });
-
-    await setSession({
-      providerId: provider.id,
-      role: provider.role,
-    });
-
-    redirect("/dashboard");
+    redirect("/create-account?error=email-exists");
   }
+
+  const passwordHash = await bcrypt.hash(password, 12);
 
   const provider = await db.provider.create({
     data: {

@@ -15,6 +15,7 @@ import {
   type NoteEntryKind,
 } from "@/app/libs/entryKinds";
 import { db } from "@/lib/db";
+import { clientDisplayCode } from "@/app/libs/clientIdentity";
 
 export type EntryFormItem = {
   goalId: string;
@@ -32,6 +33,7 @@ export type EntryFormItem = {
     | "";
   rawValue: string;
   supportLevel: string;
+  observation: string;
   measurementProfile?: string | null;
 };
 
@@ -136,6 +138,7 @@ export async function loadNoteFormData({
             domain: true,
             rawValue: true,
             supportLevel: true,
+            observation: true,
             goalDefinition: {
               select: {
                 measurementProfile: true,
@@ -195,7 +198,7 @@ export async function loadNoteFormData({
       clientId,
       role: provider.role,
       providerId,
-      clientName: `${client.firstName} ${client.lastName}`,
+      clientName: clientDisplayCode(client.firstName, client.lastName),
       providerName: `${provider.firstName} ${provider.lastName}`,
       providerRole: contextKindLabel(contextKind),
       targetOptions: [],
@@ -258,6 +261,7 @@ export async function loadNoteFormData({
       domain: goalDefinition.domain ?? "",
       rawValue: savedItem?.rawValue ?? "",
       supportLevel: savedItem?.supportLevel ?? "",
+      observation: savedItem?.observation ?? "",
       measurementProfile:
         goalDefinition.measurementProfile ??
         savedItem?.measurementProfile ??
@@ -322,6 +326,7 @@ export async function loadNoteFormData({
     domain: item.domain ?? "",
     rawValue: "",
     supportLevel: "",
+    observation: "",
     measurementProfile: educatorMeasurementProfileForTarget(item.target, item.metricType),
   } satisfies EntryFormItem));
   const templateItems =
@@ -348,7 +353,7 @@ export async function loadNoteFormData({
     clientId,
     role: provider.role,
     providerId,
-    clientName: `${client.firstName} ${client.lastName}`,
+    clientName: clientDisplayCode(client.firstName, client.lastName),
     providerName: `${provider.firstName} ${provider.lastName}`,
     providerRole: isSupervisorDocumentation
       ? noteEntryKindLabel(noteKind)
@@ -516,6 +521,7 @@ function templateItemsForRole(role: string): EntryFormItem[] {
     domain: item.domain,
     rawValue: "",
     supportLevel: "",
+    observation: "",
     measurementProfile: null,
   }));
 }
@@ -536,6 +542,7 @@ function formatEntryItemForForm(item: {
     | null;
   rawValue: number | null;
   supportLevel: number | null;
+  observation: string | null;
   goalDefinition?: {
     measurementProfile: string | null;
   } | null;
@@ -554,6 +561,7 @@ function formatEntryItemForForm(item: {
           ? formatPercentageForInput(item)
           : item.rawValue?.toString() ?? "",
     supportLevel: item.supportLevel?.toString() ?? "",
+    observation: item.observation ?? "",
     measurementProfile:
       item.goalDefinition?.measurementProfile ??
       educatorMeasurementProfileForTarget(item.target, item.metricType),

@@ -143,6 +143,11 @@ export function targetProgressEvent(
       unit: measurementUnit(item),
       direction: "descriptive",
     },
+    details: item.observation?.trim()
+      ? {
+          observation: item.observation.trim(),
+        }
+      : undefined,
     significance: options.significance ?? "routine",
     tags: options.tags,
   };

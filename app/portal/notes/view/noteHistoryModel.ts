@@ -52,6 +52,9 @@ export function groupCaretakerEntriesByDay(entries: NoteHistoryEntry[]) {
     const completedAt = latestTimestamp(
       caretakerContextSections.map((section) => section.completedAt)
     );
+    const revisions = dailyEntries
+      .flatMap((candidate) => candidate.revisions ?? [])
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 
     return [
       {
@@ -63,6 +66,7 @@ export function groupCaretakerEntriesByDay(entries: NoteHistoryEntry[]) {
           : "IN_PROGRESS",
         completedAt,
         caretakerContextSections,
+        revisions,
       },
     ];
   });

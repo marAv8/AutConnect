@@ -76,6 +76,8 @@ const fixtures = {
     kind: "SessionNote",
     providerId: "provider-bt",
     provider: provider("provider-bt", "BehaviorTherapist", "Behavior", "Tech"),
+    note:
+      "After the supported transition, the client was happy and engaged and stated, “I am happy.”",
     items: [
       {
         id: "item-bt",
@@ -193,16 +195,42 @@ test("educator documentation produces target progress clinical events", () => {
   events.forEach(assertValidEvent);
 });
 
-test("behavior therapist documentation produces target progress and ABC clinical events", () => {
+test("behavior therapist documentation preserves a positive response from the provider note", () => {
   const events = normalizeEntry(fixtures.behaviorTherapist);
-  assert.equal(events.length, 2);
+  assert.equal(events.length, 3);
   assert.deepEqual(
     events.map((event) => event.category),
-    ["target_progress", "abc_observation"]
+    ["target_progress", "abc_observation", "provider_observation"]
   );
   assert.equal(events[1].details.behavior, "Verbal aggression");
   assert.equal(events[1].significance, "important");
+  assert.equal(events[2].eventType, "positive_response_observed");
+  assert.match(events[2].summary, /positive engagement and expressive language/);
   events.forEach(assertValidEvent);
+});
+
+test("behavior therapist target observation can produce the positive response signal", () => {
+  const entry = {
+    ...fixtures.behaviorTherapist,
+    id: "entry-bt-target-observation",
+    note: "",
+    items: fixtures.behaviorTherapist.items.map((item) => ({
+      ...item,
+      observation:
+        "After transition support, the client was calm and stated that she was happy.",
+    })),
+  };
+
+  const events = normalizeEntry(entry);
+  const positiveResponse = events.find(
+    (event) => event.eventType === "positive_response_observed"
+  );
+
+  assert.ok(positiveResponse);
+  assert.match(
+    positiveResponse.summary,
+    /positive engagement and expressive language/
+  );
 });
 
 test("speech documentation preserves communication observation meaning", () => {
@@ -242,7 +270,7 @@ test("normalization pipeline combines entries and team focus", () => {
     entries: Object.values(fixtures),
     teamFocusItems: [teamFocus],
   });
-  assert.equal(events.length, 10);
+  assert.equal(events.length, 11);
   assert.ok(events.every((event) => event.clientId === clientId));
   events.forEach(assertValidEvent);
 });

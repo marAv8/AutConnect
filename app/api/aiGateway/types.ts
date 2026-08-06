@@ -84,11 +84,15 @@ export type ClientDayEntryRef = {
   providerName: string;
   providerRole: string;
   kind: string;
+  status?: string;
   visibility: string;
   sessionObservation?: string | null;
   clinicalDate: string;
   occurredAt: string;
   completedAt: string;
+  revisionNumber?: number;
+  revisedAt?: string;
+  revisionChangeLabels?: string[];
 };
 
 export type ClientDaySourceCategory =
@@ -123,6 +127,9 @@ export type ClientDaySourceItem = {
   clinicalEventIds: string[];
   attentionEventIds?: string[];
   directiveIds?: string[];
+  revisionNumber?: number;
+  revisedAt?: string;
+  revisionChangeLabels?: string[];
 };
 
 export type ClientDaySourceReference = {
@@ -142,6 +149,9 @@ export type ClientDaySourceReference = {
   clinicalEventIds: string[];
   attentionEventIds?: string[];
   directiveIds?: string[];
+  revisionNumber?: number;
+  revisedAt?: string;
+  revisionChangeLabels?: string[];
 };
 
 export type ClientDayContext = {
@@ -149,6 +159,7 @@ export type ClientDayContext = {
   date: string;
   status: ClientDayStatus;
   completedEntries: ClientDayEntryRef[];
+  inProgressEntries?: ClientDayEntryRef[];
   clinicalEvents: ClinicalEvent[];
   attentionEvents: AttentionEvent[];
   caregiverContext: ClientDaySourceItem[];
@@ -161,6 +172,7 @@ export type ClientDayContext = {
   meaningfulEventCount: number;
   routineEventCount: number;
   completedEntryCount: number;
+  inProgressEntryCount?: number;
   contributingProviderRoles: string[];
   generatedAt: string;
   lastUpdatedAt: string;
@@ -171,6 +183,7 @@ export type ClientDayContextInput = {
   date: string;
   status: ClientDayStatus;
   completedEntries: ClientDayEntryRef[];
+  inProgressEntries?: ClientDayEntryRef[];
   clinicalEvents: ClinicalEvent[];
   attentionEvents: AttentionEvent[];
   supervisorDirectives: SupervisorDirective[];
@@ -207,6 +220,7 @@ export type ClientDailyHandoff = {
   highestAttentionLevel: AttentionLevel | null;
   hasMeaningfulEvents: boolean;
   completedEntryCount: number;
+  inProgressEntryCount?: number;
   contributingProviderRoles: string[];
   generatedAt: string;
   lastUpdatedAt: string;

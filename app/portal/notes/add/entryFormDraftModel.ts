@@ -39,7 +39,7 @@ export type DocumentationDraftData = {
   draftObservationNote: string;
   activeIndex: number;
   visibility: "Private" | "Shared";
-  educatorView: "list" | "target" | "reflection";
+  educatorView: "list" | "target" | "observation" | "reflection";
   selectedEducatorTargetIndex: number;
   targetDraft: {
     target: string;
@@ -99,7 +99,9 @@ export function normalizeDocumentationDraft(value: unknown): DocumentationDraftD
     activeIndex: nonNegativeInteger(data.activeIndex),
     visibility: data.visibility === "Shared" ? "Shared" : "Private",
     educatorView:
-      data.educatorView === "target" || data.educatorView === "reflection"
+      data.educatorView === "target" ||
+      data.educatorView === "observation" ||
+      data.educatorView === "reflection"
         ? data.educatorView
         : "list",
     selectedEducatorTargetIndex: nonNegativeInteger(data.selectedEducatorTargetIndex),
@@ -108,6 +110,44 @@ export function normalizeDocumentationDraft(value: unknown): DocumentationDraftD
     isEditingEducatorTarget: booleanField(data.isEditingEducatorTarget),
     educatorResponses: normalizeEducatorResponses(data.educatorResponses),
   };
+}
+
+/**
+ * Drafts preserve in-progress responses, but the database remains authoritative
+ * for which targets are currently active and for their editable definitions.
+ */
+export function reconcileTargetProgressDraftItems(
+  activeItems: EntryItemDraft[],
+  draftItems: EntryItemDraft[]
+): EntryItemDraft[] {
+  const draftByTarget = new Map(
+    draftItems.map((item) => [targetDraftIdentity(item), item])
+  );
+
+  return activeItems.map((activeItem) => {
+    const draftItem = draftByTarget.get(targetDraftIdentity(activeItem));
+    if (!draftItem) {
+      return activeItem;
+    }
+
+    const sameMeasurement =
+      (activeItem.measurementProfile ?? "") ===
+        (draftItem.measurementProfile ?? "") &&
+      activeItem.metricType === draftItem.metricType;
+
+    return {
+      ...activeItem,
+      score: sameMeasurement ? draftItem.score : activeItem.score,
+      rawValue: sameMeasurement ? draftItem.rawValue : activeItem.rawValue,
+      supportLevel: sameMeasurement
+        ? draftItem.supportLevel
+        : activeItem.supportLevel,
+      observation: draftItem.observation ?? activeItem.observation,
+      measurementType: sameMeasurement
+        ? draftItem.measurementType ?? activeItem.measurementType
+        : activeItem.measurementType,
+    };
+  });
 }
 
 export function isMeaningfulDocumentationDraft(data: DocumentationDraftData) {
@@ -159,6 +199,13 @@ function stringField(value: unknown) {
   return typeof value === "string" ? value : "";
 }
 
+function targetDraftIdentity(item: EntryItemDraft) {
+  const goalId = item.goalId.trim();
+  return goalId
+    ? `goal:${goalId}`
+    : `legacy:${item.target.trim()}\u0000${item.goal.trim()}`;
+}
+
 function booleanField(value: unknown) {
   return typeof value === "boolean" ? value : false;
 }
@@ -196,6 +243,7 @@ function normalizeDraftItem(value: unknown): EntryItemDraft | null {
     score: stringField(item.score),
     rawValue: stringField(item.rawValue),
     supportLevel: stringField(item.supportLevel),
+    observation: stringField(item.observation),
     measurementType: stringField(item.measurementType) || undefined,
     measurementProfile: stringField(item.measurementProfile) || null,
     isNewDraft: typeof item.isNewDraft === "boolean" ? item.isNewDraft : undefined,

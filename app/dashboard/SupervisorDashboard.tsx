@@ -11,7 +11,7 @@ import {
   addSupervisorClient,
   removeSupervisorClient,
 } from "@/app/actions/manageSupervisorClients";
-import SupervisorWorkspaceLayout from "./SupervisorWorkspaceLayout";
+import DashboardWorkspaceLayout from "./DashboardWorkspaceLayout";
 import GridClientView from "./GridClientView";
 import OrbitView from "./OrbitView";
 import AddClientView from "./AddClientView";
@@ -19,11 +19,17 @@ import RemoveClientView from "./RemoveClientView";
 import FirstClientEmptyState from "./FirstClientEmptyState";
 import InsightsOverlay from "./InsightsOverlay";
 import SupervisorDashboardMenu from "./SupervisorDashboardMenu";
+import CaseSupportRequestNotice from "./CaseSupportRequestNotice";
 import type { DashboardClient } from "./dashboardClientTypes";
 import {
   markDashboardProviderEntriesRead,
   projectDashboardEntrySaved,
 } from "./clientCarouselModel";
+import {
+  dashboardClientInitials,
+  dashboardClientPalette,
+} from "./clientGridAppearance";
+import DashboardProductGuide from "./DashboardProductGuide";
 
 type AvailableClient = {
   id: string;
@@ -35,29 +41,38 @@ type Props = {
   assignedClients: DashboardClient[];
   availableClients: AvailableClient[];
   currentProviderId: string;
+  caseSupportRequests?: Array<{
+    id: string;
+    status: string;
+    createdAt: Date | string;
+    client: {
+      firstName: string;
+      lastName: string;
+    };
+    requester: {
+      firstName: string;
+      lastName: string;
+      role: string;
+    };
+  }>;
   initialClientId?: string;
   forceOrbitView?: boolean;
 };
 
 type Mode = "grid" | "orbit" | "remove" | "add";
+type PendingClientAction = {
+  type: "add" | "remove";
+  clientId: string;
+  name: string;
+};
 
-const palette = [
-  "#e1e1e1",
-  "#ededed",
-  "#d9d9d9",
-  "#f4f4f4",
-  "#e6e6e6",
-  "#eeeeee",
-  "#d5d5d5",
-];
-
-const initialsOf = (firstName: string, lastName: string) =>
-  `${firstName.slice(0, 2)}${lastName.slice(0, 2)}`;
+const DASHBOARD_HISTORY_KEY = "autConnectDashboardLayer";
 
 export default function SupervisorDashboard({
   assignedClients,
   availableClients,
   currentProviderId,
+  caseSupportRequests = [],
   initialClientId,
   forceOrbitView = false,
 }: Props) {
@@ -78,7 +93,27 @@ export default function SupervisorDashboard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [busyClientId, setBusyClientId] = useState<string | null>(null);
   const [insightsOpen, setInsightsOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [recentlyAddedClientId, setRecentlyAddedClientId] = useState<string | null>(null);
+  const [pendingClientAction, setPendingClientAction] =
+    useState<PendingClientAction | null>(null);
+  const [clientActionError, setClientActionError] = useState("");
+  const historyInitializedRef = useRef(false);
+  const initialHistoryLayerRef = useRef({
+    canOpenOrbit,
+    initialClientId,
+    firstAssignedClientId: assignedClients[0]?.id,
+  });
+  const closeDashboardMenu = useCallback(() => {
+    const layer = window.history.state?.[DASHBOARD_HISTORY_KEY] as
+      | { menuOpen?: boolean }
+      | undefined;
+    if (layer?.menuOpen) {
+      window.history.back();
+      return;
+    }
+    setMenuOpen(false);
+  }, []);
 
   useEffect(() => {
     setAssignedClientState(assignedClients);
@@ -93,13 +128,13 @@ export default function SupervisorDashboard({
 
     const onPointerDown = (event: PointerEvent) => {
       if (!menuRef.current?.contains(event.target as Node)) {
-        setMenuOpen(false);
+        closeDashboardMenu();
       }
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setMenuOpen(false);
+        closeDashboardMenu();
       }
     };
 
@@ -110,7 +145,7 @@ export default function SupervisorDashboard({
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [menuOpen]);
+  }, [closeDashboardMenu, menuOpen]);
 
   useEffect(() => {
     if (!recentlyAddedClientId) return;
@@ -121,6 +156,139 @@ export default function SupervisorDashboard({
 
     return () => window.clearTimeout(timeout);
   }, [recentlyAddedClientId]);
+
+  useEffect(() => {
+    if (historyInitializedRef.current) return;
+    historyInitializedRef.current = true;
+
+    const initialHistory = initialHistoryLayerRef.current;
+    const baseLayer = {
+      mode: "grid" as Mode,
+      activeClientId: initialHistory.firstAssignedClientId,
+      insightsOpen: false,
+      menuOpen: false,
+    };
+    const initialLayer = {
+      mode: initialHistory.canOpenOrbit ? ("orbit" as Mode) : ("grid" as Mode),
+      activeClientId: initialHistory.canOpenOrbit
+        ? initialHistory.initialClientId
+        : initialHistory.firstAssignedClientId,
+      insightsOpen: false,
+      menuOpen: false,
+    };
+
+    window.history.replaceState(
+      {
+        ...window.history.state,
+        [DASHBOARD_HISTORY_KEY]: baseLayer,
+      },
+      ""
+    );
+
+    if (initialHistory.canOpenOrbit) {
+      window.history.pushState(
+        {
+          ...window.history.state,
+          [DASHBOARD_HISTORY_KEY]: initialLayer,
+        },
+        ""
+      );
+    }
+
+    const onPopState = (event: PopStateEvent) => {
+      const layer = event.state?.[DASHBOARD_HISTORY_KEY] as
+        | {
+            mode?: Mode;
+            activeClientId?: string;
+            insightsOpen?: boolean;
+            menuOpen?: boolean;
+          }
+        | undefined;
+      if (!layer?.mode) return;
+
+      setMode(layer.mode);
+      setActiveClientId(layer.activeClientId);
+      setInsightsOpen(Boolean(layer.insightsOpen));
+      setMenuOpen(Boolean(layer.menuOpen));
+      setPendingClientAction(null);
+      setClientActionError("");
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  const pushDashboardLayer = useCallback(
+    (next: {
+      mode: Mode;
+      activeClientId?: string;
+      insightsOpen?: boolean;
+      menuOpen?: boolean;
+    }) => {
+      window.history.pushState(
+        {
+          ...window.history.state,
+          [DASHBOARD_HISTORY_KEY]: {
+            mode: next.mode,
+            activeClientId: next.activeClientId,
+            insightsOpen: Boolean(next.insightsOpen),
+            menuOpen: Boolean(next.menuOpen),
+          },
+        },
+        ""
+      );
+      setMode(next.mode);
+      setActiveClientId(next.activeClientId);
+      setInsightsOpen(Boolean(next.insightsOpen));
+      setMenuOpen(Boolean(next.menuOpen));
+      setPendingClientAction(null);
+      setClientActionError("");
+    },
+    []
+  );
+
+  const replaceDashboardLayer = useCallback(
+    (next: {
+      mode: Mode;
+      activeClientId?: string;
+      insightsOpen?: boolean;
+      menuOpen?: boolean;
+    }) => {
+      window.history.replaceState(
+        {
+          ...window.history.state,
+          [DASHBOARD_HISTORY_KEY]: {
+            mode: next.mode,
+            activeClientId: next.activeClientId,
+            insightsOpen: Boolean(next.insightsOpen),
+            menuOpen: Boolean(next.menuOpen),
+          },
+        },
+        ""
+      );
+      setMode(next.mode);
+      setActiveClientId(next.activeClientId);
+      setInsightsOpen(Boolean(next.insightsOpen));
+      setMenuOpen(Boolean(next.menuOpen));
+      setPendingClientAction(null);
+      setClientActionError("");
+    },
+    []
+  );
+
+  const returnOneDashboardLayer = useCallback(() => {
+    const layer = window.history.state?.[DASHBOARD_HISTORY_KEY] as
+      | { mode?: Mode; insightsOpen?: boolean }
+      | undefined;
+    if (layer && (layer.mode !== "grid" || layer.insightsOpen)) {
+      window.history.back();
+      return;
+    }
+
+    setMode("grid");
+    setInsightsOpen(false);
+    setMenuOpen(false);
+  }, []);
 
   const visibleAddClients = useMemo(
     () =>
@@ -140,15 +308,14 @@ export default function SupervisorDashboard({
     [assignedClientState, availableClientState]
   );
 
-  const onRemoveClient = async (clientId: string, name: string) => {
-    const ok = window.confirm(
-      `Remove ${name} from your dashboard? This only detaches your supervisor assignment.`
-    );
-    if (!ok) return;
-
+  const onRemoveClient = async (clientId: string) => {
     setBusyClientId(clientId);
+    setClientActionError("");
     try {
-      await removeSupervisorClient(clientId);
+      const result = await removeSupervisorClient(clientId);
+      if (!result.ok) {
+        throw new Error("The client could not be removed.");
+      }
       const removedClient = assignedClientState.find((client) => client.id === clientId);
       setAssignedClientState((previous) =>
         previous.filter((client) => client.id !== clientId)
@@ -172,19 +339,24 @@ export default function SupervisorDashboard({
         const nextClient = assignedClientState.find((client) => client.id !== clientId);
         setActiveClientId(nextClient?.id);
       }
-      setMode("grid");
+      returnOneDashboardLayer();
+    } catch (error) {
+      setClientActionError(
+        error instanceof Error ? error.message : "The client could not be removed."
+      );
     } finally {
       setBusyClientId(null);
     }
   };
 
-  const onAddClient = async (clientId: string, name: string) => {
-    const ok = window.confirm(`Add ${name} to your dashboard?`);
-    if (!ok) return;
-
+  const onAddClient = async (clientId: string) => {
     setBusyClientId(clientId);
+    setClientActionError("");
     try {
-      await addSupervisorClient(clientId);
+      const result = await addSupervisorClient(clientId);
+      if (!result.ok) {
+        throw new Error("The client could not be linked.");
+      }
       const addedClient = availableClientState.find((client) => client.id === clientId);
       if (addedClient) {
         setAssignedClientState((previous) => [
@@ -203,10 +375,26 @@ export default function SupervisorDashboard({
         );
         setRecentlyAddedClientId(clientId);
       }
-      setMode("grid");
+      returnOneDashboardLayer();
+    } catch (error) {
+      setClientActionError(
+        error instanceof Error ? error.message : "The client could not be linked."
+      );
     } finally {
       setBusyClientId(null);
     }
+  };
+
+  const confirmPendingClientAction = async () => {
+    const action = pendingClientAction;
+    if (!action || busyClientId) return;
+
+    setPendingClientAction(null);
+    if (action.type === "add") {
+      await onAddClient(action.clientId);
+      return;
+    }
+    await onRemoveClient(action.clientId);
   };
 
   const handleActiveClientChange = useCallback(
@@ -214,6 +402,22 @@ export default function SupervisorDashboard({
       if (clientId !== activeClientId) {
         setInsightsOpen(false);
         setActiveClientId(clientId);
+        const layer = window.history.state?.[DASHBOARD_HISTORY_KEY] as
+          | { mode?: Mode; insightsOpen?: boolean }
+          | undefined;
+        if (layer?.mode === "orbit") {
+          window.history.replaceState(
+            {
+              ...window.history.state,
+              [DASHBOARD_HISTORY_KEY]: {
+                ...layer,
+                activeClientId: clientId,
+                insightsOpen: false,
+              },
+            },
+            ""
+          );
+        }
       }
     },
     [activeClientId]
@@ -227,6 +431,16 @@ export default function SupervisorDashboard({
     },
     []
   );
+
+  const handleClientSignalRead = useCallback((clientId: string) => {
+    setAssignedClientState((currentClients) =>
+      currentClients.map((client) =>
+        client.id === clientId && client.signal
+          ? { ...client, signal: { ...client.signal, isUnread: false } }
+          : client
+      )
+    );
+  }, []);
 
   const handleEntrySaved = useCallback(
     (
@@ -258,8 +472,7 @@ export default function SupervisorDashboard({
         type="button"
         className="back-link"
         onClick={() => {
-          setInsightsOpen(false);
-          setMode("grid");
+          returnOneDashboardLayer();
         }}
         style={{
           border: "none",
@@ -279,8 +492,7 @@ export default function SupervisorDashboard({
         className="back-link"
         onClick={() => {
           if (mode === "grid") return;
-          setInsightsOpen(false);
-          setMode("grid");
+          returnOneDashboardLayer();
         }}
         style={{
           border: "none",
@@ -311,6 +523,7 @@ export default function SupervisorDashboard({
           activeClientId={activeClientId}
           onActiveClientChange={handleActiveClientChange}
           onEntryRead={handleEntryRead}
+          onClientSignalRead={handleClientSignalRead}
           onEntrySaved={handleEntrySaved}
           onTeamFocusSaved={(clientId, teamFocus) => {
             setAssignedClientState((currentClients) =>
@@ -329,45 +542,53 @@ export default function SupervisorDashboard({
           <InsightsOverlay
             clientId={activeClient.id}
             isOpen={insightsOpen}
-            onClose={() => setInsightsOpen(false)}
+            hasCaseSupportAccess={activeClient.hasCaseSupportAccess}
+            onClose={returnOneDashboardLayer}
           />
         ) : null}
       </div>
     ) : mode === "grid" ? (
       <GridClientView
         clients={assignedClientState}
-        palette={palette}
-        initialsOf={initialsOf}
+        palette={dashboardClientPalette}
+        initialsOf={dashboardClientInitials}
         animatedClientId={recentlyAddedClientId ?? undefined}
         onClientClick={(clientId) => {
-          setInsightsOpen(false);
-          setActiveClientId(clientId);
-          setMode("orbit");
+          pushDashboardLayer({
+            mode: "orbit",
+            activeClientId: clientId,
+          });
         }}
       />
     ) : mode === "remove" ? (
       <RemoveClientView
         clients={assignedClientState}
-        palette={palette}
-        initialsOf={initialsOf}
+        palette={dashboardClientPalette}
+        initialsOf={dashboardClientInitials}
         busyClientId={busyClientId}
         onClientClick={(clientId, name) => {
-          void onRemoveClient(clientId, name);
+          setPendingClientAction({ type: "remove", clientId, name });
         }}
       />
     ) : (
       <AddClientView
         clients={visibleAddClients}
-        palette={palette}
-        initialsOf={initialsOf}
+        palette={dashboardClientPalette}
+        initialsOf={dashboardClientInitials}
         busyClientId={busyClientId}
         onClientClick={(client) => {
           if (client.attached) {
-            setActiveClientId(client.id);
-            setMode("orbit");
+            pushDashboardLayer({
+              mode: "orbit",
+              activeClientId: client.id,
+            });
             return;
           }
-          void onAddClient(client.id, `${client.firstName} ${client.lastName}`);
+          setPendingClientAction({
+            type: "add",
+            clientId: client.id,
+            name: `${client.firstName} ${client.lastName}`,
+          });
         }}
       />
     );
@@ -379,28 +600,181 @@ export default function SupervisorDashboard({
         menuOpen={menuOpen}
         activeClientId={activeClientId}
         menuRef={menuRef}
-        onToggle={() => setMenuOpen((value) => !value)}
-        onClose={() => setMenuOpen(false)}
+        onToggle={() => {
+          if (menuOpen) {
+            closeDashboardMenu();
+            return;
+          }
+          pushDashboardLayer({
+            mode,
+            activeClientId,
+            insightsOpen,
+            menuOpen: true,
+          });
+        }}
+        onClose={() =>
+          replaceDashboardLayer({
+            mode,
+            activeClientId,
+            insightsOpen,
+          })
+        }
         onOpenLinkClient={() => {
-          setMode("add");
-          setMenuOpen(false);
+          replaceDashboardLayer({
+            mode: "add",
+            activeClientId,
+          });
         }}
         onOpenRemoveClient={() => {
-          setMode("remove");
-          setMenuOpen(false);
+          replaceDashboardLayer({
+            mode: "remove",
+            activeClientId,
+          });
         }}
         onOpenInsights={() => {
-          setInsightsOpen(true);
-          setMenuOpen(false);
+          replaceDashboardLayer({
+            mode: "orbit",
+            activeClientId,
+            insightsOpen: true,
+          });
+        }}
+        onOpenGuide={() => {
+          replaceDashboardLayer({
+            mode,
+            activeClientId,
+            insightsOpen,
+          });
+          setGuideOpen(true);
         }}
       />
     ) : null;
 
   return (
-    <SupervisorWorkspaceLayout
-      topNav={topNav}
-      content={content}
-      floatingMenu={floatingMenu}
-    />
+    <>
+      <DashboardWorkspaceLayout
+        topNav={mode === "grid" ? null : topNav}
+        notice={
+          mode === "grid" && caseSupportRequests.length > 0 ? (
+            <CaseSupportRequestNotice requests={caseSupportRequests} />
+          ) : null
+        }
+        content={content}
+        floatingMenu={floatingMenu}
+        onContentPointerDown={(event) => {
+          if (
+            (mode !== "add" && mode !== "remove") ||
+            pendingClientAction ||
+            !(event.target instanceof Element) ||
+            event.target.closest(".client-cavity-tray")
+          ) {
+            return;
+          }
+
+          returnOneDashboardLayer();
+        }}
+      />
+      {pendingClientAction ? (
+        <ClientActionConfirmation
+          action={pendingClientAction}
+          busy={busyClientId === pendingClientAction.clientId}
+          onCancel={() => setPendingClientAction(null)}
+          onConfirm={() => void confirmPendingClientAction()}
+        />
+      ) : null}
+      {guideOpen ? <DashboardProductGuide onClose={() => setGuideOpen(false)} /> : null}
+      {clientActionError ? (
+        <div
+          role="alert"
+          className="paper-surface"
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: "calc(24px + env(safe-area-inset-bottom))",
+            zIndex: 140,
+            transform: "translateX(-50%)",
+            width: "min(calc(100vw - 32px), 420px)",
+            padding: "14px 18px",
+            textAlign: "center",
+          }}
+        >
+          {clientActionError}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function ClientActionConfirmation({
+  action,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  action: PendingClientAction;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const isRemoving = action.type === "remove";
+
+  return (
+    <div
+      role="presentation"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 130,
+        display: "grid",
+        placeItems: "center",
+        padding: 20,
+        background: "rgb(0 0 0 / 22%)",
+        backdropFilter: "blur(3px)",
+        WebkitBackdropFilter: "blur(3px)",
+      }}
+      onClick={onCancel}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="client-action-title"
+        className="paper-surface"
+        style={{
+          width: "min(100%, 420px)",
+          padding: "24px clamp(20px, 6vw, 30px)",
+          display: "grid",
+          justifyItems: "center",
+          gap: 18,
+          textAlign: "center",
+        }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div id="client-action-title" style={{ fontSize: 20, fontWeight: 650 }}>
+          {isRemoving ? "Remove Client" : "Link Client"}
+        </div>
+        <div style={{ lineHeight: 1.5, opacity: 0.72 }}>
+          {isRemoving
+            ? `Remove ${action.name} from your dashboard? The client record will remain available to other assigned providers.`
+            : `Link ${action.name} to your supervisor dashboard?`}
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
+          <button
+            type="button"
+            className="action-secondary"
+            onClick={onCancel}
+            disabled={busy}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={isRemoving ? "action-negative" : "action-positive"}
+            onClick={onConfirm}
+            disabled={busy}
+          >
+            {busy ? "Working..." : isRemoving ? "Remove" : "Link"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

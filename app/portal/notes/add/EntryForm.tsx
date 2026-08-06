@@ -28,13 +28,15 @@ import {
 import { getClinicalHelpContent } from "@/app/libs/clinicalHelp";
 import { ContextualHelp } from "@/components/ContextualHelp";
 import { Button } from "@/components/ui/button";
+import { ChevronControl } from "@/components/ui/ChevronControl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MaterialSelect } from "@/components/ui/MaterialSelect";
 import { Textarea } from "@/components/ui/textarea";
+import { useGuardedSwipe } from "@/components/useGuardedSwipe";
 import {
   createEmptyItem,
   formatDurationForEntryInput,
-  isCompleteMetricInput,
   MetricType,
   normalizeEntryDurationInput,
   type EntryItemDraft,
@@ -79,6 +81,7 @@ import {
   defaultTargetDraftForRole,
   isMeaningfulDocumentationDraft,
   normalizeDocumentationDraft,
+  reconcileTargetProgressDraftItems,
 } from "./entryFormDraftModel";
 import {
   CaretakerContextEntryForm,
@@ -234,10 +237,19 @@ export default function EntryForm({
     activeMeasurementProfiles[0]?.value ?? "Participation";
   const measurementProfileLabel = (profile: { label: string }) => profile.label;
 
+  const serverItems = initialValues?.items ?? [createEmptyItem()];
+  const shouldReconcileTargetDraft =
+    isTargetProgressProvider &&
+    (noteKind === "SessionNote" || noteKind === "SpeechProgress") &&
+    !contextKind &&
+    !isSupervisorNoteMode;
+  const initialItems =
+    restoredDraft && shouldReconcileTargetDraft
+      ? reconcileTargetProgressDraftItems(serverItems, restoredDraft.items)
+      : restoredDraft?.items ?? serverItems;
+
   const [note, setNote] = useState(restoredDraft?.note ?? initialValues?.note ?? "");
-  const [items, setItems] = useState<EntryItemDraft[]>(
-    restoredDraft?.items ?? initialValues?.items ?? [createEmptyItem()]
-  );
+  const [items, setItems] = useState<EntryItemDraft[]>(initialItems);
   const [contextValues, setContextValues] = useState<Record<string, string>>(
     restoredDraft?.contextValues ?? initialValues?.contextValues ?? {}
   );
@@ -278,9 +290,9 @@ export default function EntryForm({
   const [visibility, setVisibility] = useState<"Private" | "Shared">(
     restoredDraft?.visibility ?? initialValues?.visibility ?? "Private"
   );
-  const [educatorView, setEducatorView] = useState<"list" | "target" | "reflection">(
-    restoredDraft?.educatorView ?? "list"
-  );
+  const [educatorView, setEducatorView] = useState<
+    "list" | "target" | "observation" | "reflection"
+  >("list");
   const [selectedEducatorTargetIndex, setSelectedEducatorTargetIndex] = useState(
     restoredDraft?.selectedEducatorTargetIndex ?? 0
   );
@@ -332,7 +344,6 @@ export default function EntryForm({
       }
     >
   >(restoredDraft?.educatorResponses ?? {});
-  const autoAdvanceTimeoutRef = useRef<number | null>(null);
   const newDraftReturnIndexRef = useRef<number | null>(null);
   const draftSaveTimeoutRef = useRef<number | null>(null);
   const lastDraftPayloadRef = useRef("");
@@ -366,15 +377,6 @@ export default function EntryForm({
   const measurementOptionForItem = (item: EntryItemDraft) =>
     (item.measurementType ? measurementOptionByValue.get(item.measurementType) : null) ??
     measurementOptionForMetric(item.metricType);
-
-  const cancelAutoAdvance = () => {
-    if (autoAdvanceTimeoutRef.current === null) {
-      return;
-    }
-
-    window.clearTimeout(autoAdvanceTimeoutRef.current);
-    autoAdvanceTimeoutRef.current = null;
-  };
 
   const buildCurrentDocumentationDraft = () =>
     buildDocumentationDraftData({
@@ -461,9 +463,6 @@ export default function EntryForm({
 
   useEffect(() => {
     return () => {
-      if (autoAdvanceTimeoutRef.current !== null) {
-        window.clearTimeout(autoAdvanceTimeoutRef.current);
-      }
       if (draftSaveTimeoutRef.current !== null) {
         window.clearTimeout(draftSaveTimeoutRef.current);
       }
@@ -613,10 +612,11 @@ export default function EntryForm({
   const supervisorVisibilityControl = isSupervisorVisibilityMode ? (
     <div
       style={{
-        display: "flex",
-        justifyContent: "center",
-        flexWrap: "wrap",
-        gap: 10,
+        display: "grid",
+        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        gap: 6,
+        width: "min(100%, 260px)",
+        margin: "0 auto",
       }}
     >
       {(["Private", "Shared"] as const).map((option) => {
@@ -626,17 +626,26 @@ export default function EntryForm({
             key={option}
             type="button"
             variant="ghost"
+            className="clinical-selection-control visibility-selection-control"
+            aria-pressed={selected}
             disabled={saveStatus === "saving"}
             onClick={() => void requestVisibilityChange(option)}
             style={{
-              minHeight: 40,
-              padding: "9px 14px",
+              width: "100%",
+              minWidth: 0,
+              minHeight: 38,
+              height: "auto",
+              justifyContent: "center",
               borderRadius: 12,
+              whiteSpace: "nowrap",
+              textAlign: "center",
+              lineHeight: 1.2,
+              fontSize: 14,
               background: selected ? "rgb(0 0 0 / 9%)" : "var(--glass-strong)",
               boxShadow: selected ? "var(--inset-paper)" : "var(--shadow-soft)",
             }}
           >
-            {option === "Private" ? "🔒 Private" : "🌐 Share with Team"}
+            {option === "Private" ? "Private" : "Team"}
           </Button>
         );
       })}
@@ -703,7 +712,6 @@ export default function EntryForm({
   };
 
   const addItem = () => {
-    cancelAutoAdvance();
     newDraftReturnIndexRef.current = activeIndex;
     setItems((previous) => {
       const next = [...previous, createEmptyItem()];
@@ -741,7 +749,6 @@ export default function EntryForm({
       return;
     }
 
-    cancelAutoAdvance();
     const previousItems = items;
     const next = previousItems.filter((_, index) => index !== activeIndex);
     const nextActiveIndex =
@@ -791,10 +798,7 @@ export default function EntryForm({
       return;
     }
 
-    cancelAutoAdvance();
-    setActiveIndex((currentIndex) =>
-      currentIndex === 0 ? count - 1 : currentIndex - 1
-    );
+    setActiveIndex((currentIndex) => Math.max(0, currentIndex - 1));
   };
 
   const nextItem = () => {
@@ -807,48 +811,41 @@ export default function EntryForm({
       return;
     }
 
-    cancelAutoAdvance();
-    setActiveIndex((currentIndex) =>
-      currentIndex === count - 1 ? 0 : currentIndex + 1
-    );
-  };
-
-  const scheduleAutoAdvance = (
-    index: number,
-    metricType: MetricType | "",
-    value: string
-  ) => {
-    cancelAutoAdvance();
-
-    if (index >= items.length - 1 || !isCompleteMetricInput(metricType, value)) {
-      return;
-    }
-
-    autoAdvanceTimeoutRef.current = window.setTimeout(() => {
-      setActiveIndex((currentIndex) => (currentIndex === index ? index + 1 : currentIndex));
-      autoAdvanceTimeoutRef.current = null;
-    }, 700);
+    setActiveIndex((currentIndex) => Math.min(count - 1, currentIndex + 1));
   };
 
   const updateMetricValue = (
     index: number,
     value: string,
-    field: "rawValue" | "score" = "rawValue",
-    shouldAutoAdvance = true
+    field: "rawValue" | "score" = "rawValue"
   ) => {
-    const metricType = items[index]?.metricType ?? "";
     updateItem(index, (item) => ({
       ...item,
       [field]: value,
     }));
-
-    if (!shouldAutoAdvance) {
-      cancelAutoAdvance();
-      return;
-    }
-
-    scheduleAutoAdvance(index, metricType, value);
   };
+
+  const itemCarouselCount = isContextMode
+    ? contextCards.length
+    : isSupervisorNoteMode
+      ? supervisorCardCount
+      : items.length;
+  const itemSwipe = useGuardedSwipe({
+    onSwipeLeft: nextItem,
+    onSwipeRight: prevItem,
+    canSwipeLeft: activeIndex < itemCarouselCount - 1,
+    canSwipeRight: activeIndex > 0,
+    disabled: itemCarouselCount < 2,
+  });
+  const targetSwipe = useGuardedSwipe({
+    onSwipeLeft: () =>
+      setActiveIndex((current) => Math.min(2, current + 1)),
+    onSwipeRight: () =>
+      setActiveIndex((current) => Math.max(0, current - 1)),
+    canSwipeLeft: activeIndex < 2,
+    canSwipeRight: activeIndex > 0,
+    disabled: !isEducatorAddTargetMode,
+  });
 
   const templateTargetByValue = useMemo(() => {
     const map = new Map<string, TargetOption>();
@@ -896,18 +893,6 @@ export default function EntryForm({
       rawValue:
         selectedMeasurement.metricType === MetricType.Subjective ? "" : item.rawValue,
     }));
-  };
-
-  const shouldAutoAdvanceAfterInput = (
-    event: React.ChangeEvent<HTMLInputElement>,
-    previousValue: string
-  ) => {
-    const inputType = (event.nativeEvent as InputEvent).inputType;
-    if (inputType?.startsWith("delete")) {
-      return false;
-    }
-
-    return event.target.value.length >= previousValue.length;
   };
 
   const saveItems = async (
@@ -1256,6 +1241,13 @@ export default function EntryForm({
     setSaveStatus("idle");
   };
 
+  const returnToEducatorTargetList = async () => {
+    setEducatorView("list");
+    setIsEditingEducatorTarget(false);
+    setSaveStatus("idle");
+    await saveCurrentDocumentationDraftNow();
+  };
+
   const targetDraftFromItem = (item: EntryItemDraft) => {
     const matchedTarget = availableEducatorTargets.find(
       (option) => option.value.toLowerCase() === item.target.toLowerCase()
@@ -1352,7 +1344,7 @@ export default function EntryForm({
 
     if (
       !window.confirm(
-        "Delete this target?\n\nThis removes it from the active target list."
+        "Remove this target from the active list?\n\nHistorical data already recorded for this target will be preserved."
       )
     ) {
       return;
@@ -1458,7 +1450,46 @@ export default function EntryForm({
     }
 
     setSaveStatus("idle");
-    setEducatorView("list");
+    setEducatorView("observation");
+  };
+
+  const updateEducatorTargetObservation = (value: string) => {
+    if (!selectedEducatorTarget) return;
+
+    setItems((previous) =>
+      previous.map((item) =>
+        item.goalId === selectedEducatorTarget.goalId
+          ? {
+              ...item,
+              observation: value,
+            }
+          : item
+      )
+    );
+  };
+
+  const saveEducatorTargetObservation = async () => {
+    if (!selectedEducatorTarget) return;
+
+    const targetItems = items.filter(
+      (item) => !item.goalId || educatorTargetCompleted(item)
+    );
+    setSaveStatus("saving");
+    const result = await saveItems(targetItems, false);
+
+    if (result.ok) {
+      setNote(result.noteForSave);
+      setItems((previous) =>
+        previous.map((item) => ({ ...item, isNewDraft: false }))
+      );
+      router.refresh();
+      if (result.entryId) {
+        onSaved?.(result.entryId, result.visibility, result.status);
+      }
+      setEducatorView("list");
+    }
+
+    setSaveStatus(result.ok ? "saved" : "error");
   };
 
   const submitEducatorTarget = async (event: React.FormEvent) => {
@@ -1503,6 +1534,7 @@ export default function EntryForm({
                   : "SkillAcquisition",
             rawValue: "",
             supportLevel: "",
+            observation: "",
             measurementProfile: profile,
           },
         ]);
@@ -1527,7 +1559,7 @@ export default function EntryForm({
 
     return (
       <form
-        className="add-note-form"
+        className="add-note-form add-target-form"
         onSubmit={submitEducatorTarget}
         style={{
           display: "flex",
@@ -1543,7 +1575,7 @@ export default function EntryForm({
           }}
         >
           <div>{clientName}</div>
-          <div>{providerName} -- Add Target</div>
+          <div>{providerName} — Add Target</div>
           <div>{todayLabel}</div>
         </div>
 
@@ -1555,7 +1587,11 @@ export default function EntryForm({
             margin: "0 auto",
             height: noteCardHeight,
             boxSizing: "border-box",
+            touchAction: "pan-y",
+            transform: `translateX(${targetSwipe.dragOffset}px)`,
+            transition: targetSwipe.dragOffset === 0 ? "transform 160ms ease-out" : "none",
           }}
+          {...targetSwipe.swipeHandlers}
         >
           <div
             style={{
@@ -1566,31 +1602,23 @@ export default function EntryForm({
               marginBottom: 12,
             }}
           >
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() =>
-                setActiveIndex((current) =>
-                  current === 0 ? targetCardCount - 1 : current - 1
-                )
-              }
-            >
-              ‹
-            </Button>
+            <ChevronControl
+              direction="left"
+              onClick={() => setActiveIndex((current) => Math.max(0, current - 1))}
+              disabled={activeIndex === 0}
+              aria-label="Previous target"
+            />
             <div style={{ display: "grid", justifyItems: "center", gap: 6, minWidth: 76 }}>
               <div style={{ fontWeight: 600 }}>{activeIndex + 1} of {targetCardCount}</div>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
+            <ChevronControl
+              direction="right"
               onClick={() =>
-                setActiveIndex((current) =>
-                  current === targetCardCount - 1 ? 0 : current + 1
-                )
+                setActiveIndex((current) => Math.min(targetCardCount - 1, current + 1))
               }
-            >
-              ›
-            </Button>
+              disabled={activeIndex === targetCardCount - 1}
+              aria-label="Next target"
+            />
           </div>
 
           <div
@@ -1608,29 +1636,28 @@ export default function EntryForm({
                 <div style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}>
                   {targetSelectTitle}
                 </div>
-                <select
+                <MaterialSelect
+                  ariaLabel={targetSelectTitle}
                   value={targetDraft.target}
-                  onChange={(event) =>
+                  onValueChange={(value) =>
                     setTargetDraft((current) => ({
                       ...current,
-                      target: event.target.value,
+                      target: value,
                       measurementProfile: normalizeMeasurementProfileForRole(
-                        educatorDefaultProfileForTarget(event.target.value),
-                        event.target.value
+                        educatorDefaultProfileForTarget(value),
+                        value
                       ),
                     }))
                   }
+                  options={availableEducatorTargets.map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                  }))}
                   style={{
+                    width: "100%",
                     minHeight: 44,
-                    padding: "10px 12px",
-                    background: "transparent",
-                    ...fieldInputStyle,
                   }}
-                >
-                  {availableEducatorTargets.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
+                />
                 {targetDraft.target === "Other" ? (
                   <Input
                     value={targetDraft.customTarget}
@@ -1702,6 +1729,8 @@ export default function EntryForm({
                         key={profile.value}
                         type="button"
                         variant="ghost"
+                        className="target-option-control clinical-selection-control"
+                        aria-pressed={selected}
                         onClick={() =>
                           setTargetDraft((current) => ({
                             ...current,
@@ -1777,6 +1806,18 @@ export default function EntryForm({
       currentTarget && currentResponse.field === "score"
         ? currentTarget.score
         : currentTarget?.rawValue ?? "";
+    const targetResponseSummary = (item: EntryItemDraft) => {
+      const profile = normalizeMeasurementProfileForRole(
+        item.measurementProfile,
+        item.target
+      );
+      const response = activeResponseProfiles[profile];
+      const value = response.field === "score" ? item.score : item.rawValue;
+      return (
+        response.options?.find((option) => option.value === value)?.label ??
+        value
+      );
+    };
 
     return (
       <form
@@ -1796,7 +1837,7 @@ export default function EntryForm({
           }}
         >
           <div>{clientName}</div>
-          <div>{providerName} -- {progressTitle}</div>
+          <div>{providerName} — {progressTitle}</div>
           <div>{todayLabel}</div>
         </div>
 
@@ -1828,26 +1869,52 @@ export default function EntryForm({
                   <button
                     key={item.goalId}
                     type="button"
+                    className="target-list-control"
                     onClick={() => openEducatorTarget(index)}
                     style={{
                       display: "flex",
                       alignItems: "center",
+                      justifyContent: "center",
                       gap: 12,
                       minHeight: 44,
-                      border: "none",
+                      border: "1px solid rgb(35 45 55 / 14%)",
                       borderRadius: 12,
-                      background: "var(--glass-strong)",
-                      boxShadow: "var(--shadow-soft), var(--inset-paper)",
+                      background: "var(--surface)",
+                      boxShadow: "none",
                       padding: "10px 14px",
-                      textAlign: "left",
+                      textAlign: "center",
                       cursor: "pointer",
                       color: "var(--foreground)",
+                      position: "relative",
                     }}
                   >
-                    <span style={{ width: 20, fontWeight: 700 }}>
-                      {educatorTargetCompleted(item) ? "✓" : "□"}
+                    <span
+                      className="target-state-indicator"
+                    >
+                      {educatorTargetCompleted(item) ? "✓" : ""}
                     </span>
-                    <span style={{ fontWeight: 600 }}>{item.target}</span>
+                    <span style={{ display: "grid", gap: 3, minWidth: 0, padding: "0 30px" }}>
+                      <span style={{ fontWeight: 600 }}>{item.target}</span>
+                      {educatorTargetCompleted(item) ? (
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 450,
+                            opacity: 0.64,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {[
+                            targetResponseSummary(item),
+                            item.observation?.trim(),
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      ) : null}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -1862,25 +1929,10 @@ export default function EntryForm({
                 >
                   <Button
                     type="button"
-                    variant="ghost"
-                    disabled={saveStatus === "saving"}
-                    onClick={closeTargetProgressDraft}
-                  >
-                    ← Back
-                  </Button>
-                  <Button
-                    type="button"
                     className="material-control action-positive"
                     onClick={() => setEducatorView("reflection")}
                   >
-                    + Add Session Note
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="material-control action-positive"
-                    disabled={saveStatus === "saving"}
-                  >
-                    {saveStatus === "saving" ? "Saving..." : "Save Targets"}
+                    Continue to Session Note
                   </Button>
                 </div>
               ) : null}
@@ -1889,6 +1941,24 @@ export default function EntryForm({
 
           {educatorView === "target" && currentTarget ? (
             <>
+              <button
+                type="button"
+                onClick={returnToEducatorTargetList}
+                style={{
+                  justifySelf: "start",
+                  border: "none",
+                  background: "transparent",
+                  color: "inherit",
+                  padding: "4px 2px",
+                  font: "inherit",
+                  fontSize: 14,
+                  fontWeight: 560,
+                  opacity: 0.7,
+                  cursor: "pointer",
+                }}
+              >
+                ← Targets
+              </button>
               {isEditingEducatorTarget ? (
                 <>
                   <div style={{ display: "grid", gap: 8, textAlign: "center" }}>
@@ -1904,31 +1974,28 @@ export default function EntryForm({
                       margin: "0 auto",
                     }}
                   >
-                    <select
+                    <MaterialSelect
+                      ariaLabel="Edit target"
                       value={targetEditDraft.target}
-                      onChange={(event) =>
+                      onValueChange={(value) =>
                         setTargetEditDraft((current) => ({
                           ...current,
-                            target: event.target.value,
+                            target: value,
                             measurementProfile: normalizeMeasurementProfileForRole(
-                              educatorDefaultProfileForTarget(event.target.value),
-                              event.target.value
+                              educatorDefaultProfileForTarget(value),
+                              value
                             ),
                         }))
                       }
+                      options={availableEducatorTargets.map((option) => ({
+                        value: option.value,
+                        label: option.label,
+                      }))}
                       style={{
+                        width: "100%",
                         minHeight: 44,
-                        padding: "10px 12px",
-                        background: "transparent",
-                        ...fieldInputStyle,
                       }}
-                    >
-                      {availableEducatorTargets.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
+                    />
 
                     {targetEditDraft.target === "Other" ? (
                       <Input
@@ -1982,6 +2049,8 @@ export default function EntryForm({
                             key={profile.value}
                             type="button"
                             variant="ghost"
+                            className="target-option-control clinical-selection-control"
+                            aria-pressed={selected}
                             onClick={() =>
                               setTargetEditDraft((current) => ({
                                 ...current,
@@ -2011,6 +2080,7 @@ export default function EntryForm({
                     <Button
                       type="button"
                       variant="ghost"
+                      className="action-secondary"
                       onClick={() => {
                         setIsEditingEducatorTarget(false);
                         setSaveStatus("idle");
@@ -2033,7 +2103,7 @@ export default function EntryForm({
                       onClick={deleteSelectedEducatorTarget}
                       disabled={saveStatus === "saving"}
                     >
-                      Delete Target
+                      Remove Target
                     </Button>
                   </div>
                 </>
@@ -2047,13 +2117,29 @@ export default function EntryForm({
                     <div style={{ fontSize: 15, opacity: 0.62 }}>
                       {currentTarget.goal}
                     </div>
+                    <button
+                      type="button"
+                      onClick={startEditEducatorTarget}
+                      className="target-edit-details-link"
+                      style={{
+                        justifySelf: "center",
+                        border: "none",
+                        background: "transparent",
+                        padding: "2px 4px",
+                        font: "inherit",
+                        fontSize: 13,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Edit target details
+                    </button>
                     <div
                       style={{
                         display: "inline-flex",
                         justifyContent: "center",
                         alignItems: "center",
                         fontSize: 17,
-                        color: "rgb(0 0 0 / 74%)",
+                        color: "var(--performance-prompt-text, rgb(0 0 0 / 74%))",
                       }}
                     >
                       {renderCurrentResponsePrompt(currentProfile, currentResponsePrompt)}
@@ -2069,6 +2155,8 @@ export default function EntryForm({
                             key={option.value}
                             type="button"
                             variant="ghost"
+                            className="target-option-control clinical-selection-control"
+                            aria-pressed={selected}
                             onClick={() => updateEducatorTargetResponse(option.value)}
                             style={{
                               justifyContent: "flex-start",
@@ -2079,7 +2167,6 @@ export default function EntryForm({
                               boxShadow: selected ? "var(--inset-paper)" : "var(--shadow-soft)",
                             }}
                           >
-                            <span style={{ marginRight: 10 }}>{selected ? "●" : "○"}</span>
                             <span style={{ display: "grid", gap: 2, width: "100%" }}>
                               <span>{option.label}</span>
                             </span>
@@ -2104,20 +2191,24 @@ export default function EntryForm({
                     />
                   )}
 
-                  <div style={{ display: "flex", justifyContent: "center", gap: 14 }}>
-                    <Button type="button" variant="ghost" onClick={() => setEducatorView("list")}>
-                      Back
-                    </Button>
-                    <Button type="button" variant="ghost" onClick={startEditEducatorTarget}>
-                      Edit
-                    </Button>
+                  <div
+                    style={{
+                      display: "grid",
+                      justifyItems: "center",
+                      gap: 8,
+                    }}
+                  >
                     <Button
                       type="button"
                       className="material-control action-positive"
                       onClick={saveEducatorTargetResponse}
+                      disabled={saveStatus === "saving"}
                     >
-                      Save Target
+                      Continue
                     </Button>
+                    <span style={{ fontSize: 13, opacity: 0.62 }}>
+                      Next: add an observation
+                    </span>
                   </div>
                 </>
               )}
@@ -2126,6 +2217,126 @@ export default function EntryForm({
                   {isEditingEducatorTarget
                     ? "Complete the target details before saving."
                     : "Select a response before saving."}
+                </div>
+              ) : null}
+            </>
+          ) : null}
+
+          {educatorView === "observation" && currentTarget ? (
+            <>
+              <button
+                type="button"
+                onClick={returnToEducatorTargetList}
+                style={{
+                  justifySelf: "start",
+                  border: "none",
+                  background: "transparent",
+                  color: "inherit",
+                  padding: "4px 2px",
+                  font: "inherit",
+                  fontSize: 14,
+                  fontWeight: 560,
+                  opacity: 0.7,
+                  cursor: "pointer",
+                }}
+              >
+                ← Targets
+              </button>
+              <div style={{ display: "grid", gap: 7, textAlign: "center" }}>
+                <div style={{ fontSize: 17, opacity: 0.66 }}>
+                  {currentTarget.target}
+                </div>
+                <div style={{ fontSize: 21, fontWeight: 650 }}>
+                  {targetResponseSummary(currentTarget)}
+                </div>
+                <div style={{ fontSize: 24, fontWeight: 650, marginTop: 8 }}>
+                  Observation
+                </div>
+                <div style={{ fontSize: 15, opacity: 0.68 }}>
+                  What happened around or after this target?
+                </div>
+              </div>
+
+              <Textarea
+                autoFocus
+                value={currentTarget.observation ?? ""}
+                onChange={(event) =>
+                  updateEducatorTargetObservation(event.target.value)
+                }
+                placeholder="Example: After the transition support, the client became engaged and used expressive language."
+                style={{
+                  minHeight: 126,
+                  padding: "12px 14px",
+                  resize: "none",
+                  ...fieldInputStyle,
+                }}
+              />
+
+              <div
+                style={{
+                  display: "grid",
+                  justifyItems: "center",
+                  gap: 8,
+                }}
+              >
+                <Button
+                  type="button"
+                  className="material-control action-positive"
+                  onClick={saveEducatorTargetObservation}
+                  disabled={saveStatus === "saving"}
+                >
+                  {saveStatus === "saving" ? "Saving..." : "Save Target"}
+                </Button>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 16,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSaveStatus("idle");
+                      setEducatorView("target");
+                    }}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      color: "inherit",
+                      padding: 4,
+                      font: "inherit",
+                      fontSize: 13,
+                      opacity: 0.68,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Change measurement
+                  </button>
+                  <button
+                    type="button"
+                    onClick={deleteSelectedEducatorTarget}
+                    disabled={saveStatus === "saving"}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      color: "var(--remove-target-text, rgb(110 35 35 / 78%))",
+                      padding: 4,
+                      font: "inherit",
+                      fontSize: 13,
+                      cursor: saveStatus === "saving" ? "default" : "pointer",
+                      opacity: saveStatus === "saving" ? 0.45 : 1,
+                    }}
+                  >
+                    Remove target
+                  </button>
+                </div>
+              </div>
+              {saveStatus === "error" ? (
+                <div style={{ textAlign: "center", opacity: 0.72 }}>
+                  The target could not be saved. Please try again.
                 </div>
               ) : null}
             </>
@@ -2153,7 +2364,12 @@ export default function EntryForm({
                 }}
               />
               <div style={{ display: "flex", justifyContent: "center", gap: 14 }}>
-                <Button type="button" variant="ghost" onClick={() => setEducatorView("list")}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="action-secondary"
+                  onClick={() => setEducatorView("list")}
+                >
                   ← Back
                 </Button>
                 <Button
@@ -2161,7 +2377,7 @@ export default function EntryForm({
                   className="material-control action-positive"
                   disabled={saveStatus === "saving"}
                 >
-                  {saveStatus === "saving" ? "Saving..." : "Save Targets"}
+                  {saveStatus === "saving" ? "Saving..." : "Save Session Note"}
                 </Button>
               </div>
               {saveStatus === "error" ? (
@@ -2208,21 +2424,16 @@ export default function EntryForm({
         }}
         onSessionSubmit={submitObservationSession}
         onPrevious={() =>
-          setActiveIndex((current) =>
-            current === 0 ? observationCardCount - 1 : current - 1
-          )
+          setActiveIndex((current) => Math.max(0, current - 1))
         }
         onNext={() =>
           setActiveIndex((current) =>
-            current === observationCardCount - 1 ? 0 : current + 1
+            Math.min(observationCardCount - 1, current + 1)
           )
         }
         onCategoryChange={(value) => {
           setDraftObservationCategory(value);
           setSaveStatus("idle");
-          if (isImmediateObservationMode) {
-            setActiveIndex(1);
-          }
         }}
         onTextChange={(value) => {
           setDraftObservationText(value);
@@ -2312,15 +2523,7 @@ export default function EntryForm({
             step="any"
             value={item.rawValue}
             onChange={(event) =>
-              updateMetricValue(
-                activeIndex,
-                event.target.value,
-                "rawValue",
-                shouldAutoAdvanceAfterInput(event, item.rawValue)
-              )
-            }
-            onBlur={(event) =>
-              scheduleAutoAdvance(activeIndex, item.metricType, event.target.value)
+              updateMetricValue(activeIndex, event.target.value, "rawValue")
             }
             style={{
               width: 150,
@@ -2342,15 +2545,7 @@ export default function EntryForm({
               updateMetricValue(
                 activeIndex,
                 normalizeEntryDurationInput(event.target.value),
-                "rawValue",
-                shouldAutoAdvanceAfterInput(event, item.rawValue)
-              )
-            }
-            onBlur={(event) =>
-              scheduleAutoAdvance(
-                activeIndex,
-                item.metricType,
-                normalizeEntryDurationInput(event.target.value)
+                "rawValue"
               )
             }
             placeholder="MM:SS"
@@ -2373,15 +2568,7 @@ export default function EntryForm({
             min={0}
             value={item.rawValue}
             onChange={(event) =>
-              updateMetricValue(
-                activeIndex,
-                event.target.value,
-                "rawValue",
-                shouldAutoAdvanceAfterInput(event, item.rawValue)
-              )
-            }
-            onBlur={(event) =>
-              scheduleAutoAdvance(activeIndex, item.metricType, event.target.value)
+              updateMetricValue(activeIndex, event.target.value, "rawValue")
             }
             style={{
               width: 150,
@@ -2402,29 +2589,24 @@ export default function EntryForm({
 
         return (
           <>
-            <select
+            <MaterialSelect
+              ariaLabel={measurement.label}
               value={item.score}
-              onChange={(event) =>
-                updateMetricValue(activeIndex, event.target.value, "score", false)
+              onValueChange={(value) =>
+                updateMetricValue(activeIndex, value, "score")
               }
-              onBlur={(event) =>
-                scheduleAutoAdvance(activeIndex, item.metricType, event.target.value)
-              }
+              options={[
+                { value: "", label: "Select" },
+                ...values.map((value) => ({
+                  value: String(value),
+                  label: String(measurement.scaleLabels?.[value - min] ?? value),
+                })),
+              ]}
               style={{
                 width: 150,
                 minHeight: 42,
-                padding: "10px 12px",
-                background: "transparent",
-                ...fieldInputStyle,
               }}
-            >
-              <option value="">Select</option>
-              {values.map((value) => (
-                <option key={value} value={value}>
-                  {measurement.scaleLabels?.[value - min] ?? value}
-                </option>
-              ))}
-            </select>
+            />
             <span aria-hidden="true" />
           </>
         );
@@ -2433,26 +2615,22 @@ export default function EntryForm({
       if (measurement.inputKind === "boolean") {
         return (
           <>
-            <select
+            <MaterialSelect
+              ariaLabel={measurement.label}
               value={item.score}
-              onChange={(event) =>
-                updateMetricValue(activeIndex, event.target.value, "score", false)
+              onValueChange={(value) =>
+                updateMetricValue(activeIndex, value, "score")
               }
-              onBlur={(event) =>
-                scheduleAutoAdvance(activeIndex, item.metricType, event.target.value)
-              }
+              options={[
+                { value: "", label: "Select" },
+                { value: "yes", label: "Yes" },
+                { value: "no", label: "No" },
+              ]}
               style={{
                 width: 150,
                 minHeight: 42,
-                padding: "10px 12px",
-                background: "transparent",
-                ...fieldInputStyle,
               }}
-            >
-              <option value="">Select</option>
-              <option value="yes">Yes</option>
-              <option value="no">No</option>
-            </select>
+            />
             <span aria-hidden="true" />
           </>
         );
@@ -2463,10 +2641,7 @@ export default function EntryForm({
           <Textarea
             value={item.score}
             onChange={(event) =>
-              updateMetricValue(activeIndex, event.target.value, "score", false)
-            }
-            onBlur={(event) =>
-              scheduleAutoAdvance(activeIndex, item.metricType, event.target.value)
+              updateMetricValue(activeIndex, event.target.value, "score")
             }
             style={{
               width: 150,
@@ -2512,7 +2687,7 @@ export default function EntryForm({
       >
         <div>{clientName}</div>
         <div>
-          {providerName} -- {providerRole}
+          {providerName} — {providerRole}
         </div>
         <div>{todayLabel}</div>
       </div>
@@ -2525,7 +2700,11 @@ export default function EntryForm({
           margin: "0 auto",
           height: noteCardHeight,
           boxSizing: "border-box",
+          touchAction: "pan-y",
+          transform: `translateX(${itemSwipe.dragOffset}px)`,
+          transition: itemSwipe.dragOffset === 0 ? "transform 160ms ease-out" : "none",
         }}
+        {...itemSwipe.swipeHandlers}
       >
         <div
           style={{
@@ -2536,27 +2715,23 @@ export default function EntryForm({
             marginBottom: 12,
           }}
         >
-          <Button
-            type="button"
-            variant="ghost"
+          <ChevronControl
+            direction="left"
             onClick={prevItem}
-            disabled={!hasItems}
-          >
-            ‹
-          </Button>
+            disabled={!hasItems || activeIndex === 0}
+            aria-label="Previous item"
+          />
           <div style={{ display: "grid", justifyItems: "center", gap: 6, minWidth: 76 }}>
             <div style={{ fontWeight: 600 }}>
               {hasItems ? `${activeIndex + 1} of ${items.length}` : "No items yet"}
             </div>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
+          <ChevronControl
+            direction="right"
             onClick={nextItem}
-            disabled={!hasItems}
-          >
-            ›
-          </Button>
+            disabled={!hasItems || activeIndex === items.length - 1}
+            aria-label="Next item"
+          />
         </div>
 
         {activeItem ? (
@@ -2723,31 +2898,26 @@ export default function EntryForm({
                         ) ?? measurementOptionForMetric(activeItem.metricType)
                       )}
                     </span>
-                    <select
+                    <MaterialSelect
+                      ariaLabel="Measurement type"
                       value={
                         activeItem.measurementType ??
                         measurementOptionForMetric(activeItem.metricType).value
                       }
-                      onChange={(event) =>
-                        updateMeasurementType(activeIndex, event.target.value)
+                      onValueChange={(value) =>
+                        updateMeasurementType(activeIndex, value)
                       }
+                      options={measurementOptions.map((option) => ({
+                        value: option.value,
+                        label: option.label,
+                      }))}
                       style={{
                         width: "100%",
                         minHeight: 42,
-                        padding: "10px 12px",
-                        borderRadius: 12,
-                        background: "var(--glass)",
                         color: "var(--foreground)",
                         fontWeight: 600,
-                        ...fieldInputStyle,
                       }}
-                    >
-                      {measurementOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </Label>
                 ) : (
                   <div

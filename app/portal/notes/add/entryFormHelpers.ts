@@ -28,6 +28,7 @@ export type EntryItemDraft = {
   score: string;
   rawValue: string;
   supportLevel: string;
+  observation?: string;
   measurementType?: string;
   measurementProfile?: string | null;
   isNewDraft?: boolean;
@@ -46,6 +47,7 @@ export type NormalizedEntryItem =
       score: number | null;
       rawValue: number | null;
       supportLevel: null;
+      observation: string | null;
     };
 
 export type EntryPayload =
@@ -68,6 +70,7 @@ export const createEmptyItem = (): EntryItemDraft => ({
   score: "",
   rawValue: "",
   supportLevel: "",
+  observation: "",
   isNewDraft: true,
 });
 
@@ -232,6 +235,7 @@ export function normalizeItems(draftItems: EntryItemDraft[]): NormalizedEntryIte
         score,
         rawValue,
         supportLevel: null,
+        observation: item.observation?.trim() || null,
       };
     })
     .filter((item): item is Exclude<typeof item, null> => item !== null);

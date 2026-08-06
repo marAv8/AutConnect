@@ -1,7 +1,10 @@
 // autconnect/app/create-account/page.tsx (this file is the create account page)
 
 import { createProvider } from "@/app/actions/createProvider";
+import AuthHeader from "@/app/components/auth/AuthHeader";
 import OAuthButtons from "@/app/components/auth/OAuthButtons";
+import { MaterialSelect } from "@/components/ui/MaterialSelect";
+import { isGoogleOAuthConfigured } from "@/lib/googleOAuth";
 import Link from "next/link";
 
 export default async function createAccountPage({
@@ -13,45 +16,51 @@ export default async function createAccountPage({
   const errorMessage =
     error === "email-exists"
       ? "That email already exists. Try logging in or use another email."
+      : error === "invalid"
+        ? "Please check every field. Passwords must contain at least 8 characters."
       : null;
-  const googleEnabled = Boolean(
-    process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-  );
+  const googleEnabled = isGoogleOAuthConfigured();
 
   return (
     <main className="auth-shell">
+      <AuthHeader wordmark />
       <div className="auth-page">
         <section className="auth-card auth-card-create">
           <div className="auth-form-wrap">
-            <div className="auth-heading">
-              <h2>AC</h2>
-            </div>
-
             {errorMessage && <p className="auth-error">{errorMessage}</p>}
-
-            <OAuthButtons
-              mode="signup"
-              googleEnabled={googleEnabled}
-            />
-
-            <div className="auth-separator">or</div>
 
             <form action={createProvider} className="auth-form">
               <div className="auth-form-columns">
                 <div className="auth-form-column">
                   <div className="auth-field">
                     <label htmlFor="firstName">Name</label>
-                    <input id="firstName" name="firstName" required />
+                    <input
+                      id="firstName"
+                      name="firstName"
+                      autoComplete="given-name"
+                      required
+                    />
                   </div>
 
                   <div className="auth-field">
                     <label htmlFor="lastName">Lastname</label>
-                    <input id="lastName" name="lastName" required />
+                    <input
+                      id="lastName"
+                      name="lastName"
+                      autoComplete="family-name"
+                      required
+                    />
                   </div>
 
                   <div className="auth-field">
                     <label htmlFor="email">Email</label>
-                    <input id="email" name="email" type="email" required />
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                    />
                   </div>
 
                   <div className="auth-field">
@@ -60,6 +69,8 @@ export default async function createAccountPage({
                       id="password"
                       name="password"
                       type="password"
+                      autoComplete="new-password"
+                      minLength={8}
                       required
                     />
                   </div>
@@ -68,17 +79,21 @@ export default async function createAccountPage({
                 <div className="auth-form-column">
                   <div className="auth-field">
                     <label htmlFor="role">Provider</label>
-                    <select id="role" name="role" required>
-                      <option value="">Select</option>
-                      <option value="Supervisor">Supervisor</option>
-                      <option value="SpeechPathologist">Speech Pathologist</option>
-                      <option value="BehaviorTherapist">Behavior Therapist</option>
-                      <option value="OccupationalTherapist">
-                        Occupational Therapist
-                      </option>
-                      <option value="Caregiver">Caretaker</option>
-                      <option value="Educator">Educator</option>
-                    </select>
+                    <MaterialSelect
+                      id="role"
+                      name="role"
+                      required
+                      style={{ width: "100%" }}
+                      options={[
+                        { value: "", label: "Select" },
+                        { value: "Supervisor", label: "Supervisor" },
+                        { value: "SpeechPathologist", label: "Speech Pathologist" },
+                        { value: "BehaviorTherapist", label: "Behavior Therapist" },
+                        { value: "OccupationalTherapist", label: "Occupational Therapist" },
+                        { value: "Caregiver", label: "Caretaker" },
+                        { value: "Educator", label: "Educator" },
+                      ]}
+                    />
                   </div>
 
                   <button type="submit" className="auth-button">
@@ -87,6 +102,13 @@ export default async function createAccountPage({
                 </div>
               </div>
             </form>
+
+            {googleEnabled && <div className="auth-separator">or</div>}
+
+            <OAuthButtons
+              mode="signup"
+              googleEnabled={googleEnabled}
+            />
 
             <div className="auth-link-row">
               <Link href="/login">Login to Account</Link>

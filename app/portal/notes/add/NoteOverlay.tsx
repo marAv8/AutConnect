@@ -37,6 +37,7 @@ type Props = {
         | "";
       rawValue: string;
       supportLevel: string;
+      observation: string;
       measurementProfile?: string | null;
     }[];
   };

@@ -1,5 +1,9 @@
 import { db } from "@/lib/db";
 import {
+  clientDisplayCode,
+  clientDisplayText,
+} from "@/app/libs/clientIdentity";
+import {
   generateAttention,
   type ProviderAssignment,
 } from "@/app/libs/clinicalAttention";
@@ -17,6 +21,7 @@ import type {
   GatewayProvider,
 } from "./types";
 import type { Prisma } from "@prisma/client";
+import { isTeamFocusVisible } from "@/app/libs/teamFocusLifecycle";
 
 const DEFAULT_HISTORY_DAYS = 14;
 const DEFAULT_HISTORY_ENTRY_LIMIT = 12;
@@ -67,6 +72,7 @@ export async function buildGatewayContextForEntry(
         clientId: true,
         title: true,
         content: true,
+        displayStartedAt: true,
         updatedAt: true,
         authorId: true,
         author: {
@@ -99,9 +105,13 @@ export async function buildGatewayContextForEntry(
   const historicalEvents = normalizeClinicalEvents({
     entries: recentEntries.map(toNormalizableEntry),
   });
-  const teamFocusEvents = activeTeamFocus
+  const teamFocusEvents =
+    activeTeamFocus &&
+    isTeamFocusVisible(activeTeamFocus.displayStartedAt)
     ? normalizeClinicalEvents({
-        teamFocusItems: [toNormalizableTeamFocus(activeTeamFocus)],
+        teamFocusItems: [
+          toNormalizableTeamFocus(activeTeamFocus, currentEntry.client),
+        ],
       })
     : [];
   const currentAttention = generateAttention({
@@ -118,7 +128,10 @@ export async function buildGatewayContextForEntry(
   return createGatewayContext({
     client: {
       id: currentEntry.client.id,
-      name: `${currentEntry.client.firstName} ${currentEntry.client.lastName}`.trim(),
+      name: clientDisplayCode(
+        currentEntry.client.firstName,
+        currentEntry.client.lastName
+      ),
     },
     session: {
       entryId: currentEntry.id,
@@ -129,7 +142,15 @@ export async function buildGatewayContextForEntry(
     clinicalEvents: currentEvents,
     attentionEvents: currentAttention.attentionEvents,
     supervisorDirectives: currentAttention.supervisorDirectives,
-    sessionObservation: stringOrNull(currentEntry.note),
+    sessionObservation: stringOrNull(
+      currentEntry.note
+        ? clientDisplayText(
+            currentEntry.note,
+            currentEntry.client.firstName,
+            currentEntry.client.lastName
+          )
+        : currentEntry.note
+    ),
     previousSessions: previousSessionsFromEntries(
       recentEntries,
       historicalEvents,
@@ -184,6 +205,7 @@ const gatewayEntrySelect = {
       domain: true,
       rawValue: true,
       supportLevel: true,
+      observation: true,
       goalDefinition: {
         select: {
           measurementProfile: true,
@@ -209,17 +231,33 @@ const gatewayEntrySelect = {
 type GatewayEntryRecord = Prisma.EntryGetPayload<{ select: typeof gatewayEntrySelect }>;
 
 function toNormalizableEntry(entry: NonNullable<GatewayEntryRecord>): NormalizableEntry {
+  const safeText = (value: string) =>
+    clientDisplayText(
+      value,
+      entry.client.firstName,
+      entry.client.lastName
+    );
+
   return {
     id: entry.id,
     clientId: entry.clientId,
     date: entry.date,
     kind: entry.kind,
-    note: entry.note,
+    note: entry.note ? safeText(entry.note) : entry.note,
     contextData: entry.contextData,
     providerId: entry.providerId,
     provider: entry.provider,
-    items: entry.items,
-    abcObservations: entry.abcObservations,
+    items: entry.items.map((item) => ({
+      ...item,
+      target: safeText(item.target),
+      goal: safeText(item.goal),
+    })),
+    abcObservations: entry.abcObservations.map((observation) => ({
+      ...observation,
+      antecedent: safeText(observation.antecedent),
+      behavior: safeText(observation.behavior),
+      consequence: safeText(observation.consequence),
+    })),
   };
 }
 
@@ -236,12 +274,22 @@ function toNormalizableTeamFocus(teamFocus: {
     lastName: string;
     role: string;
   };
-}): NormalizableTeamFocus {
+}, client: { firstName: string; lastName: string }): NormalizableTeamFocus {
   return {
     id: teamFocus.id,
     clientId: teamFocus.clientId,
-    title: teamFocus.title,
-    content: teamFocus.content,
+    title: teamFocus.title
+      ? clientDisplayText(
+          teamFocus.title,
+          client.firstName,
+          client.lastName
+        )
+      : teamFocus.title,
+    content: clientDisplayText(
+      teamFocus.content,
+      client.firstName,
+      client.lastName
+    ),
     updatedAt: teamFocus.updatedAt,
     authorId: teamFocus.authorId,
     author: teamFocus.author,

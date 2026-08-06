@@ -134,6 +134,89 @@ export type InsightContext = {
     authorName: string;
     authorRole: string;
   } | null;
+  documentationRecords: Array<{
+    id: string;
+    kind: string;
+    visibility: string;
+    status: string;
+    date: string;
+    createdAt: string;
+    updatedAt: string;
+    completedAt: string | null;
+    note: string | null;
+    clinicalReflection: string | null;
+    contextData: unknown;
+    providerId: string;
+    providerName: string;
+    providerRole: string;
+    observations: Array<{
+      target: string;
+      observation: string;
+    }>;
+    abcObservations: Array<{
+      antecedent: string;
+      behavior: string;
+      consequence: string;
+    }>;
+    revisions: Array<{
+      id: string;
+      revisionNumber: number;
+      createdAt: string;
+      createdByName: string;
+      createdByRole: string;
+      snapshot: unknown;
+      changes: unknown;
+    }>;
+  }>;
+  caseSupport: {
+    requests: Array<{
+      id: string;
+      concern: string;
+      requestedSupport: string;
+      status: string;
+      responseNote: string | null;
+      createdAt: string;
+      updatedAt: string;
+      requesterName: string;
+      requesterRole: string;
+      recipientSupervisorName: string;
+    }>;
+    cases: Array<{
+      id: string;
+      title: string;
+      concern: string;
+      desiredOutcome: string;
+      status: string;
+      createdAt: string;
+      updatedAt: string;
+      resolvedAt: string | null;
+      ownerName: string;
+      entries: Array<{
+        id: string;
+        entryType: string;
+        occurredAt: string;
+        whatOccurred: string;
+        supportProvided: string;
+        observableOutcome: string;
+        communication: string | null;
+        followUp: string | null;
+        clarification: string | null;
+        authorName: string;
+        authorRole: string;
+      }>;
+      coordinations: Array<{
+        id: string;
+        path: string;
+        status: string;
+        occurredAt: string;
+        actionTaken: string;
+        requestOrDecision: string;
+        responseSummary: string | null;
+        nextStep: string | null;
+        authorName: string;
+      }>;
+    }>;
+  };
   providerAssignments: Array<{
     assignmentId: string;
     providerId: string;

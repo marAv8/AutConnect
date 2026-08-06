@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { formatRole } from "@/app/libs/roles";
+import { clientDisplayText } from "@/app/libs/clientIdentity";
+import { sevenDayHistoryStart } from "@/app/libs/documentationDay";
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -16,7 +18,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Missing clientId" }, { status: 400 });
   }
 
-  const sevenDaysAgo = sevenDayWindowStart();
+  const sevenDaysAgo = sevenDayHistoryStart();
 
   const client = await db.client.findFirst({
     where: {
@@ -42,11 +44,6 @@ export async function GET(request: Request) {
         gte: sevenDaysAgo,
       },
       OR: [
-        {
-          kind: {
-            notIn: ["SupervisorObservation", "ClinicalNote"],
-          },
-        },
         {
           visibility: "Shared",
         },
@@ -105,6 +102,7 @@ export async function GET(request: Request) {
           domain: true,
           rawValue: true,
           supportLevel: true,
+          observation: true,
           goalDefinition: {
             select: {
               targetValue: true,
@@ -125,6 +123,24 @@ export async function GET(request: Request) {
           consequence: true,
         },
       },
+      revisions: {
+        orderBy: {
+          revisionNumber: "asc",
+        },
+        select: {
+          id: true,
+          revisionNumber: true,
+          changes: true,
+          createdAt: true,
+          createdBy: {
+            select: {
+              firstName: true,
+              lastName: true,
+              role: true,
+            },
+          },
+        },
+      },
       provider: {
         select: {
           firstName: true,
@@ -137,47 +153,36 @@ export async function GET(request: Request) {
 
   if (entries.length > 0) {
     const readAt = new Date();
-    const sharedEntries = entries.filter((entry) => entry.visibility === "Shared");
-
-    if (sharedEntries.length > 0) {
-      await Promise.all([
-        db.entryRead.createMany({
-          data: sharedEntries.map((entry) => ({
-            entryId: entry.id,
-            providerId: session.providerId,
-            readAt,
-          })),
-          skipDuplicates: true,
-        }),
-        db.entryRead.updateMany({
-          where: {
-            providerId: session.providerId,
-            entryId: {
-              in: sharedEntries.map((entry) => entry.id),
-            },
-            readAt: null,
+    await Promise.all([
+      db.entryRead.createMany({
+        data: entries.map((entry) => ({
+          entryId: entry.id,
+          providerId: session.providerId,
+          readAt,
+        })),
+        skipDuplicates: true,
+      }),
+      db.entryRead.updateMany({
+        where: {
+          providerId: session.providerId,
+          entryId: {
+            in: entries.map((entry) => entry.id),
           },
-          data: {
-            readAt,
-          },
-        }),
-      ]);
-    }
+          readAt: null,
+        },
+        data: {
+          readAt,
+        },
+      }),
+    ]);
   }
 
   return NextResponse.json({
     clientId,
     clientInitials: `${client.firstName.slice(0, 2)}${client.lastName.slice(0, 2)}`,
     backLabel: session.role === "Caregiver" ? "Back to Children" : "Back to Client",
-    entries: consolidateEntries(entries),
+    entries: consolidateEntries(entries, client),
   });
-}
-
-function sevenDayWindowStart() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() - 6);
-  return start;
 }
 
 function consolidateEntries(entries: Array<{
@@ -214,6 +219,7 @@ function consolidateEntries(entries: Array<{
       | null;
     rawValue: number | null;
     supportLevel: number | null;
+    observation: string | null;
     goalDefinition: {
       targetValue: number | null;
       comparison: "LessThan" | "GreaterThan" | "Equal" | null;
@@ -226,24 +232,56 @@ function consolidateEntries(entries: Array<{
     behavior: string;
     consequence: string;
   }>;
-}>) {
+  revisions: Array<{
+    id: string;
+    revisionNumber: number;
+    changes: unknown;
+    createdAt: Date;
+    createdBy: {
+      firstName: string;
+      lastName: string;
+      role: string;
+    };
+  }>;
+}>, client: { firstName: string; lastName: string }) {
   const formatted = entries.map((entry) => {
     const providerName = `${entry.provider.firstName} ${entry.provider.lastName}`;
+    const safeText = (value: string) =>
+      clientDisplayText(value, client.firstName, client.lastName);
 
     return {
       id: entry.id,
       kind: entry.kind,
       status: entry.status,
-      note: entry.note ?? "",
-      clinicalReflection: entry.clinicalReflection,
+      note: safeText(entry.note ?? ""),
+      clinicalReflection: entry.clinicalReflection
+        ? safeText(entry.clinicalReflection)
+        : null,
       contextData: entry.contextData,
       date: entry.date.toISOString(),
       completedAt: (entry.completedAt ?? entry.updatedAt).toISOString(),
       finalScore: entry.finalScore,
       providerName,
       providerRole: formatRole(entry.provider.role),
-      items: entry.items,
-      abcObservations: entry.abcObservations,
+      items: entry.items.map((item) => ({
+        ...item,
+        target: safeText(item.target),
+        goal: safeText(item.goal),
+      })),
+      abcObservations: entry.abcObservations.map((observation) => ({
+        ...observation,
+        antecedent: safeText(observation.antecedent),
+        behavior: safeText(observation.behavior),
+        consequence: safeText(observation.consequence),
+      })),
+      revisions: entry.revisions.map((revision) => ({
+        id: revision.id,
+        revisionNumber: revision.revisionNumber,
+        createdAt: revision.createdAt.toISOString(),
+        createdByName: `${revision.createdBy.firstName} ${revision.createdBy.lastName}`,
+        createdByRole: formatRole(revision.createdBy.role),
+        changes: sanitizeRevisionChanges(revision.changes, safeText),
+      })),
       sensoryObservations: extractSensoryObservations(
         entry.contextData,
         entry.createdAt,
@@ -343,6 +381,55 @@ function consolidateEntries(entries: Array<{
         communicationObservations: communicationByDay.get(entryDayKey(entry)) ?? [],
       };
     });
+}
+
+function sanitizeRevisionChanges(
+  value: unknown,
+  safeText: (value: string) => string
+) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter(
+      (change): change is {
+        path: string;
+        label: string;
+        before: unknown;
+        after: unknown;
+      } =>
+        Boolean(change) &&
+        typeof change === "object" &&
+        typeof change.path === "string" &&
+        typeof change.label === "string"
+    )
+    .map((change) => ({
+      ...change,
+      before: sanitizeRevisionValue(change.before, safeText),
+      after: sanitizeRevisionValue(change.after, safeText),
+    }));
+}
+
+function sanitizeRevisionValue(
+  value: unknown,
+  safeText: (value: string) => string
+): unknown {
+  if (typeof value === "string") {
+    return safeText(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeRevisionValue(item, safeText));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [
+        key,
+        sanitizeRevisionValue(child, safeText),
+      ])
+    );
+  }
+  return value;
 }
 
 function entryDayKey(entry: { date: string }) {

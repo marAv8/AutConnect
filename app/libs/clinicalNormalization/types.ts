@@ -8,6 +8,7 @@ export type ClinicalEventCategory =
   | "environmental_context"
   | "communication_observation"
   | "sensory_observation"
+  | "provider_observation"
   | "supervisor_observation"
   | "clinical_reflection"
   | "recommendation"
@@ -95,6 +96,7 @@ export type NormalizableAssessmentItem = {
   domain?: string | null;
   rawValue?: number | null;
   supportLevel?: number | null;
+  observation?: string | null;
   goalDefinition?: {
     measurementProfile?: string | null;
     targetValue?: number | null;

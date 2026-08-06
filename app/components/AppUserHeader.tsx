@@ -1,8 +1,7 @@
-//app/components/AppUserHeader.tsx
-import Link from "next/link";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
-import { formatRole } from "@/app/libs/roles";
+import { formatBadgeRole } from "@/app/libs/roles";
+import { logoutProvider } from "@/app/actions/logoutProvider";
 
 export default async function AppUserHeader() {
   const session = await getSession();
@@ -13,28 +12,42 @@ export default async function AppUserHeader() {
     select: { firstName: true, lastName: true, role: true },
   });
   if (!provider) return null;
+  const lastInitial = provider.lastName.trim().charAt(0).toUpperCase();
+  const displayName = lastInitial
+    ? `${provider.firstName} ${lastInitial}.`
+    : provider.firstName;
 
   return (
-    <header style={{ marginBottom: 12 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 24,
-          width: "100%",
-        }}
-      >
-        <div style={{ fontSize: 28, fontWeight: 650, lineHeight: 1, color: "rgb(0 0 0 / 82%)" }}>AC</div>
+    <header className="app-user-header">
+      <div className="app-user-header-row">
+        <div className="app-user-header-logo" aria-label="AutConnect">
+          <span aria-hidden="true" className="brand-mark-light">A</span>
+          <span aria-hidden="true" className="brand-mark-strong">C</span>
+        </div>
 
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontWeight: 550, color: "rgb(0 0 0 / 80%)" }}>
-            {provider.firstName} {provider.lastName} -- {formatRole(provider.role)}
+        <div className="app-user-header-identity">
+          <div className="app-user-header-title">
+            {displayName} — {formatBadgeRole(provider.role)}
           </div>
           <div style={{ marginTop: 10 }}>
-            <Link href="/login" className="soft-link" style={{ fontSize: 14, fontWeight: 550 }}>
-              Logout
-            </Link>
+            <form action={logoutProvider}>
+              <button
+                type="submit"
+                className="soft-link"
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  color: "inherit",
+                  font: "inherit",
+                  fontSize: 14,
+                  fontWeight: 450,
+                  cursor: "pointer",
+                }}
+              >
+                Logout
+              </button>
+            </form>
           </div>
         </div>
       </div>

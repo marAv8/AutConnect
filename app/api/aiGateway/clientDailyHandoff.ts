@@ -6,7 +6,7 @@ import type {
   ClientDaySourceReference,
 } from "./types";
 
-const MAX_OVERVIEW_SENTENCES = 4;
+const MAX_OVERVIEW_SENTENCES = 3;
 const MAX_KEY_EVENTS = 5;
 const MAX_CONSIDERATIONS = 4;
 const MAX_POSITIVE_DEVELOPMENTS = 4;
@@ -22,9 +22,16 @@ export function generateClientDailyHandoff(context: ClientDayContext): ClientDai
       (item) => item.sourceReferenceIds
     )
   );
-  const supportingReferences = context.sourceReferences.filter((reference) =>
-    supportingReferenceIds.has(reference.id)
+  const referenceById = new Map(
+    context.sourceReferences.map((reference) => [reference.id, reference])
   );
+  const meaningfulSupportingReferences = Array.from(supportingReferenceIds)
+    .map((referenceId) => referenceById.get(referenceId))
+    .filter((reference): reference is ClientDaySourceReference => Boolean(reference));
+  const supportingReferences =
+    meaningfulSupportingReferences.length > 0
+      ? meaningfulSupportingReferences
+      : routineDocumentationReferences(context);
 
   return {
     client: context.client,
@@ -42,6 +49,7 @@ export function generateClientDailyHandoff(context: ClientDayContext): ClientDai
     highestAttentionLevel: context.highestAttentionLevel,
     hasMeaningfulEvents: hasVisibleMeaningfulEvents,
     completedEntryCount: context.completedEntryCount,
+    inProgressEntryCount: context.inProgressEntryCount,
     contributingProviderRoles: context.contributingProviderRoles,
     generatedAt: context.generatedAt,
     lastUpdatedAt: context.lastUpdatedAt,
@@ -110,7 +118,9 @@ function buildCurrentConsiderations(context: ClientDayContext): ClientDailyHando
     });
   }
 
-  for (const item of context.caregiverContext) {
+  for (const item of context.caregiverContext.filter(
+    (item) => !isMedicationContext(item.label, item.snippet)
+  )) {
     items.push({
       id: `consideration:${item.id}`,
       title: item.label,
@@ -175,7 +185,12 @@ function buildOverview(
     positiveDevelopments: ClientDailyHandoffItem[];
   }
 ) {
-  if (context.completedEntryCount === 0) {
+  const inProgressEntryCount = context.inProgressEntryCount ?? 0;
+
+  if (
+    context.completedEntryCount === 0 &&
+    inProgressEntryCount === 0
+  ) {
     return `${dayLabel(context)} has no completed provider documentation yet. The client handoff will update after providers complete session notes.`;
   }
 
@@ -185,25 +200,44 @@ function buildOverview(
     parts.positiveDevelopments.length > 0;
 
   if (!hasVisibleMeaningfulEvents) {
-    return `${dayLabel(context)} documentation is consistent with routine session activity. No clinically significant changes requiring team awareness were identified. Provider notes remain available for session-specific details.`;
+    if (inProgressEntryCount > 0) {
+      return `${dayLabel(context)} provider documentation is still in progress. The handoff will refine as providers complete their notes.`;
+    }
+
+    const noteLabel =
+      context.completedEntryCount === 1
+        ? "1 completed provider note"
+        : `${context.completedEntryCount} completed provider notes`;
+    return `${dayLabel(context)} ${noteLabel} reflect routine session activity.`;
   }
 
-  const sentences: string[] = [];
+  const sentences = uniqueSentences([
+    inProgressEntryCount > 0
+      ? "Live documentation is still in progress"
+      : "",
+    buildCaregiverContextSentence(context),
+    buildBehaviorAndSupportSentence(context),
+    buildAlliedHealthSentence(context),
+    buildEffectiveStrategySentence(context),
+  ]);
 
   const topItems = dedupeHandoffItems([
     ...parts.keyEvents,
+    ...parts.currentConsiderations,
     ...parts.positiveDevelopments,
-  ]).slice(0, 3);
+  ]);
 
   for (const item of topItems) {
-    sentences.push(toNaturalHandoffSentence(item));
+    if (sentences.length >= MAX_OVERVIEW_SENTENCES) break;
+    const sentence = toNaturalHandoffSentence(item);
+    if (!isRepeatedSentence(sentence, sentences)) {
+      sentences.push(sentence);
+    }
   }
 
   if (sentences.length === 0) {
     sentences.push(
-      `${dayLabel(context)} included meaningful documentation from ${formatRoleList(
-        context.contributingProviderRoles
-      )}. Provider notes remain available for supporting details.`
+      `${dayLabel(context)} completed notes include information that may be useful to the care team.`
     );
   }
 
@@ -211,22 +245,264 @@ function buildOverview(
 }
 
 function toNaturalHandoffSentence(item: ClientDailyHandoffItem) {
-  const title = simplifyTitle(item.title);
   const summary = cleanClinicalText(item.summary);
 
-  if (!summary) {
-    return ensureSentence(`${title} was noted`);
+  return summary
+    ? ensureSentence(summary)
+    : ensureSentence(`${simplifyTitle(item.title)} was noted`);
+}
+
+function buildCaregiverContextSentence(context: ClientDayContext) {
+  const phrases = context.clinicalEvents
+    .filter((event) => event.category === "caregiver_context")
+    .sort(
+      (first, second) =>
+        caregiverContextPriority(first) - caregiverContextPriority(second) ||
+        first.occurredAt.localeCompare(second.occurredAt) ||
+        first.id.localeCompare(second.id)
+    )
+    .map(caregiverContextPhrase)
+    .filter((phrase): phrase is string => Boolean(phrase));
+
+  const uniquePhrases = uniqueValues(phrases).slice(0, 3);
+  return uniquePhrases.length > 0
+    ? ensureSentence(`The caregiver reported that ${formatCaregiverPhrases(uniquePhrases)}`)
+    : "";
+}
+
+function formatCaregiverPhrases(phrases: string[]) {
+  const [first, ...remaining] = phrases;
+  return formatNaturalList([
+    first,
+    ...remaining.map((phrase) => phrase.replace(/^the client\s+/i, "")),
+  ]);
+}
+
+function caregiverContextPriority(event: ClientDayContext["clinicalEvents"][number]) {
+  const key = typeof event.details?.key === "string" ? event.details.key : "";
+  return ["sleep", "breakfast", "schoolTransition"].indexOf(key) + 1 || 5;
+}
+
+function caregiverContextPhrase(event: ClientDayContext["clinicalEvents"][number]) {
+  const key = typeof event.details?.key === "string" ? event.details.key : "";
+  const value = typeof event.details?.value === "string" ? event.details.value.trim() : "";
+  const normalized = value.toLowerCase();
+
+  if (!value) {
+    return event.eventType === "caregiver_comment" ? cleanClinicalText(event.summary) : "";
   }
 
-  if (isGenericTitle(title)) {
-    return ensureSentence(summary);
+  if (key === "sleep") {
+    if (normalized === "good") return "the client slept well";
+    if (normalized === "restless") return "the client had restless sleep";
+    if (normalized === "poor") return "the client slept poorly";
+    if (normalized === "woke early") return "the client woke early";
   }
 
-  if (summary.toLowerCase().startsWith(title.toLowerCase())) {
-    return ensureSentence(summary);
+  if (key === "breakfast") {
+    if (normalized === "ate well") return "the client ate breakfast well";
+    if (normalized === "ate some") return "the client ate some breakfast";
+    if (normalized === "skipped") return "the client skipped breakfast";
+    if (normalized === "not sure") return "breakfast intake was uncertain";
   }
 
-  return ensureSentence(`${title}; ${lowercaseFirst(summary)}`);
+  if (key === "medication") return "";
+
+  if (key === "schoolTransition") {
+    if (normalized === "smooth") return "the transition to school was smooth";
+    if (normalized === "slow") return "the transition to school was slow";
+    if (normalized === "difficult") return "the transition to school was difficult";
+  }
+
+  if (event.significance === "important" || event.significance === "critical") {
+    return `${event.title.toLowerCase()} was reported as ${normalized}`;
+  }
+
+  return "";
+}
+
+function buildBehaviorAndSupportSentence(context: ClientDayContext) {
+  const abcEvent = context.clinicalEvents
+    .filter((event) => event.category === "abc_observation")
+    .sort(
+      (first, second) =>
+        significanceWeight(second.significance) - significanceWeight(first.significance)
+    )[0];
+  const fullSupportTargets = uniqueValues(
+    context.clinicalEvents
+      .filter((event) => {
+        const profile = event.target?.measurementProfile;
+        return (
+          event.category === "target_progress" &&
+          typeof event.measurement?.score === "number" &&
+          event.measurement.score <= 1 &&
+          ["PromptLevel", "SupportLevel", "Independence", "AssistanceLevel"].includes(
+            profile ?? ""
+          )
+        );
+      })
+      .map((event) => event.target?.target?.trim() ?? "")
+      .filter(Boolean)
+  ).slice(0, 2);
+  const positiveResponse = context.clinicalEvents.find(
+    (event) =>
+      event.category === "provider_observation" &&
+      event.eventType === "positive_response_observed"
+  );
+
+  if (!abcEvent && fullSupportTargets.length === 0 && !positiveResponse) return "";
+
+  const abcClause = abcEvent ? abcOverviewClause(abcEvent) : "";
+  const positiveClause = positiveResponse
+    ? positiveResponseOverviewClause(positiveResponse)
+    : "";
+  const supportTargets =
+    fullSupportTargets.length > 0
+      ? formatNaturalList(
+          fullSupportTargets.map((target) => target.toLowerCase())
+        )
+      : "";
+
+  if (abcClause && positiveClause) {
+    return ensureSentence(`${abcClause}, and ${lowercaseFirst(positiveClause)}`);
+  }
+
+  if (abcClause && supportTargets) {
+    return ensureSentence(`${abcClause} and full support required for ${supportTargets}`);
+  }
+
+  return ensureSentence(
+    abcClause ||
+      positiveClause ||
+      (supportTargets ? `Full support was required for ${supportTargets}` : "")
+  );
+}
+
+function positiveResponseOverviewClause(
+  event: ClientDayContext["clinicalEvents"][number]
+) {
+  const positiveEngagement = event.details?.positiveEngagement === true;
+  const expressiveCommunication = event.details?.expressiveCommunication === true;
+  const transitionContext = event.details?.transitionContext === true;
+  const response =
+    positiveEngagement && expressiveCommunication
+      ? "positive engagement and expressive language"
+      : positiveEngagement
+        ? "positive engagement"
+        : "expressive language";
+
+  return `Behavior therapy later observed ${response}${
+    transitionContext ? " following the documented support" : ""
+  }`;
+}
+
+function abcOverviewClause(event: ClientDayContext["clinicalEvents"][number]) {
+  const antecedent =
+    typeof event.details?.antecedent === "string" ? event.details.antecedent.trim() : "";
+  const behavior =
+    typeof event.details?.behavior === "string" ? event.details.behavior.trim() : "";
+  const consequence =
+    typeof event.details?.consequence === "string" ? event.details.consequence.trim() : "";
+  const behaviorPhrase =
+    /\b(?:dropped|fell|lowered)\b[^.!?]{0,80}\bfloor\b[^.!?]{0,80}\bresist(?:ed|ance|ing)?\b/i.test(
+      behavior
+    ) && /\btransition\b/i.test(behavior)
+      ? "the client resisted the transition"
+      : compactPhrase(
+          behavior
+            .replace(/^client\s+/i, "the client ")
+            .replace(/,\s+and\b/gi, " and"),
+          96
+        );
+  const contextPhrase = abcContextPhrase(antecedent);
+  const reinforcementPhrase = /\b(mand|request|communicat).*\b(reinforc|prompt)|\b(reinforc|prompt).*\b(mand|request|communicat)/i.test(
+    consequence
+  )
+    ? "functional communication prompted and reinforced in response"
+    : "";
+
+  const observation = behaviorPhrase
+    ? `Behavior therapy observed that ${lowercaseFirst(behaviorPhrase)}${contextPhrase}`
+    : "Behavior therapy recorded an A-B-C observation";
+
+  return reinforcementPhrase ? `${observation}, with ${reinforcementPhrase}` : observation;
+}
+
+function abcContextPhrase(antecedent: string) {
+  if (!antecedent) return "";
+  if (/\b(dropped off|drop[-\s]?off|front of (?:the )?school|school arrival|arrival)\b/i.test(antecedent)) {
+    return " during school arrival";
+  }
+  if (/\b(transition|routine|unpack|line|classroom|teacher arriv)/i.test(antecedent)) {
+    return " during a classroom transition";
+  }
+  if (/\b(task|work|demand|worksheet|instruction)/i.test(antecedent)) {
+    return " during a task demand";
+  }
+  if (/\bwait|waiting/i.test(antecedent)) {
+    return " while waiting";
+  }
+  return ` after ${lowercaseFirst(compactPhrase(antecedent, 72))}`;
+}
+
+function buildAlliedHealthSentence(context: ClientDayContext) {
+  const speechFocuses = observationFocuses(context, "communication_observation");
+  const occupationalFocuses = observationFocuses(context, "sensory_observation");
+
+  if (speechFocuses.length > 0 && occupationalFocuses.length > 0) {
+    return ensureSentence(
+      `Speech and occupational therapy identified emerging priorities in ${formatNaturalList([
+        ...speechFocuses,
+        ...occupationalFocuses,
+      ].slice(0, 3))} for team follow-up`
+    );
+  }
+
+  if (speechFocuses.length > 0) {
+    return ensureSentence(
+      `Speech therapy identified ${formatNaturalList(speechFocuses)} for continued observation`
+    );
+  }
+
+  if (occupationalFocuses.length > 0) {
+    return ensureSentence(
+      `Occupational therapy identified ${formatNaturalList(
+        occupationalFocuses
+      )} for continued observation`
+    );
+  }
+
+  return "";
+}
+
+function observationFocuses(
+  context: ClientDayContext,
+  category: "communication_observation" | "sensory_observation"
+) {
+  return uniqueValues(
+    context.clinicalEvents
+      .filter((event) => event.category === category)
+      .map((event) =>
+        simplifyTitle(event.title)
+          .replace(/\bobservation(s)?\b/gi, "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .toLowerCase()
+      )
+      .filter((value) => value && !/^(communication|sensory|update)$/i.test(value))
+  ).slice(0, 2);
+}
+
+function buildEffectiveStrategySentence(context: ClientDayContext) {
+  const strategy = context.clinicalEvents.find(
+    (event) =>
+      event.category === "reinforcer" ||
+      /\b(effective reinforcer|reinforcer.*effective|highly motivated|motivating)\b/i.test(
+        `${event.title} ${event.summary}`
+      )
+  );
+
+  return strategy ? ensureSentence(cleanClinicalText(strategy.summary)) : "";
 }
 
 function simplifyTitle(value: string) {
@@ -247,14 +523,15 @@ function cleanClinicalText(value: string) {
     .replace(/\b(?:BehaviorTherapist|SpeechPathologist|OccupationalTherapist)\b\s+documented\s+/gi, "")
     .replace(/\b(?:Behavior Therapist|Speech Pathologist|Occupational Therapist)\b\s+documented\s+/gi, "")
     .replace(/\b(?:Educator|Caregiver|Supervisor)\b\s+documented\s+/gi, "")
-    .replace(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}\s+documented\s+/g, "")
+    .replace(
+      /\b[A-Z][A-Za-z'-]*(?:\s+[A-Z][A-Za-z'-]*){0,2}\s+(?:documented|reported)\s+/gi,
+      ""
+    )
     .replace(/\bClients\b/g, "Client")
+    .replace(/\s+([,.!?])/g, "$1")
+    .replace(/\.{2,}/g, ".")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function isGenericTitle(value: string) {
-  return /\b(update|documented|reported|progress|reinforcer)\b/i.test(value);
 }
 
 function lowercaseFirst(value: string) {
@@ -269,20 +546,44 @@ function ensureSentence(value: string) {
 }
 
 function referencesForAttention(context: ClientDayContext, event: AttentionEvent) {
-  const directAttentionReference = context.sourceReferences.find((reference) =>
-    reference.attentionEventIds?.includes(event.id)
-  );
   const clinicalReferences = context.sourceReferences.filter((reference) =>
+    reference.sourceCategory !== "attention_event" &&
     reference.clinicalEventIds.some((eventId) => event.clinicalEventIds.includes(eventId))
   );
 
-  return dedupeReferences([
-    ...(directAttentionReference ? [directAttentionReference] : []),
-    ...clinicalReferences,
-  ]);
+  return dedupeReferences(clinicalReferences);
+}
+
+function routineDocumentationReferences(context: ClientDayContext) {
+  return context.sourceReferences.filter(
+    (reference) =>
+      Boolean(reference.entryId) &&
+      !isMedicationReference(reference) &&
+      ![
+        "attention_event",
+        "team_focus",
+        "supervisor_directive",
+      ].includes(reference.sourceCategory) &&
+      reference.sectionKey !== "team-focus"
+  );
 }
 
 function isMeaningfulSourceReference(reference: ClientDaySourceReference) {
+  if (isMedicationReference(reference)) return false;
+
+  if (reference.sourceCategory === "session_observation") {
+    return /\b(abc|concern|difficult|elop|prompt|reinforc|recommend|support|tantrum|transition)\b/i.test(
+      `${reference.label} ${reference.snippet}`
+    );
+  }
+
+  if (
+    reference.sourceCategory === "provider_observation" &&
+    isPositiveSourceReference(reference)
+  ) {
+    return false;
+  }
+
   return [
     "attention_event",
     "caregiver_context",
@@ -293,7 +594,6 @@ function isMeaningfulSourceReference(reference: ClientDaySourceReference) {
     "sensory_observation",
     "abc_observation",
     "provider_observation",
-    "clinical_reflection",
   ].includes(reference.sourceCategory);
 }
 
@@ -305,6 +605,12 @@ function isPositiveAttention(event: AttentionEvent) {
 
 function isPositiveSourceReference(reference: ClientDaySourceReference) {
   if (reference.sourceCategory === "reinforcer") return true;
+  if (
+    reference.sourceCategory === "provider_observation" &&
+    /\bpositive response observed\b/i.test(reference.label)
+  ) {
+    return true;
+  }
   if (reference.sourceCategory === "communication_observation") {
     return /\b(increased|improved|independent|spontaneous|initiated|requested)\b/i.test(
       `${reference.label} ${reference.snippet}`
@@ -324,6 +630,17 @@ function levelForReference(reference: ClientDaySourceReference) {
   return "routine";
 }
 
+function isMedicationReference(reference: ClientDaySourceReference) {
+  return (
+    reference.sourceCategory === "caregiver_context" &&
+    isMedicationContext(reference.label, reference.snippet)
+  );
+}
+
+function isMedicationContext(label: string, snippet: string) {
+  return /\bmedication\b/i.test(`${label} ${snippet}`);
+}
+
 function compareHandoffItems(first: ClientDailyHandoffItem, second: ClientDailyHandoffItem) {
   const levelDelta = itemWeight(second) - itemWeight(first);
   if (levelDelta !== 0) return levelDelta;
@@ -341,13 +658,10 @@ function itemWeight(item: ClientDailyHandoffItem) {
 function dedupeHandoffItems(items: ClientDailyHandoffItem[]) {
   const seen = new Set<string>();
   return items.filter((item) => {
-    const key = [
-      item.title.toLowerCase(),
-      item.sourceReferenceIds.join("|"),
-      item.clinicalEventIds.join("|"),
-      item.attentionEventIds?.join("|") ?? "",
-      item.directiveIds?.join("|") ?? "",
-    ].join(":");
+    const eventKey = [...item.clinicalEventIds].sort().join("|");
+    const key = eventKey
+      ? `events:${eventKey}`
+      : `text:${semanticTextKey(item.summary)}:${[...item.providerRoles].sort().join("|")}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -362,11 +676,57 @@ function uniqueValues(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));
 }
 
-function formatRoleList(roles: string[]) {
-  if (roles.length === 0) return "provider";
-  if (roles.length === 1) return roles[0];
-  if (roles.length === 2) return `${roles[0]} and ${roles[1]}`;
-  return `${roles.slice(0, -1).join(", ")}, and ${roles[roles.length - 1]}`;
+function formatNaturalList(values: string[]) {
+  if (values.length === 0) return "";
+  if (values.length === 1) return values[0];
+  if (values.length === 2) return `${values[0]} and ${values[1]}`;
+  return `${values.slice(0, -1).join(", ")}, and ${values[values.length - 1]}`;
+}
+
+function compactPhrase(value: string, maxLength: number) {
+  const cleaned = cleanClinicalText(value).replace(/[.!?]+$/, "");
+  if (cleaned.length <= maxLength) return cleaned;
+  const shortened = cleaned.slice(0, maxLength + 1);
+  const boundary = Math.max(shortened.lastIndexOf(","), shortened.lastIndexOf(" "));
+  return shortened.slice(0, boundary > maxLength * 0.6 ? boundary : maxLength).trim();
+}
+
+function semanticTextKey(value: string) {
+  return cleanClinicalText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function uniqueSentences(values: string[]) {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    if (!value) return false;
+    const key = semanticTextKey(value);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function isRepeatedSentence(candidate: string, existing: string[]) {
+  const candidateKey = semanticTextKey(candidate);
+  return existing.some((sentence) => {
+    const sentenceKey = semanticTextKey(sentence);
+    return (
+      sentenceKey === candidateKey ||
+      sentenceKey.includes(candidateKey) ||
+      candidateKey.includes(sentenceKey)
+    );
+  });
+}
+
+function significanceWeight(
+  significance: ClientDayContext["clinicalEvents"][number]["significance"]
+) {
+  if (significance === "critical") return 3;
+  if (significance === "important") return 2;
+  return 1;
 }
 
 function dayLabel(context: ClientDayContext) {

@@ -366,10 +366,10 @@ export const sensoryObservationCategoryOptions = [
 ];
 
 export const sensoryRecommendationOptions = [
-  "Continue Current Strategy",
+  "Continue Strategy",
   "Increase Sensory Breaks",
   "Modify Environment",
-  "Introduce Adaptive Equipment",
+  "Adaptive Equipment",
   "Discuss with Team",
   "Other",
 ];
@@ -388,9 +388,9 @@ export const communicationObservationCategoryOptions = [
 ];
 
 export const communicationRecommendationOptions = [
-  "Continue Current Strategy",
+  "Continue Strategy",
   "Increase Modeling",
-  "Provide Additional Visual Supports",
+  "Visual Supports",
   "Modify Prompting",
   "Discuss with Team",
   "Other",

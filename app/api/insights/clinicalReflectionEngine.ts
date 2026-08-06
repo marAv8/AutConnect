@@ -1,5 +1,6 @@
 import { AssessmentDomain, MetricType } from "@prisma/client";
 import { db } from "@/lib/db";
+import { clientDisplayCode } from "@/app/libs/clientIdentity";
 import { normalizeItem } from "@/lib/sessionScoring";
 
 type ReflectionItem = {
@@ -33,7 +34,7 @@ type ReflectionEntry = {
   note: string | null;
   finalScore: number | null;
   provider: { role: string };
-  client: { firstName: string };
+  client: { firstName: string; lastName: string };
   items: ReflectionItem[];
   abcObservations: ReflectionAbcObservation[];
 };
@@ -56,6 +57,7 @@ export async function generateClinicalReflectionForEntry(entryId: string) {
       client: {
         select: {
           firstName: true,
+          lastName: true,
         },
       },
       items: {
@@ -181,7 +183,10 @@ function buildClinicalReflection(
 }
 
 function performanceSentence(entry: ReflectionEntry, todayAverage: number | null) {
-  const name = entry.client.firstName;
+  const name = clientDisplayCode(
+    entry.client.firstName,
+    entry.client.lastName
+  );
   const measuredItems = entry.items.filter((item) => normalizedPercent(item) !== null);
 
   if (todayAverage !== null && measuredItems.length > 0) {
