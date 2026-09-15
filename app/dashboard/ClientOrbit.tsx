@@ -19,19 +19,28 @@ import {
 } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Check, FilePenLine, Plus } from "lucide-react";
 import { formatBadgeRole } from "@/app/libs/roles";
+import { formatCompactProviderBadgeName } from "@/app/libs/providerDisplayName";
 import {
   CLIENT_ORBIT_LAYOUT,
   preferredCurrentProviderSlot,
   providerOrbitPoint,
+  resolveProviderActionPopoverPosition,
+  responsiveClientOrbitScale,
+  type ProviderActionPopoverPosition,
 } from "./clientOrbitLayout";
 import type { DashboardClient } from "./dashboardClientTypes";
 import { providerSignalState } from "./providerSignalState";
+import { transitionToSessionCompletionConfirmation } from "./clientOrbitCompletion";
+import { prepareFieldObservationNavigation } from "./fieldObservationNavigation";
+import { traceDashboardInteractionHandled, traceDashboardInteractionState } from "./dashboardInteractionTraceClient";
+import { readDashboardOrbitReturnMarker } from "./dashboardOrbitRestoration";
 
 type ClientOrbitProps = {
   client: DashboardClient;
   currentProviderId: string;
+  presentationKey: string;
   viewerRole?: string;
   suspendMenuDismiss?: boolean;
   onOpenNotes: (providerId: string) => void;
@@ -41,47 +50,12 @@ type ClientOrbitProps = {
     entryKind?: CaretakerContextKind | NoteEntryKind
   ) => void;
   onOpenAbcData: (providerId: string) => void;
-  onOpenTeamFocus: () => void;
   onOpenClientHandoff: () => void;
   onOpenEducatorTarget: (progressKind?: NoteEntryKind) => void;
   onSessionCompleted?: (
     providerId: string,
     completedEntryIds: string[]
   ) => void;
-};
-
-const providerActionMenuStyle: CSSProperties = {
-  position: "absolute",
-  left: "50%",
-  display: "grid",
-  gap: 2,
-  width: "min(248px, calc(100% - 40px))",
-  maxHeight: "min(320px, 44dvh)",
-  overflowY: "auto",
-  zIndex: 22,
-  padding: "12px 16px",
-  borderRadius: 18,
-  border: "1px solid var(--provider-action-menu-border)",
-  background: "var(--provider-action-menu-background)",
-  boxShadow: "var(--provider-action-menu-shadow)",
-  backdropFilter: "var(--provider-action-menu-filter)",
-  WebkitBackdropFilter: "var(--provider-action-menu-filter)",
-  transform: "translateX(-50%)",
-  transformOrigin: "top center",
-  animation: "provider-action-pop 180ms cubic-bezier(0.2, 0.9, 0.25, 1.12) both",
-};
-
-const providerActionLinkStyle: CSSProperties = {
-  color: "var(--foreground)",
-  textDecoration: "none",
-  fontSize: 14,
-  fontWeight: 550,
-  whiteSpace: "nowrap",
-  minHeight: 44,
-  padding: "0 6px",
-  borderRadius: 0,
-  background: "transparent",
-  textAlign: "center",
 };
 
 const abcDataRoles = new Set([
@@ -119,6 +93,8 @@ function ProviderActionControl({
   isOwnControl,
   isSignal,
   isDimmed,
+  hasTodayEntry,
+  isPublished,
   signalEventKey,
   style,
   onActivate,
@@ -127,9 +103,11 @@ function ProviderActionControl({
   isOwnControl: boolean;
   isSignal: boolean;
   isDimmed: boolean;
+  hasTodayEntry: boolean;
+  isPublished: boolean;
   signalEventKey: string | null;
   style: CSSProperties;
-  onActivate: () => void;
+  onActivate: (anchor: HTMLButtonElement) => void;
 }) {
   const [isPulsing, setIsPulsing] = useState(false);
   const playedSignalEventKey = useRef<string | null>(null);
@@ -163,15 +141,35 @@ function ProviderActionControl({
         isPulsing ? " glass-badge-action--signal-pulse" : ""
       }`}
       data-own-note-menu={isOwnControl ? "true" : undefined}
+      data-dashboard-trace-control={isOwnControl ? "provider-action" : undefined}
+      data-swipe-ignore="true"
       data-spatial-hit-target="true"
       onClick={(event) => {
         event.stopPropagation();
-        onActivate();
+        if (isOwnControl) traceDashboardInteractionHandled("provider-action");
+        onActivate(event.currentTarget);
       }}
       aria-label={ariaLabel}
+      title={ariaLabel}
       style={style}
     >
-      {isSignal ? null : <Plus aria-hidden="true" size={14} strokeWidth={2} />}
+      {isSignal ? null : hasTodayEntry ? (
+        <span
+          aria-hidden="true"
+          style={{ display: "inline-flex", position: "relative" }}
+        >
+          <FilePenLine size={14} strokeWidth={1.9} />
+          {isPublished ? (
+            <Check
+              size={9}
+              strokeWidth={2.5}
+              style={{ position: "absolute", right: -5, bottom: -3 }}
+            />
+          ) : null}
+        </span>
+      ) : (
+        <Plus aria-hidden="true" size={14} strokeWidth={2} />
+      )}
     </button>
   );
 }
@@ -179,21 +177,31 @@ function ProviderActionControl({
 export default function ClientOrbit({
   client,
   currentProviderId,
+  presentationKey,
   viewerRole,
   suspendMenuDismiss = false,
   onOpenNotes,
   onOpenEntryForm,
   onOpenAbcData,
-  onOpenTeamFocus,
   onOpenClientHandoff,
   onOpenEducatorTarget,
   onSessionCompleted,
 }: ClientOrbitProps) {
   const router = useRouter();
   const [menuProviderId, setMenuProviderId] = useState<string | null>(null);
+  const [isOwnMenuClosing, setIsOwnMenuClosing] = useState(false);
+  const menuAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const pendingOwnMenuActionRef = useRef<null | (() => void)>(null);
+  const [providerMenuPosition, setProviderMenuPosition] =
+    useState<ProviderActionPopoverPosition | null>(null);
   const [ownMenuMode, setOwnMenuMode] = useState<"primary" | "update">(
     "primary"
   );
+  useEffect(() => {
+    traceDashboardInteractionState(!menuProviderId ? "documentation-closed"
+      : isOwnMenuClosing ? "documentation-closing"
+      : ownMenuMode === "update" ? "documentation-update" : "documentation-open");
+  }, [menuProviderId, isOwnMenuClosing, ownMenuMode]);
   const [completionStatus, setCompletionStatus] = useState<
     Record<string, "idle" | "saving" | "error">
   >({});
@@ -204,10 +212,8 @@ export default function ClientOrbit({
   );
   const [orbitScale, setOrbitScale] = useState(1);
   const orbitRef = useRef<HTMLDivElement | null>(null);
-  const [orbitElement, setOrbitElement] = useState<HTMLDivElement | null>(null);
   const setOrbitNode = useCallback((node: HTMLDivElement | null) => {
     orbitRef.current = node;
-    setOrbitElement(node);
   }, []);
 
   const {
@@ -218,23 +224,23 @@ export default function ClientOrbit({
     actionBadgeSize: baseBadgeSize,
   } = CLIENT_ORBIT_LAYOUT;
   const orbitSize = baseOrbitSize * orbitScale;
-  const centerSize = Math.min(
-    baseCenterSize,
-    Math.max(MIN_CLIENT_BADGE_SIZE, baseCenterSize * orbitScale)
+  const centerSize = Math.max(
+    MIN_CLIENT_BADGE_SIZE,
+    baseCenterSize * orbitScale
   );
-  const spokeSize = Math.min(
-    baseSpokeSize,
-    Math.max(MIN_PROVIDER_BADGE_SIZE, baseSpokeSize * orbitScale)
+  const spokeSize = Math.max(
+    MIN_PROVIDER_BADGE_SIZE,
+    baseSpokeSize * orbitScale
   );
-  const badgeSize = Math.min(
-    baseBadgeSize,
-    Math.max(MIN_ACTION_BADGE_SIZE, baseBadgeSize * orbitScale)
+  const badgeSize = Math.max(
+    MIN_ACTION_BADGE_SIZE,
+    baseBadgeSize * orbitScale
   );
   const providerDistance = Math.min(
-    baseProviderDistance,
+    baseProviderDistance * orbitScale,
     Math.max(
       0,
-      orbitSize / 2 - spokeSize / 2 - ORBIT_EDGE_CLEARANCE
+      orbitSize / 2 - spokeSize / 2 - ORBIT_EDGE_CLEARANCE * orbitScale
     )
   );
 
@@ -256,9 +262,6 @@ export default function ClientOrbit({
 
     return arrangedProviders;
   })();
-  const providerEntranceKey = providers
-    .map((providerClient) => providerClient.provider.id)
-    .join("|");
   const getProviderSignalState = (providerId: string, isMe: boolean) => {
     const readableEntriesForProvider = (client.entries ?? []).filter(
       (entry) => entry.providerId === providerId && isReadableEntryKind(entry.kind)
@@ -290,16 +293,89 @@ export default function ClientOrbit({
   };
   const dismissOwnNotesPrompt = useCallback(() => {
     setMenuProviderId(null);
+    setIsOwnMenuClosing(false);
+    menuAnchorRef.current = null;
+    setProviderMenuPosition(null);
     setOwnMenuMode("primary");
   }, []);
+  const completeOwnNotesPromptDismiss = useCallback(() => {
+    const nextAction = pendingOwnMenuActionRef.current;
+    pendingOwnMenuActionRef.current = null;
+    flushSync(dismissOwnNotesPrompt);
+    nextAction?.();
+  }, [dismissOwnNotesPrompt]);
+  const beginOwnNotesPromptDismiss = useCallback(
+    (nextAction?: () => void) => {
+      if (!menuProviderId || isOwnMenuClosing) return;
+
+      pendingOwnMenuActionRef.current = nextAction ?? null;
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        completeOwnNotesPromptDismiss();
+        return;
+      }
+      setIsOwnMenuClosing(true);
+    },
+    [completeOwnNotesPromptDismiss, isOwnMenuClosing, menuProviderId]
+  );
+  const positionProviderMenu = useCallback((anchor: HTMLButtonElement) => {
+    const rect = anchor.getBoundingClientRect();
+    const viewport = window.visualViewport;
+    setProviderMenuPosition(
+      resolveProviderActionPopoverPosition(rect, {
+        width: viewport?.width ?? window.innerWidth,
+        height: viewport?.height ?? window.innerHeight,
+      })
+    );
+  }, []);
+  const requestOwnNotesPromptDismiss = useCallback(() => {
+    beginOwnNotesPromptDismiss();
+  }, [beginOwnNotesPromptDismiss]);
   const leaveOwnNotesMenu = useCallback(
     (nextAction: () => void) => {
-      // Commit the clean carousel before a level-three history entry is added.
-      // Mobile Safari uses that committed frame for its interactive Back preview.
-      flushSync(dismissOwnNotesPrompt);
-      nextAction();
+      // Let the existing material exit reach its invisible keyframe before a
+      // same-page workflow records the underlying screen in browser history.
+      beginOwnNotesPromptDismiss(nextAction);
+    },
+    [beginOwnNotesPromptDismiss]
+  );
+  const openSessionCompletionConfirmation = useCallback(
+    (providerId: string) => {
+      transitionToSessionCompletionConfirmation(
+        providerId,
+        () => flushSync(dismissOwnNotesPrompt),
+        setPendingCompletionProviderId
+      );
     },
     [dismissOwnNotesPrompt]
+  );
+  const openCaseSupport = useCallback(
+    (mode: "open" | "request") => {
+      router.push(
+        mode === "open"
+          ? `/portal/case-support/${client.id}`
+          : `/portal/case-support/request/${client.id}`
+      );
+    },
+    [client.id, router]
+  );
+  const openFieldObservation = useCallback(() => {
+    router.push(
+      prepareFieldObservationNavigation(client.id, presentationKey)
+    );
+  }, [client.id, presentationKey, router]);
+  const toggleOwnNotesMenu = useCallback(
+    (providerId: string, anchor: HTMLButtonElement) => {
+      if (menuProviderId === providerId) {
+        dismissOwnNotesPrompt();
+        return;
+      }
+
+      menuAnchorRef.current = anchor;
+      positionProviderMenu(anchor);
+      setMenuProviderId(providerId);
+      setOwnMenuMode("primary");
+    },
+    [dismissOwnNotesPrompt, menuProviderId, positionProviderMenu]
   );
   useLayoutEffect(() => {
     const orbit = orbitRef.current;
@@ -313,6 +389,26 @@ export default function ClientOrbit({
       layer: HTMLElement;
       listener: (event: AnimationEvent) => void;
     }> = [];
+
+    const isRestoredPresentation = Boolean(
+      readDashboardOrbitReturnMarker({
+        historyState: window.history.state,
+        clientId: client.id,
+        presentationKey,
+      })
+    );
+
+    if (isRestoredPresentation) {
+      providerNodes.forEach((node) => {
+        node.classList.remove("provider-orbit-node--ready");
+        node.classList.add("provider-orbit-node--settled");
+      });
+      return () => {
+        providerNodes.forEach((node) => {
+          node.classList.remove("provider-orbit-node--settled");
+        });
+      };
+    }
 
     for (let index = shuffledNodes.length - 1; index > 0; index -= 1) {
       const swapIndex = Math.floor(Math.random() * (index + 1));
@@ -368,28 +464,47 @@ export default function ClientOrbit({
         node.style.removeProperty("--provider-reveal-duration");
       });
     };
-  }, [client.id, providerEntranceKey]);
+  }, [client.id, presentationKey]);
   useLayoutEffect(() => {
-    const orbitParent = orbitRef.current?.parentElement;
-    if (!orbitParent) return;
+    const orbitStage = orbitRef.current?.closest<HTMLElement>(
+      ".client-carousel-stage"
+    );
+    if (!orbitStage) return;
 
-    const updateScale = (availableWidth: number) => {
-      const nextScale = Math.min(1, availableWidth / baseOrbitSize);
+    const updateScale = (availableWidth: number, availableHeight: number) => {
+      const nextScale = responsiveClientOrbitScale(
+        availableWidth,
+        availableHeight
+      );
       setOrbitScale((currentScale) =>
         Math.abs(currentScale - nextScale) < 0.001
           ? currentScale
           : nextScale
       );
     };
-    const observer = new ResizeObserver(([entry]) => {
-      updateScale(entry.contentRect.width);
-    });
+    const updateScaleFromLiveStage = () => {
+      const styles = window.getComputedStyle(orbitStage);
+      const horizontalPadding =
+        Number.parseFloat(styles.paddingLeft) +
+        Number.parseFloat(styles.paddingRight);
+      const verticalPadding =
+        Number.parseFloat(styles.paddingTop) +
+        Number.parseFloat(styles.paddingBottom);
+      updateScale(
+        orbitStage.clientWidth - horizontalPadding,
+        orbitStage.clientHeight - verticalPadding
+      );
+    };
+    const observer = new ResizeObserver(updateScaleFromLiveStage);
 
-    updateScale(orbitParent.getBoundingClientRect().width);
-    observer.observe(orbitParent);
-
-    return () => observer.disconnect();
-  }, [baseOrbitSize]);
+    // The orbit lives in the stage's content box. Reading that same box for
+    // both initial and observed sizing keeps it centered without a later snap.
+    updateScaleFromLiveStage();
+    observer.observe(orbitStage);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
   const completeProviderSessionNote = async (providerId: string) => {
     setPendingCompletionProviderId(null);
     setCompletionStatus((current) => ({ ...current, [providerId]: "saving" }));
@@ -425,13 +540,13 @@ export default function ClientOrbit({
         !orbitRef.current?.contains(target) &&
         !target.closest('[data-own-note-menu="true"]')
       ) {
-        dismissOwnNotesPrompt();
+        requestOwnNotesPromptDismiss();
       }
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        dismissOwnNotesPrompt();
+        requestOwnNotesPromptDismiss();
       }
     };
 
@@ -442,12 +557,41 @@ export default function ClientOrbit({
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [dismissOwnNotesPrompt, menuProviderId, suspendMenuDismiss]);
+  }, [menuProviderId, requestOwnNotesPromptDismiss, suspendMenuDismiss]);
+
+  useEffect(() => {
+    if (typeof document === "undefined" || !menuProviderId) return;
+
+    document.body.classList.add("provider-action-menu-open");
+    return () => {
+      document.body.classList.remove("provider-action-menu-open");
+    };
+  }, [menuProviderId]);
+
+  useEffect(() => {
+    if (!menuProviderId || !menuAnchorRef.current) return;
+
+    const updatePosition = () => {
+      if (menuAnchorRef.current) {
+        positionProviderMenu(menuAnchorRef.current);
+      }
+    };
+    const viewport = window.visualViewport;
+    window.addEventListener("resize", updatePosition);
+    viewport?.addEventListener("resize", updatePosition);
+    viewport?.addEventListener("scroll", updatePosition);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      viewport?.removeEventListener("resize", updatePosition);
+      viewport?.removeEventListener("scroll", updatePosition);
+    };
+  }, [menuProviderId, positionProviderMenu]);
 
   return (
     // This relative root is the containing block for every absolute orbit item.
     <div
       ref={setOrbitNode}
+      className="client-orbit-canvas"
       data-testid="client-orbit"
       onPointerDown={(event) => {
         if (!menuProviderId) {
@@ -456,14 +600,13 @@ export default function ClientOrbit({
 
         const target = event.target as HTMLElement;
         if (!target.closest('[data-own-note-menu="true"]')) {
-          dismissOwnNotesPrompt();
+          requestOwnNotesPromptDismiss();
         }
       }}
       style={{
         position: "relative",
         width: orbitSize,
         height: orbitSize,
-        margin: "18px auto 48px",
       }}
     >
       <style>{`
@@ -539,6 +682,7 @@ export default function ClientOrbit({
         }
         data-client-signal-status={client.signal?.isUnread ? client.signal.status : undefined}
         data-spatial-hit-target="true"
+        data-swipe-allow="true"
         onClick={onOpenClientHandoff}
         style={{
           position: "absolute",
@@ -565,6 +709,7 @@ export default function ClientOrbit({
       </button>
 
       {/* PROVIDERS */}
+      {/* Refs reached by these closures are read only after an interaction. */}
       {providers.map((pc, index) => {
         const { x, y } = providerOrbitPoint(
           index,
@@ -573,6 +718,9 @@ export default function ClientOrbit({
         );
 
         const isMe = pc.provider.id === currentProviderId;
+        const providerDisplayName = formatCompactProviderBadgeName(
+          pc.provider.firstName
+        );
         const entryForProvider = client.entries?.find(
           (entry) =>
             entry.providerId === pc.provider.id &&
@@ -637,11 +785,6 @@ export default function ClientOrbit({
           readableEntriesForProvider.some(
             (entry) => entry.status !== "COMPLETED"
           );
-        const hasRecentProviderNotes = client.recentEntries?.some(
-          (entry) => entry.providerId === pc.provider.id
-        );
-        const hasViewableProviderNotes =
-          readableEntriesForProvider.length > 0 || !!hasRecentProviderNotes;
         const isSupervisorProvider = pc.role === "Supervisor";
         const canUseAbcData = abcDataRoles.has(pc.role);
         const isCaregiverProvider = pc.role === "Caregiver";
@@ -653,18 +796,19 @@ export default function ClientOrbit({
           viewerRole === "Supervisor" || client.hasCaseSupportAccess === true;
         const canRequestCaseSupport =
           isMe &&
-          client.canRequestCaseSupport === true &&
-          !canOpenCaseSupport;
+          client.canRequestCaseSupport === true;
         const showOwnMenu =
           isMe &&
           menuProviderId === pc.provider.id;
         const showCompletedAuthorPrimary =
           isMe &&
+          !isCaregiverProvider &&
           hasCompletedSessionNote &&
           !showSignal &&
           ownMenuMode === "primary";
         const showCompletedAuthorUpdate =
           isMe &&
+          !isCaregiverProvider &&
           hasCompletedSessionNote &&
           !showSignal &&
           ownMenuMode === "update";
@@ -701,22 +845,15 @@ export default function ClientOrbit({
         };
 
         if (isSupervisorProvider) {
-          addEntryUpdateAction(
-            "Observation",
-            observationEntry,
-            "SupervisorObservation"
-          );
+          updateMenuActions.push({
+            label: "Field Observation",
+            onSelect: openFieldObservation,
+          });
           addEntryUpdateAction(
             "Clinical Note",
             clinicalNoteEntry,
             "ClinicalNote"
           );
-          updateMenuActions.push({
-            label: "Team Focus",
-            onSelect: () => {
-              onOpenTeamFocus();
-            },
-          });
         } else if (isCaregiverProvider) {
           addEntryUpdateAction(
             "Morning Context",
@@ -793,16 +930,20 @@ export default function ClientOrbit({
 
         if (canOpenCaseSupport) {
           updateMenuActions.push({
-            label: "Case Support",
+            label:
+              viewerRole === "Supervisor"
+                ? "Case Support"
+                : "Open Active Case",
             onSelect: () => {
-              router.push(`/portal/case-support/${client.id}`);
+              openCaseSupport("open");
             },
           });
-        } else if (canRequestCaseSupport) {
+        }
+        if (canRequestCaseSupport) {
           updateMenuActions.push({
             label: "Request Case Support",
             onSelect: () => {
-              router.push(`/portal/case-support/request/${client.id}`);
+              openCaseSupport("request");
             },
           });
         }
@@ -810,12 +951,36 @@ export default function ClientOrbit({
         return (
           <div
             key={pc.provider.id}
-            className="provider-orbit-node"
+            className={`provider-orbit-node${
+              !isMe ? " provider-orbit-node--notes" : ""
+            }`}
+            role={!isMe ? "button" : undefined}
+            tabIndex={!isMe ? 0 : undefined}
+            aria-label={
+              !isMe
+                ? `View ${formatBadgeRole(pc.role)} notes for ${providerDisplayName}`
+                : undefined
+            }
+            data-spatial-hit-target={!isMe ? "true" : undefined}
+            data-swipe-ignore="true"
+            onClick={!isMe ? () => onOpenNotes(pc.provider.id) : undefined}
+            onKeyDown={
+              !isMe
+                ? (event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onOpenNotes(pc.provider.id);
+                    }
+                  }
+                : undefined
+            }
             style={{
               position: "absolute",
               zIndex: showOwnMenu ? 20 : 2,
               top: "50%",
               left: "50%",
+              cursor: !isMe ? "pointer" : "default",
+              touchAction: "manipulation",
               transform: `translate(${x - spokeSize / 2}px, ${
                 y - spokeSize / 2
               }px)`,
@@ -824,11 +989,6 @@ export default function ClientOrbit({
       {/* Circle */}
       <div
         className="glass-provider-badge"
-          onClick={() => {
-            if (!isMe && hasViewableProviderNotes) {
-            onOpenNotes(pc.provider.id);
-          }
-        }}
         style={{
           position: "relative", 
           width: spokeSize,
@@ -843,9 +1003,7 @@ export default function ClientOrbit({
           justifyContent: "center",
           textAlign: "center",
           padding: Math.max(6, spokeSize * 0.085),
-          cursor: !isMe && hasViewableProviderNotes
-              ? "pointer"
-              : "default",
+          cursor: "inherit",
           zIndex: showOwnMenu ? 21 : 1,
         }}
       >
@@ -860,7 +1018,7 @@ export default function ClientOrbit({
             lineHeight: 1.05,
           }}
         >
-          {pc.provider.firstName}
+          {providerDisplayName}
         </div>
         <div
           style={{
@@ -882,8 +1040,12 @@ export default function ClientOrbit({
             isOwnControl={isMe}
             isSignal={showSignal}
             isDimmed={isSignalDimmed}
+            hasTodayEntry={isMe && hasOwnAnyEntry}
+            isPublished={
+              isMe && !isCaregiverProvider && hasCompletedSessionNote
+            }
             signalEventKey={signalEventKey}
-            onActivate={() => {
+            onActivate={(anchor) => {
               if (isMe) {
                 if (showSignal) {
                   dismissOwnNotesPrompt();
@@ -891,10 +1053,7 @@ export default function ClientOrbit({
                   return;
                 }
 
-                setMenuProviderId((current) =>
-                  current === pc.provider.id ? null : pc.provider.id
-                );
-                setOwnMenuMode("primary");
+                toggleOwnNotesMenu(pc.provider.id, anchor);
                 return;
               }
 
@@ -902,8 +1061,10 @@ export default function ClientOrbit({
             }}
             ariaLabel={
               isMe
-                ? hasOwnAnyEntry
-                  ? "Edit your note"
+                ? hasCompletedSessionNote && !isCaregiverProvider
+                  ? "Published — view or update today's note"
+                  : hasOwnAnyEntry
+                    ? "Continue today's note"
                   : "Add your note"
                 : "View provider note"
             }
@@ -927,38 +1088,75 @@ export default function ClientOrbit({
 
         {showOwnMenu && typeof document !== "undefined"
           ? createPortal(
-          <div
-            data-own-note-menu="true"
-            role="menu"
-            aria-label="Documentation"
-            className="provider-action-menu"
-            style={{
-              ...providerActionMenuStyle,
-              top: actionMenuTop,
-            }}
-          >
+              <>
+                <button
+                  type="button"
+                  aria-label="Close documentation menu"
+                  className={`dashboard-action-backdrop provider-action-menu-backdrop${
+                    isOwnMenuClosing
+                      ? " provider-action-menu-backdrop--closing"
+                      : ""
+                  }`}
+                  data-dashboard-trace-layer="provider-backdrop"
+                  data-own-note-menu="true"
+                  data-swipe-ignore="true"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onPointerUp={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    requestOwnNotesPromptDismiss();
+                  }}
+                />
+                <div
+                  data-own-note-menu="true"
+                  data-swipe-ignore="true"
+                  role="menu"
+                  aria-label="Documentation"
+                  aria-hidden={isOwnMenuClosing || undefined}
+                  inert={isOwnMenuClosing}
+                  className={`dashboard-action-surface-material provider-action-menu${
+                    isOwnMenuClosing ? " provider-action-menu--closing" : ""
+                  }`}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onPointerUp={(event) => event.stopPropagation()}
+                  onClick={(event) => event.stopPropagation()}
+                  onAnimationEnd={(event) => {
+                    if (
+                      event.currentTarget === event.target &&
+                      (event.animationName === "provider-action-popover-out" ||
+                        event.animationName === "provider-action-sheet-out")
+                    ) {
+                      completeOwnNotesPromptDismiss();
+                    }
+                  }}
+                  style={
+                    providerMenuPosition
+                      ? {
+                          left: providerMenuPosition.left,
+                          top: providerMenuPosition.top,
+                          bottom: providerMenuPosition.bottom,
+                          maxHeight: providerMenuPosition.maxHeight,
+                          transformOrigin:
+                            providerMenuPosition.transformOrigin,
+                        }
+                      : { top: actionMenuTop }
+                  }
+                >
+                  <div className="dashboard-action-surface-scroll">
             {showCompletedAuthorPrimary ? (
               <>
                 <button
                   type="button"
+                  className="dashboard-action-row"
                   onClick={() => setOwnMenuMode("update")}
-                  style={{
-                    ...providerActionLinkStyle,
-                    border: "none",
-                    cursor: "pointer",
-                  }}
                 >
                   Update Note
                 </button>
                 <button
                   type="button"
+                  className="dashboard-action-row"
                   onClick={() => {
                     leaveOwnNotesMenu(() => onOpenNotes(currentProviderId));
-                  }}
-                  style={{
-                    ...providerActionLinkStyle,
-                    border: "none",
-                    cursor: "pointer",
                   }}
                 >
                   View Note
@@ -966,33 +1164,26 @@ export default function ClientOrbit({
                 {canOpenCaseSupport ? (
                   <button
                     type="button"
+                    className="dashboard-action-row"
                     onClick={() => {
                       leaveOwnNotesMenu(() => {
-                        router.push(`/portal/case-support/${client.id}`);
+                        openCaseSupport("open");
                       });
-                    }}
-                    style={{
-                      ...providerActionLinkStyle,
-                      border: "none",
-                      cursor: "pointer",
                     }}
                   >
-                    Case Support
+                    {viewerRole === "Supervisor"
+                      ? "Case Support"
+                      : "Open Active Case"}
                   </button>
-                ) : canRequestCaseSupport ? (
+                ) : null}
+                {canRequestCaseSupport ? (
                   <button
                     type="button"
+                    className="dashboard-action-row"
                     onClick={() => {
                       leaveOwnNotesMenu(() => {
-                        router.push(
-                          `/portal/case-support/request/${client.id}`
-                        );
+                        openCaseSupport("request");
                       });
-                    }}
-                    style={{
-                      ...providerActionLinkStyle,
-                      border: "none",
-                      cursor: "pointer",
                     }}
                   >
                     Request Case Support
@@ -1005,12 +1196,7 @@ export default function ClientOrbit({
                   <button
                     type="button"
                     onClick={() => setOwnMenuMode("primary")}
-                    className="back-link"
-                    style={{
-                      justifySelf: "center",
-                      border: "none",
-                      cursor: "pointer",
-                    }}
+                    className="back-link dashboard-action-row dashboard-action-row--back"
                   >
                     Back
                   </button>
@@ -1019,13 +1205,9 @@ export default function ClientOrbit({
                   <button
                     key={action.label}
                     type="button"
+                    className="dashboard-action-row"
                     onClick={() => {
                       leaveOwnNotesMenu(action.onSelect);
-                    }}
-                    style={{
-                      ...providerActionLinkStyle,
-                      border: "none",
-                      cursor: "pointer",
                     }}
                   >
                     {action.label}
@@ -1033,37 +1215,24 @@ export default function ClientOrbit({
                 ))}
               </>
             )}
-            {!showCompletedAuthorPrimary && hasOwnInProgressDocumentation ? (
+            {!isCaregiverProvider &&
+            !showCompletedAuthorPrimary &&
+            hasOwnInProgressDocumentation ? (
               <>
                 <button
                   type="button"
+                  className="dashboard-action-row"
                   onClick={() => {
-                    setPendingCompletionProviderId(pc.provider.id);
+                    openSessionCompletionConfirmation(pc.provider.id);
                   }}
                   disabled={completionStatus[pc.provider.id] === "saving"}
-                  style={{
-                    ...providerActionLinkStyle,
-                    border: "none",
-                    cursor:
-                      completionStatus[pc.provider.id] === "saving"
-                        ? "default"
-                        : "pointer",
-                    opacity: completionStatus[pc.provider.id] === "saving" ? 0.62 : 1,
-                  }}
                 >
                   {completionStatus[pc.provider.id] === "saving"
                     ? "Completing..."
                     : "Complete Session Note"}
                 </button>
                 {completionStatus[pc.provider.id] === "error" ? (
-                  <div
-                    style={{
-                      fontSize: 12,
-                      lineHeight: 1.35,
-                      opacity: 0.68,
-                      textAlign: "center",
-                    }}
-                  >
+                  <div className="provider-action-menu-message">
                     Save at least one section first.
                   </div>
                 ) : null}
@@ -1072,28 +1241,26 @@ export default function ClientOrbit({
             {!showCompletedAuthorPrimary && !showCompletedAuthorUpdate ? (
               <button
                 type="button"
+                className="dashboard-action-row"
                 onClick={() => {
                   leaveOwnNotesMenu(() => onOpenNotes(currentProviderId));
-                }}
-                style={{
-                  ...providerActionLinkStyle,
-                  border: "none",
-                  cursor: "pointer",
                 }}
               >
                 View Notes
               </button>
             ) : null}
-          </div>,
-          orbitElement ?? document.body
-        )
+                  </div>
+                </div>
+              </>,
+              document.body
+            )
           : null}
 
         <span className="provider-badge-reveal-layer" aria-hidden="true" />
       </div>
     </div>
   );
-})}
+      })}
 
       {pendingCompletionProviderId && typeof document !== "undefined"
         ? createPortal(

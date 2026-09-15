@@ -1,0 +1,82 @@
+.shell {
+  display: grid;
+  width: min(100%, 1040px);
+  margin: 0 auto;
+  grid-template-rows: auto minmax(0, auto) auto;
+  gap: 16px;
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+
+.sectionNav {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px;
+  scrollbar-width: thin;
+}
+
+.sectionButton,
+.arrowButton {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--glass);
+  color: var(--foreground);
+  padding: 8px 14px;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.sectionButton { white-space: nowrap; }
+.sectionButton[aria-current="step"] { border-color: var(--ring); background: var(--glass-strong); }
+
+.viewport {
+  min-width: 0;
+  touch-action: pan-y;
+}
+
+.card {
+  box-sizing: border-box;
+  width: 100%;
+  max-height: max(280px, calc(100dvh - 330px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--note-neo-surface);
+  box-shadow: var(--shadow-soft);
+  padding: clamp(18px, 4vw, 30px);
+  overscroll-behavior: contain;
+}
+
+.card:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+.card.pageScrollCard { max-height: none; overflow: visible; }
+.cardHeading { margin: 0 0 18px; font-size: clamp(22px, 3vw, 29px); letter-spacing: -0.025em; }
+
+.controls {
+  display: grid;
+  grid-template-columns: minmax(44px, 1fr) auto minmax(44px, 1fr);
+  align-items: center;
+  gap: 14px;
+  min-height: 52px;
+}
+
+.arrowButton:first-child { justify-self: start; }
+.arrowButton:last-child { justify-self: end; }
+.arrowButton:disabled { cursor: default; opacity: 0.42; }
+.position { color: var(--muted-foreground); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 700px) {
+  .card {
+    max-height: max(240px, calc(100dvh - 300px));
+    border-radius: 18px;
+    padding: 18px;
+  }
+  .sectionNav { margin-inline: -2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .sectionButton, .arrowButton { scroll-behavior: auto; transition: none !important; animation: none !important; }
+}

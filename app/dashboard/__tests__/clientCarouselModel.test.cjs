@@ -17,7 +17,11 @@ require.extensions[".ts"] = (module, filename) => {
   module._compile(output.outputText, filename);
 };
 
-const { applyDashboardEntryMutations } = require("../clientCarouselModel.ts");
+const {
+  applyDashboardEntryMutations,
+  markDashboardProviderEntriesRead,
+  projectDashboardEntrySaved,
+} = require("../clientCarouselModel.ts");
 const { providerSignalState } = require("../providerSignalState.ts");
 const {
   activeDocumentationDate,
@@ -97,6 +101,75 @@ test("does not project unread state for a private saved entry", () => {
   );
 
   assert.deepEqual(result[0].entries.at(-1).reads, []);
+});
+
+test("a completed save acknowledges the author without showing a teammate-style signal", () => {
+  const clients = projectDashboardEntrySaved(
+    [clientFixture()],
+    "client-1",
+    "provider-2",
+    "entry-2",
+    "SessionNote",
+    "Shared",
+    "COMPLETED",
+    "provider-2",
+  );
+  const savedEntry = clients[0].entries.find((entry) => entry.id === "entry-2");
+  const state = providerSignalState({
+    entries: [savedEntry],
+    isCurrentProvider: true,
+    locallyCompleted: false,
+  });
+
+  assert.ok(savedEntry.reads[0].readAt instanceof Date);
+  assert.equal(state.showSignal, false);
+  assert.equal(state.showAction, true);
+});
+
+test("same-day local updates retain one canonical Entry and its author acknowledgement", () => {
+  const first = projectDashboardEntrySaved(
+    [clientFixture()],
+    "client-1",
+    "provider-2",
+    "entry-2",
+    "SessionNote",
+    "Shared",
+    "IN_PROGRESS",
+    "provider-2",
+  );
+  const updated = projectDashboardEntrySaved(
+    first,
+    "client-1",
+    "provider-2",
+    "entry-2",
+    "SessionNote",
+    "Shared",
+    "COMPLETED",
+    "provider-2",
+  );
+
+  assert.equal(updated[0].entries.filter((entry) => entry.id === "entry-2").length, 1);
+  assert.ok(
+    updated[0].entries.find((entry) => entry.id === "entry-2").reads[0]
+      .readAt instanceof Date,
+  );
+});
+
+test("one teammate viewing an Entry acknowledges only that viewer and author", () => {
+  const clients = [
+    {
+      ...clientFixture(),
+      entries: [
+        { id: "entry-a", providerId: "author-a", status: "COMPLETED", reads: [{ readAt: null }] },
+        { id: "entry-b", providerId: "author-b", status: "COMPLETED", reads: [{ readAt: null }] },
+      ],
+    },
+  ];
+
+  const viewed = markDashboardProviderEntriesRead(clients, "client-1", "author-a");
+
+  assert.ok(viewed[0].entries[0].reads[0].readAt instanceof Date);
+  assert.equal(viewed[0].entries[1].reads[0].readAt, null);
 });
 
 test("keeps a completed provider signal visible after it is read", () => {

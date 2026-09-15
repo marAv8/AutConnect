@@ -21,9 +21,9 @@ export function createClientDayContext(input: ClientDayContextInput): ClientDayC
   const inProgressEntries = sortCompletedEntries(
     dedupeById(input.inProgressEntries ?? [], "entryId")
   );
-  const documentedEntries = sortCompletedEntries(
-    dedupeById([...completedEntries, ...inProgressEntries], "entryId")
-  );
+  // Shared handoffs use completed records only. In-progress work remains private
+  // to its authoring workflow and contributes no wording or source references.
+  const documentedEntries = completedEntries;
   const documentedEntryIds = new Set(
     documentedEntries.map((entry) => entry.entryId)
   );

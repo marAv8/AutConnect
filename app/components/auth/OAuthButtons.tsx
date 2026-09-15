@@ -3,9 +3,10 @@
 type Props = {
   mode: "login" | "signup";
   googleEnabled: boolean;
+  inviteToken?: string;
 };
 
-export default function OAuthButtons({ mode, googleEnabled }: Props) {
+export default function OAuthButtons({ mode, googleEnabled, inviteToken }: Props) {
   const googleLabel = mode === "login" ? "Continue with Google" : "Sign up with Google";
 
   if (!googleEnabled) {
@@ -18,7 +19,10 @@ export default function OAuthButtons({ mode, googleEnabled }: Props) {
         type="button"
         className="auth-button auth-google-button"
         onClick={() => {
-          window.location.assign("/api/auth/google/start");
+          const destination = inviteToken
+            ? `/api/auth/google/start?invite=${encodeURIComponent(inviteToken)}`
+            : "/api/auth/google/start";
+          window.location.assign(destination);
         }}
       >
         <GoogleMark />

@@ -5,9 +5,11 @@ import { getSession } from "@/lib/session";
 import { type AssessmentItemInput, createEntrySchema } from "@/app/libs/schemas/entry";
 import { parseAssessmentItems } from "@/app/libs/entryItems";
 import { EntryKind, EntryVisibility, Prisma } from "@prisma/client";
-import { calculateSessionScore, normalizeItem } from "@/lib/sessionScoring";
+import { calculateSessionScore } from "@/lib/sessionScoring";
 import { ensureEntryRevision } from "@/app/libs/entryRevision";
 import { statusAfterEntrySave } from "@/app/libs/entryLifecycle";
+import { reconcileMasteryForCompletedGoals } from "@/app/libs/mastery/masteryPersistence";
+import { syncEntryReadsAfterAuthorSave } from "@/app/libs/entryReadState";
 import { revalidatePath } from "next/cache";
 
 export async function createEntry(formData: FormData) {
@@ -20,6 +22,19 @@ export async function createEntry(formData: FormData) {
   const clientId = formData.get("clientId")?.toString();
 
   if (!clientId) {
+    return { ok: false, reason: "missing_client" as const };
+  }
+
+  const assignedClient = await db.providerClient.findFirst({
+    where: {
+      clientId,
+      providerId: session.providerId,
+      revokedAt: null,
+    },
+    select: { id: true },
+  });
+
+  if (!assignedClient) {
     return { ok: false, reason: "missing_client" as const };
   }
 
@@ -97,6 +112,19 @@ export async function createEntry(formData: FormData) {
     const contextData = shouldStoreContextData
       ? parseContextData(formData.get("contextData")) ?? Prisma.JsonNull
       : undefined;
+    const submittedGoalIds = uniqueGoalIds(parsed.data.items);
+    if (
+      !shouldStoreContextData &&
+      !(await goalIdsAreAllowedForEntry(
+        submittedGoalIds,
+        parsed.data.clientId,
+        session.providerId,
+        today,
+        parsed.data.kind
+      ))
+    ) {
+      return { ok: false, reason: "invalid_data" as const };
+    }
     const itemsWithGoals = shouldStoreContextData
       ? []
       : await ensureGoalDefinitions(
@@ -119,6 +147,9 @@ export async function createEntry(formData: FormData) {
           id: true,
           status: true,
           completedAt: true,
+          items: {
+            select: { goalId: true },
+          },
           _count: {
             select: {
               revisions: true,
@@ -168,7 +199,22 @@ export async function createEntry(formData: FormData) {
           getAssignedProviderIds(parsed.data.clientId),
         ]);
 
-        await resetEntryReads(entry.id, providerIds, visibility);
+        await syncEntryReadsAfterAuthorSave({
+          entryId: entry.id,
+          authorProviderId: session.providerId,
+          assignedProviderIds: providerIds,
+          visibility,
+        });
+
+        if (isCompletedUpdate) {
+          await reconcileMasteryForCompletedGoals({
+            clientId: parsed.data.clientId,
+            providerId: session.providerId,
+            goalIds: existingEntry.items
+              .map((item) => item.goalId)
+              .filter((goalId): goalId is string => Boolean(goalId)),
+          });
+        }
 
         revalidatePath("/dashboard");
         return { ok: true, entryId: entry.id, visibility, status: nextStatus };
@@ -226,6 +272,9 @@ export async function createEntry(formData: FormData) {
         id: true,
         status: true,
         completedAt: true,
+        items: {
+          select: { goalId: true },
+        },
         _count: {
           select: {
             revisions: true,
@@ -235,7 +284,8 @@ export async function createEntry(formData: FormData) {
     });
     const nextStatus = statusAfterEntrySave(
       existingEntry?.status,
-      existingEntry?._count.revisions ?? 0
+      existingEntry?._count.revisions ?? 0,
+      isCaretakerContext
     );
     const isCompletedUpdate = nextStatus === "COMPLETED";
     const nextCompletedAt = isCompletedUpdate ? new Date() : null;
@@ -314,11 +364,25 @@ export async function createEntry(formData: FormData) {
       return updatedEntry;
     });
 
-    if (!shouldStoreContextData) {
-      await updateMasteredGoals(parsed.data.clientId, session.providerId, goalIds);
+    if (!shouldStoreContextData && isCompletedUpdate) {
+      await reconcileMasteryForCompletedGoals({
+        clientId: parsed.data.clientId,
+        providerId: session.providerId,
+        goalIds: [
+          ...goalIds,
+          ...(existingEntry?.items
+            .map((item) => item.goalId)
+            .filter((goalId): goalId is string => Boolean(goalId)) ?? []),
+        ],
+      });
     }
     const providerIds = await getAssignedProviderIds(parsed.data.clientId);
-    await resetEntryReads(entry.id, providerIds, visibility);
+    await syncEntryReadsAfterAuthorSave({
+      entryId: entry.id,
+      authorProviderId: session.providerId,
+      assignedProviderIds: providerIds,
+      visibility,
+    });
 
     revalidatePath("/dashboard");
     return { ok: true, entryId: entry.id, visibility, status: nextStatus };
@@ -354,48 +418,11 @@ function parseContextData(value: FormDataEntryValue | null) {
 
 async function getAssignedProviderIds(clientId: string) {
   const providerClients = await db.providerClient.findMany({
-    where: { clientId },
+    where: { clientId, revokedAt: null },
     select: { providerId: true },
   });
 
   return providerClients.map((pc) => pc.providerId);
-}
-
-async function resetEntryReads(
-  entryId: string,
-  providerIds: string[],
-  visibility: EntryVisibility = EntryVisibility.Shared
-) {
-  if (visibility === EntryVisibility.Private) {
-    await db.entryRead.deleteMany({
-      where: { entryId },
-    });
-    return;
-  }
-
-  if (providerIds.length === 0) {
-    return;
-  }
-
-  // A submitted or updated note is unread for every assigned provider,
-  // including the author, until each person opens it.
-  await db.$transaction([
-    db.entryRead.deleteMany({
-      where: {
-        entryId,
-        providerId: {
-          in: providerIds,
-        },
-      },
-    }),
-    db.entryRead.createMany({
-      data: providerIds.map((providerId) => ({
-        entryId,
-        providerId,
-        readAt: null,
-      })),
-    }),
-  ]);
 }
 
 async function ensureGoalDefinitions(
@@ -451,80 +478,67 @@ async function ensureGoalDefinitions(
   return itemsWithGoals;
 }
 
-async function updateMasteredGoals(
+function uniqueGoalIds(items: AssessmentItemInput[]) {
+  return [
+    ...new Set(
+      items
+        .map((item) => item.goalId)
+        .filter((goalId): goalId is string => Boolean(goalId))
+    ),
+  ];
+}
+
+async function goalIdsAreAllowedForEntry(
+  goalIds: string[],
   clientId: string,
   providerId: string,
-  goalIds: string[]
+  date: Date,
+  kind: EntryKind
 ) {
-  if (goalIds.length === 0) {
-    return;
-  }
+  if (goalIds.length === 0) return true;
 
-  const goals = await db.goalDefinition.findMany({
+  const scopedGoals = await db.goalDefinition.findMany({
     where: {
       id: { in: goalIds },
       clientId,
       providerId,
-      isActive: true,
-      isMastered: false,
     },
     select: {
       id: true,
-      metricType: true,
-      target: true,
-      goal: true,
-      targetValue: true,
-      comparison: true,
-      weight: true,
-      items: {
-        orderBy: {
-          entry: {
-            date: "desc",
-          },
-        },
-        take: 3,
-        select: {
-          metricType: true,
-          target: true,
-          goal: true,
-          score: true,
-          rawValue: true,
-        },
-      },
+      isActive: true,
+      isMastered: true,
     },
   });
 
-  for (const goal of goals) {
-    if (goal.items.length < 3) {
-      continue;
-    }
+  if (scopedGoals.length !== goalIds.length) return false;
 
-    const lastThreeSuccesses = goal.items.map((item) =>
-      normalizeItem(
-        {
-          metricType: item.metricType,
-          target: item.target,
-          goal: item.goal,
-          score: item.score,
-          rawValue: item.rawValue,
-        },
-        goal
-      )
-    );
+  const historicalGoalIds = scopedGoals
+    .filter((goal) => !goal.isActive || goal.isMastered)
+    .map((goal) => goal.id);
 
-    if (
-      lastThreeSuccesses.length === 3 &&
-      lastThreeSuccesses.every((success) => success !== null && success >= 0.85)
-    ) {
-      await db.goalDefinition.update({
-        where: {
-          id: goal.id,
-        },
-        data: {
-          isActive: false,
-          isMastered: true,
-        },
-      });
-    }
-  }
+  if (historicalGoalIds.length === 0) return true;
+
+  const existingEntry = await db.entry.findUnique({
+    where: {
+      providerId_clientId_date_kind: {
+        providerId,
+        clientId,
+        date,
+        kind,
+      },
+    },
+    select: {
+      items: {
+        where: { goalId: { in: historicalGoalIds } },
+        select: { goalId: true },
+      },
+    },
+  });
+  const existingGoalIds = new Set(
+    existingEntry?.items
+      .map((item) => item.goalId)
+      .filter((goalId): goalId is string => Boolean(goalId)) ?? []
+  );
+
+  return historicalGoalIds.every((goalId) => existingGoalIds.has(goalId));
 }

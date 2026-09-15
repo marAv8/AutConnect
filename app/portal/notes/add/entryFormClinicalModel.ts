@@ -68,7 +68,6 @@ type SupervisorNoteData =
   | {
       kind: "ClinicalNote";
       clinicalReflection: string;
-      optionalReference: string;
     };
 
 export function buildSupervisorNoteData(
@@ -87,7 +86,6 @@ export function buildSupervisorNoteData(
     return {
       kind: noteKind,
       clinicalReflection: values.clinicalReflection?.trim() ?? "",
-      optionalReference: values.optionalReference?.trim() ?? "",
     };
   }
 
@@ -112,12 +110,7 @@ export function supervisorNoteText(data: SupervisorNoteData) {
       .join("\n");
   }
 
-  return [
-    `Clinical Reflection: ${data.clinicalReflection}`,
-    data.optionalReference ? `Optional Reference: ${data.optionalReference}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  return `Clinical Reflection: ${data.clinicalReflection}`;
 }
 
 export function parseObservationItems(value: string | undefined): ObservationItemDraft[] {

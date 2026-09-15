@@ -65,7 +65,6 @@ export default async function CompleteProfilePage() {
                   style={{ width: "100%" }}
                   options={[
                     { value: "", label: "Select" },
-                    { value: "Supervisor", label: "Supervisor" },
                     { value: "SpeechPathologist", label: "Speech Pathologist" },
                     { value: "BehaviorTherapist", label: "Behavior Therapist" },
                     { value: "OccupationalTherapist", label: "Occupational Therapist" },

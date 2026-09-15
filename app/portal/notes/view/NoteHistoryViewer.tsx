@@ -11,6 +11,7 @@ import { useMemo, useRef, useState, type CSSProperties, type PointerEvent } from
 import OverlayContainer from "@/components/ui/OverlayContainer";
 import { ChevronControl } from "@/components/ui/ChevronControl";
 import { formatClinicalDateTime } from "@/app/libs/dateTime";
+import AuthenticatedPageHeader from "@/app/components/AuthenticatedPageHeader";
 import type { NoteHistoryEntry, SupervisorObservation } from "./noteHistoryTypes";
 import {
   entryKindTitle,
@@ -35,7 +36,8 @@ type Props = {
   clientInitials: string;
   entries: NoteHistoryEntry[];
   variant?: "page" | "overlay";
-  backLabel?: string;
+  authenticatedDisplayName?: string;
+  authenticatedRole?: string;
   onClose?: () => void;
 };
 
@@ -56,7 +58,8 @@ export default function NoteHistoryViewer({
   clientInitials,
   entries,
   variant = "page",
-  backLabel = "Back to Client",
+  authenticatedDisplayName,
+  authenticatedRole,
   onClose,
 }: Props) {
   const [index, setIndex] = useState(0);
@@ -232,6 +235,12 @@ export default function NoteHistoryViewer({
           }
         }
       `}</style>
+      {authenticatedDisplayName && authenticatedRole ? (
+        <AuthenticatedPageHeader
+          displayName={authenticatedDisplayName}
+          role={authenticatedRole}
+        />
+      ) : null}
       <div style={{ marginBottom: 24 }}>
         {onClose ? (
           <button
@@ -239,14 +248,14 @@ export default function NoteHistoryViewer({
             onClick={onClose}
             className="back-link"
           >
-            {backLabel.replace("Back to ", "")}
+            Back
           </button>
         ) : (
           <Link
             href={`/dashboard?clientId=${clientId}&view=orbit`}
             className="back-link"
           >
-            {backLabel.replace("Back to ", "")}
+            Back
           </Link>
         )}
       </div>
@@ -382,7 +391,7 @@ export default function NoteHistoryViewer({
                         <div key={`${item.target}-${item.goal}`}>
                           <div style={{ fontWeight: 600 }}>{item.target}</div>
                           <div style={{ opacity: 0.76 }}>{item.goal}</div>
-                          <div style={{ opacity: 0.72 }}>
+                          <div style={{ opacity: 0.72, fontStyle: "italic" }}>
                             {formatEducatorResponse(
                               item,
                               isOtProgress,
@@ -500,7 +509,7 @@ export default function NoteHistoryViewer({
                         <div key={`${item.target}-${item.goal}`}>
                           <div style={{ fontWeight: 600 }}>{item.target}</div>
                           <div style={{ opacity: 0.76 }}>{item.goal}</div>
-                          <div style={{ opacity: 0.72 }}>
+                          <div style={{ opacity: 0.72, fontStyle: "italic" }}>
                             {formatMetricValue(item, percent)}
                           </div>
                           {item.observation?.trim() ? (

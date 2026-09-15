@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { buildClientDailyHandoff } from "@/app/api/aiGateway";
+import { canAccessClient } from "@/lib/authorization";
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -13,6 +14,10 @@ export async function GET(request: Request) {
   const clientId = searchParams.get("clientId");
   if (!clientId) {
     return NextResponse.json({ error: "Missing clientId" }, { status: 400 });
+  }
+
+  if (!(await canAccessClient(session.providerId, clientId))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const today = startOfLocalDay(new Date());

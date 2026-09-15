@@ -1,7 +1,6 @@
 import type {
   ClientSignalEvidence,
   ClientSignalSnapshot,
-  SignalCaseRequest,
   SignalEntry,
   SignalSemanticEvidence,
   SignalTeamFocus,
@@ -10,7 +9,6 @@ import type {
 type GatewayInput = {
   entries: SignalEntry[];
   targetSessionDate: string;
-  caseRequests?: SignalCaseRequest[];
   teamFocus?: SignalTeamFocus | null;
   semanticEvidence?: SignalSemanticEvidence[];
 };
@@ -48,11 +46,6 @@ export function evaluateClientSignalGateway(input: GatewayInput): ClientSignalSn
   const semanticByEntry = new Map(
     (input.semanticEvidence ?? []).map((evidence) => [evidence.entryId, evidence])
   );
-  const activeRequest = mostRecentActiveRequest(
-    input.caseRequests ?? [],
-    input.targetSessionDate
-  );
-
   if (sessionEntries.length === 0) {
     return neutralSnapshot("insufficient_session_evidence", null);
   }
@@ -61,7 +54,6 @@ export function evaluateClientSignalGateway(input: GatewayInput): ClientSignalSn
   const red = redCandidate({
     sessionEntries,
     historyEntries,
-    activeRequest,
     semanticByEntry,
   });
   if (red) candidates.push(red);
@@ -69,7 +61,6 @@ export function evaluateClientSignalGateway(input: GatewayInput): ClientSignalSn
   const amber = amberCandidate({
     sessionEntries,
     historyEntries,
-    activeRequest,
     semanticByEntry,
   });
   if (amber) candidates.push(amber);
@@ -119,7 +110,6 @@ export function latestCompletedSessionDate(
 function redCandidate(input: {
   sessionEntries: SignalEntry[];
   historyEntries: SignalEntry[];
-  activeRequest: SignalCaseRequest | null;
   semanticByEntry: Map<string, SignalSemanticEvidence>;
 }): Candidate | null {
   const currentSerious = input.sessionEntries.filter((entry) =>
@@ -139,15 +129,13 @@ function redCandidate(input: {
   const providers = new Set(corroborating.map((entry) => entry.providerId));
   const destructiveOrAggressive = corroborating.some(hasDestructiveOrAggressiveBehavior);
 
-  if (providers.size < 2 || (!destructiveOrAggressive && !input.activeRequest)) {
+  if (providers.size < 2 || !destructiveOrAggressive) {
     return null;
   }
 
   return {
     color: "red",
-    reason: input.activeRequest
-      ? "serious_pattern_with_active_case_support"
-      : "corroborated_serious_behavior_pattern",
+    reason: "corroborated_serious_behavior_pattern",
     explanation:
       "Serious behavior was corroborated across providers and requires coordinated review of the established support plan.",
     confidence: "high",
@@ -160,23 +148,8 @@ function redCandidate(input: {
 function amberCandidate(input: {
   sessionEntries: SignalEntry[];
   historyEntries: SignalEntry[];
-  activeRequest: SignalCaseRequest | null;
   semanticByEntry: Map<string, SignalSemanticEvidence>;
 }): Candidate | null {
-  if (input.activeRequest) {
-    return {
-      color: "amber",
-      reason: "active_support_review",
-      explanation:
-        "A recent Case Support request is active and should remain visible while the team coordinates a response.",
-      confidence: "high",
-      evidence: [{
-        observedAt: toDate(input.activeRequest.updatedAt).toISOString(),
-        label: "Active Case Support request",
-      }],
-    };
-  }
-
   const recentSessionDates = distinctSessionDates([
     ...input.historyEntries,
     ...input.sessionEntries,
@@ -431,6 +404,12 @@ function isMeaningfulPositiveOutlier(
     .filter((value): value is number => typeof value === "number");
   if (typeof current.rawValue !== "number" || historicalValues.length < 2) return false;
   const baseline = average(historicalValues);
+  if (current.comparison === "GreaterThan") {
+    return current.rawValue >= baseline * 1.5 && current.rawValue - baseline >= 1;
+  }
+  if (current.comparison === "LessThan") {
+    return baseline >= 2 && current.rawValue <= baseline * 0.5;
+  }
   if (current.metricType === "Frequency" || current.metricType === "Duration") {
     return baseline >= 2 && current.rawValue <= baseline * 0.5;
   }
@@ -459,21 +438,6 @@ function sameGoal(
     first.target.trim().toLowerCase() === second.target.trim().toLowerCase() &&
     first.goal.trim().toLowerCase() === second.goal.trim().toLowerCase()
   );
-}
-
-function mostRecentActiveRequest(
-  requests: SignalCaseRequest[],
-  targetSessionDate: string
-) {
-  return requests
-    .filter((request) => {
-      if (["REQUESTED", "ACKNOWLEDGED"].includes(request.status)) return true;
-      return request.status === "CASE_OPENED" && request.linkedCaseStatus === "OPEN";
-    })
-    .filter((request) => sessionKey(request.updatedAt) <= targetSessionDate)
-    .sort((first, second) =>
-      toDate(second.updatedAt).getTime() - toDate(first.updatedAt).getTime()
-    )[0] ?? null;
 }
 
 function transitionMinutes(entry: SignalEntry) {

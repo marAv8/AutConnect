@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { EntryKind } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { syncEntryReadsAfterAuthorSave } from "@/app/libs/entryReadState";
 
 type AbcRowInput = {
   antecedent?: unknown;
@@ -37,6 +38,7 @@ export async function createAbcData(formData: FormData) {
     where: {
       clientId,
       providerId: session.providerId,
+      revokedAt: null,
     },
     select: {
       id: true,
@@ -91,7 +93,11 @@ export async function createAbcData(formData: FormData) {
 
   const providerIds = await getAssignedProviderIds(clientId);
 
-  await resetEntryReads(entry.id, providerIds);
+  await syncEntryReadsAfterAuthorSave({
+    entryId: entry.id,
+    authorProviderId: session.providerId,
+    assignedProviderIds: providerIds,
+  });
 
   revalidatePath("/dashboard");
   return { ok: true as const, entryId: entry.id, status: "IN_PROGRESS" as const };
@@ -138,33 +144,9 @@ function stringValue(value: unknown) {
 
 async function getAssignedProviderIds(clientId: string) {
   const providerClients = await db.providerClient.findMany({
-    where: { clientId },
+    where: { clientId, revokedAt: null },
     select: { providerId: true },
   });
 
   return providerClients.map((pc) => pc.providerId);
-}
-
-async function resetEntryReads(entryId: string, providerIds: string[]) {
-  if (providerIds.length === 0) {
-    return;
-  }
-
-  await db.$transaction([
-    db.entryRead.deleteMany({
-      where: {
-        entryId,
-        providerId: {
-          in: providerIds,
-        },
-      },
-    }),
-    db.entryRead.createMany({
-      data: providerIds.map((providerId) => ({
-        entryId,
-        providerId,
-        readAt: null,
-      })),
-    }),
-  ]);
 }

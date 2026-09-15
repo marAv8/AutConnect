@@ -2,24 +2,20 @@
 
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/session";
 import { Role } from "@prisma/client";
-
-function normalizedOrganizationName(name: string) {
-  return name.trim().replace(/\s+/g, " ").toLocaleLowerCase();
-}
+import {
+  getManagedOrganizationIds,
+  requireCurrentSupervisor,
+} from "@/lib/authorization";
 
 export async function createClientWithProviders(formData: FormData) {
-  const session = await getSession();
-  if (!session || session.role !== "Supervisor") {
-    throw new Error("Unauthorized");
-  }
+  const supervisor = await requireCurrentSupervisor();
 
   const fullName = formData.get("fullName");
   const fullNameValue = typeof fullName === "string" ? fullName.trim() : "";
   const receivesPrescribedMedication =
     formData.get("receivesPrescribedMedication") === "true";
-  const agencyName = formData.get("agencyName")?.toString().trim() ?? "";
+  const organizationId = formData.get("organizationId")?.toString().trim() ?? "";
 
   if (!fullNameValue) {
     throw new Error("Client name required");
@@ -33,113 +29,137 @@ export async function createClientWithProviders(formData: FormData) {
     throw new Error("Client last name required");
   }
 
-  const providerIds = formData
-    .getAll("providerIds")
-    .filter((id): id is string => typeof id === "string");
-  const selectedProviderIds = new Set(providerIds);
-  const agencyProviderIds = new Set(
+  const selectedProviderIds = new Set(
     formData
-      .getAll("agencyProviderIds")
-      .filter(
-        (id): id is string =>
-          typeof id === "string" && selectedProviderIds.has(id)
-      )
+      .getAll("providerIds")
+      .filter((id): id is string => typeof id === "string")
   );
 
-  if (agencyProviderIds.size > 0 && !agencyName) {
-    throw new Error("Add the agency name before identifying its providers.");
+  if (!organizationId) {
+    throw new Error("Select the responsible organization.");
+  }
+
+  const managedOrganizationIds = await getManagedOrganizationIds(supervisor.id);
+  if (!managedOrganizationIds.includes(organizationId)) {
+    throw new Error("You do not administer that organization.");
   }
 
   await db.$transaction(async (tx) => {
-    const agency = agencyName
-      ? await tx.organization.upsert({
+    const organization = await tx.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true },
+    });
+    if (!organization) {
+      throw new Error("The selected organization is no longer available.");
+    }
+
+    const providers = selectedProviderIds.size
+      ? await tx.provider.findMany({
           where: {
-            normalizedName: normalizedOrganizationName(agencyName),
+            id: { in: Array.from(selectedProviderIds) },
+            status: "ACTIVE",
+            NOT: { id: supervisor.id },
+            role: { not: "Supervisor" },
+            organizationMemberships: {
+              some: { organizationId: organization.id, active: true },
+            },
           },
-          create: {
-            name: agencyName.replace(/\s+/g, " "),
-            normalizedName: normalizedOrganizationName(agencyName),
-            type: "AGENCY",
-          },
-          update: {
-            name: agencyName.replace(/\s+/g, " "),
-          },
-          select: { id: true },
+          select: { id: true, role: true },
         })
-      : null;
+      : [];
+
+    if (providers.length !== selectedProviderIds.size) {
+      throw new Error("Select only active providers from the responsible agency.");
+    }
 
     // 1. Create client
     const client = await tx.client.create({
       data: { firstName, lastName, receivesPrescribedMedication },
+      select: { id: true },
     });
 
     // 2. Auto-assign supervisor (EXACTLY ONE)
-    await tx.providerClient.create({
+    const supervisorAssignment = await tx.providerClient.create({
       data: {
-        providerId: session.providerId,
+        providerId: supervisor.id,
         clientId: client.id,
         role: Role.Supervisor,
-        organizationId: agency?.id ?? null,
+        organizationId: organization.id,
+        assignedById: supervisor.id,
+      },
+      select: { id: true },
+    });
+
+    // 3. Establish the additive Client-team foundation for newly created Clients.
+    await tx.clientOrganization.create({
+      data: {
+        clientId: client.id,
+        organizationId: organization.id,
+        role: "LEAD",
+        status: "ACTIVE",
+        requestedById: supervisor.id,
+        approvedById: supervisor.id,
+        activatedAt: new Date(),
+      },
+    });
+    await tx.clientTeamManager.create({
+      data: {
+        clientId: client.id,
+        providerId: supervisor.id,
+        grantedById: supervisor.id,
       },
     });
 
-    // 3. Assign selected providers (excluding supervisor)
-    if (providerIds.length > 0) {
-      const providers = await tx.provider.findMany({
-        where: {
-          id: { in: providerIds },
-          NOT: { id: session.providerId },
-        },
-        select: { id: true, role: true },
-      });
-
+    // 4. Assign selected providers (excluding supervisor)
+    if (providers.length > 0) {
       await tx.providerClient.createMany({
         data: providers.map((p) => ({
           providerId: p.id,
           clientId: client.id,
           role: p.role as Role,
-          organizationId:
-            agency && agencyProviderIds.has(p.id) ? agency.id : null,
+          organizationId: organization.id,
+          assignedById: supervisor.id,
         })),
       });
     }
 
-    if (agency) {
-      await tx.organizationMembership.upsert({
-        where: {
-          organizationId_providerId: {
-            organizationId: agency.id,
-            providerId: session.providerId,
-          },
+    await tx.clientTeamAuditEvent.createMany({
+      data: [
+        {
+          clientId: client.id,
+          actorId: supervisor.id,
+          action: "ORGANIZATION_REQUESTED",
+          organizationId: organization.id,
         },
-        create: {
-          organizationId: agency.id,
-          providerId: session.providerId,
-          role: "OWNER",
+        {
+          clientId: client.id,
+          actorId: supervisor.id,
+          action: "ORGANIZATION_APPROVED",
+          organizationId: organization.id,
         },
-        update: {
-          role: "OWNER",
-          active: true,
+        {
+          clientId: client.id,
+          actorId: supervisor.id,
+          action: "TEAM_MANAGER_GRANTED",
+          subjectProviderId: supervisor.id,
         },
-      });
-
-      for (const providerId of agencyProviderIds) {
-        await tx.organizationMembership.upsert({
-          where: {
-            organizationId_providerId: {
-              organizationId: agency.id,
-              providerId,
-            },
-          },
-          create: {
-            organizationId: agency.id,
-            providerId,
-            role: "MEMBER",
-          },
-          update: { active: true },
-        });
-      }
-    }
+        {
+          clientId: client.id,
+          actorId: supervisor.id,
+          action: "PROVIDER_ASSIGNED",
+          subjectProviderId: supervisor.id,
+          organizationId: organization.id,
+          assignmentId: supervisorAssignment.id,
+        },
+        ...providers.map((provider) => ({
+          clientId: client.id,
+          actorId: supervisor.id,
+          action: "PROVIDER_ASSIGNED" as const,
+          subjectProviderId: provider.id,
+          organizationId: organization.id,
+        })),
+      ],
+    });
   });
 
   redirect("/dashboard");

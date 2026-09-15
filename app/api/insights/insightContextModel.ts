@@ -5,6 +5,7 @@
  */
 import { AssessmentDomain, ComparisonType, MetricType, Role } from "@prisma/client";
 import { normalizeItem } from "@/lib/sessionScoring";
+import { formatProviderDisplayName } from "../../libs/providerDisplayName";
 import type { ParsedInsightQuestion } from "./insightsEngine";
 import type {
   InsightAbcEvent,
@@ -45,6 +46,16 @@ type InsightDomainRelationship = InsightContext["domainRelationships"][number];
 type InsightBehaviorRelationship = InsightContext["behaviorRelationships"][number];
 type InsightCollaborationMetrics = InsightContext["collaborationMetrics"];
 type InsightContinuityMetrics = InsightContext["continuityMetrics"];
+
+function measurementValueForItem(item: InsightAssessmentItem) {
+  return item.metricType === MetricType.Subjective ? item.score : item.rawValue;
+}
+
+function measurementValueBasisForMetric(metricType: MetricType) {
+  return metricType === MetricType.Subjective
+    ? ("score" as const)
+    : ("rawValue" as const);
+}
 
 function normalizeContextScore(item: {
   metricType: MetricType;
@@ -229,7 +240,10 @@ function latestSessionDate(sessions: InsightSession[]) {
 }
 
 function providerNameFromSession(session: InsightSession) {
-  return `${session.provider.firstName} ${session.provider.lastName}`;
+  return formatProviderDisplayName(
+    session.provider.firstName,
+    session.provider.lastName
+  );
 }
 
 function providerRoleFromSession(session: InsightSession) {
@@ -432,7 +446,7 @@ export function buildProviderGoalSeries(sessions: InsightSession[]): InsightCont
   const seriesMap = new Map<string, InsightContext["providerGoalSeries"][number]>();
 
   for (const session of sessions) {
-    const providerName = `${session.provider.firstName} ${session.provider.lastName}`;
+    const providerName = providerNameFromSession(session);
     for (const item of session.items) {
       const key = `${session.providerId}|${goalKey(item)}`;
       const existing =
@@ -440,40 +454,137 @@ export function buildProviderGoalSeries(sessions: InsightSession[]): InsightCont
         {
           providerId: session.providerId,
           providerName,
+          providerRole: providerRoleFromSession(session),
           goalKey: goalKey(item),
           goalId: item.goalId,
           target: item.target,
           goal: item.goal,
           domain: item.domain,
           metricType: item.metricType,
+          targetValue: item.goalDefinition?.targetValue ?? null,
+          comparison: item.goalDefinition?.comparison ?? null,
+          measurementProfile: item.goalDefinition?.measurementProfile ?? null,
+          goalIsActive: item.goalDefinition?.isActive ?? null,
+          legacyIsMastered:
+            (item.goalDefinition?.isMastered ?? false) &&
+            item.goalDefinition?.masteryBasis !== "POLICY_V1",
+          masteryBasis: item.goalDefinition?.masteryBasis ?? null,
+          masteredAt:
+            item.goalDefinition?.masteredAt?.toISOString() ?? null,
+          masteryEvidenceEntryIds: stringArray(
+            item.goalDefinition?.masteryEvidenceEntryIds
+          ),
+          masteryRevokedAt:
+            item.goalDefinition?.masteryRevokedAt?.toISOString() ?? null,
+          masteryRevokedEvidenceEntryIds: stringArray(
+            item.goalDefinition?.masteryRevokedEvidenceEntryIds
+          ),
+          masteryThreshold: item.goalDefinition?.masteryThreshold ?? null,
+          masteryRequiredSessions:
+            item.goalDefinition?.masteryRequiredSessions ?? 3,
+          metadataConsistent:
+            !item.goalDefinition ||
+            goalDefinitionMatchesItem(item),
+          measurementValueBasis: measurementValueBasisForMetric(item.metricType),
           sessions: [],
+          measurementFirstAverage: null,
+          measurementSecondAverage: null,
+          normalizedFirstAverage: null,
+          normalizedSecondAverage: null,
         };
 
-      existing.sessions.push({
-        sessionId: session.id,
-        date: session.date.toISOString(),
-        rawValue: item.rawValue,
-        score: item.score,
-        normalizedScore: item.normalizedScore,
-        changeFromBaseline: item.changeFromBaseline,
-        changeFromPrevious: item.changeFromPrevious,
-        trendDirection: item.trendDirection,
-        lowData: item.lowData,
-        clinicallySmallButPositiveChange: item.clinicallySmallButPositiveChange,
-      });
+      if (
+        existing.metricType !== item.metricType ||
+        existing.measurementValueBasis !==
+          measurementValueBasisForMetric(item.metricType) ||
+        normalizeMatchLabel(existing.target) !== normalizeMatchLabel(item.target) ||
+        normalizeMatchLabel(existing.goal) !== normalizeMatchLabel(item.goal) ||
+        existing.targetValue !== (item.goalDefinition?.targetValue ?? null) ||
+        existing.comparison !== (item.goalDefinition?.comparison ?? null) ||
+        existing.measurementProfile !==
+          (item.goalDefinition?.measurementProfile ?? null) ||
+        existing.goalIsActive !== (item.goalDefinition?.isActive ?? null) ||
+        existing.legacyIsMastered !==
+          ((item.goalDefinition?.isMastered ?? false) &&
+            item.goalDefinition?.masteryBasis !== "POLICY_V1") ||
+        existing.masteryBasis !==
+          (item.goalDefinition?.masteryBasis ?? null) ||
+        existing.masteredAt !==
+          (item.goalDefinition?.masteredAt?.toISOString() ?? null) ||
+        existing.masteryThreshold !==
+          (item.goalDefinition?.masteryThreshold ?? null) ||
+        existing.masteryRequiredSessions !==
+          (item.goalDefinition?.masteryRequiredSessions ?? 3) ||
+        (item.goalDefinition !== null &&
+          !goalDefinitionMatchesItem(item))
+      ) {
+        existing.metadataConsistent = false;
+      }
+
+      if (!existing.sessions.some((point) => point.sessionId === session.id)) {
+        existing.sessions.push({
+          itemId: item.id,
+          sessionId: session.id,
+          date: session.date.toISOString(),
+          status: session.status,
+          completedAt: session.completedAt?.toISOString() ?? null,
+          measurementValue: measurementValueForItem(item),
+          valueBasis: measurementValueBasisForMetric(item.metricType),
+          rawValue: item.rawValue,
+          score: item.score,
+          normalizedScore: item.normalizedScore,
+          changeFromBaseline: item.changeFromBaseline,
+          changeFromPrevious: item.changeFromPrevious,
+          trendDirection: item.trendDirection,
+          lowData: item.lowData,
+          clinicallySmallButPositiveChange: item.clinicallySmallButPositiveChange,
+        });
+      }
       seriesMap.set(key, existing);
     }
   }
 
-  return Array.from(seriesMap.values()).map((series) => ({
-    ...series,
-    trend: trendFromValues(
+  return Array.from(seriesMap.values()).map((series) => {
+    const measurementTrend = trendFromValues(
+      series.sessions.map((session) => ({
+        date: new Date(session.date).getTime(),
+        score: session.measurementValue,
+      }))
+    );
+    const normalizedTrend = trendFromValues(
       series.sessions.map((session) => ({
         date: new Date(session.date).getTime(),
         score: session.normalizedScore,
       }))
-    ).trend,
-  }));
+    );
+    return {
+      ...series,
+      measurementTrend: measurementTrend.trend,
+      measurementFirstAverage: measurementTrend.firstAverage,
+      measurementSecondAverage: measurementTrend.secondAverage,
+      normalizedTrend: normalizedTrend.trend,
+      normalizedFirstAverage: normalizedTrend.firstAverage,
+      normalizedSecondAverage: normalizedTrend.secondAverage,
+      // Preserve the legacy normalized-performance trend for existing questions.
+      trend: normalizedTrend.trend,
+    };
+  });
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function goalDefinitionMatchesItem(item: InsightAssessmentItem) {
+  if (!item.goalDefinition) return false;
+  return (
+    item.goalDefinition.metricType === item.metricType &&
+    normalizeMatchLabel(item.goalDefinition.target) ===
+      normalizeMatchLabel(item.target) &&
+    normalizeMatchLabel(item.goalDefinition.goal) === normalizeMatchLabel(item.goal)
+  );
 }
 
 export function buildProviderDomainSeries(
@@ -482,7 +593,7 @@ export function buildProviderDomainSeries(
   const seriesMap = new Map<string, InsightContext["providerDomainSeries"][number]>();
 
   for (const session of sessions) {
-    const providerName = `${session.provider.firstName} ${session.provider.lastName}`;
+    const providerName = providerNameFromSession(session);
     const domainGroups = new Map<AssessmentDomain | "Unspecified", number[]>();
 
     for (const item of session.items) {
@@ -550,7 +661,10 @@ export function buildPerformanceTrends(sessions: InsightSession[]): InsightConte
 
     return {
       providerId,
-      providerName: `${provider.firstName} ${provider.lastName}`,
+      providerName: formatProviderDisplayName(
+        provider.firstName,
+        provider.lastName
+      ),
       trend: trend.trend,
       sessions: providerSessions.length,
       firstAverage: trend.firstAverage,
@@ -1593,7 +1707,7 @@ export function buildRelationshipMetrics(sessions: InsightSession[]): InsightCon
       coverageByProvider.get(session.providerId) ??
       {
         providerId: session.providerId,
-        providerName: `${session.provider.firstName} ${session.provider.lastName}`,
+        providerName: providerNameFromSession(session),
         sessions: new Set<string>(),
         domains: new Set<AssessmentDomain | "Unspecified">(),
         goals: new Set<string>(),

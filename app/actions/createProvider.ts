@@ -5,6 +5,12 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { setSession } from "@/lib/session";
+import { invitationAuthPath } from "@/lib/organizationInvitationState";
+import {
+  acceptOrganizationInvitation,
+  getAvailableOrganizationInvitation,
+  normalizeInvitationEmail,
+} from "@/lib/organizationInvitations";
 
 export async function createProvider(formData: FormData): Promise<void> {
   const raw = {
@@ -14,15 +20,32 @@ export async function createProvider(formData: FormData): Promise<void> {
     lastName: formData.get("lastName"),
     role: formData.get("role"),
   };
+  const inviteToken = String(formData.get("inviteToken") ?? "").trim();
 
   const parsed = createProviderSchema.safeParse(raw);
 
   if (!parsed.success) {
-    redirect("/create-account?error=invalid");
+    redirect(invitationAuthPath("/create-account", inviteToken, "invalid"));
   }
 
-  const { password, firstName, lastName, role } = parsed.data;
+  const { password, firstName, lastName } = parsed.data;
   const email = parsed.data.email.toLowerCase();
+  const invitation = inviteToken
+    ? await getAvailableOrganizationInvitation(inviteToken)
+    : null;
+
+  if (
+    inviteToken &&
+    (!invitation || invitation.normalizedEmail !== normalizeInvitationEmail(email))
+  ) {
+    redirect(invitationAuthPath("/create-account", inviteToken, "invalid-invite"));
+  }
+
+  if (!invitation && parsed.data.role === "Supervisor") {
+    redirect(invitationAuthPath("/create-account", inviteToken, "supervisor-invite-required"));
+  }
+
+  const role = invitation?.providerRole ?? parsed.data.role;
 
   const existing = await db.provider.findFirst({
     where: {
@@ -38,31 +61,52 @@ export async function createProvider(formData: FormData): Promise<void> {
   });
 
   if (existing) {
-    redirect("/create-account?error=email-exists");
+    redirect(invitationAuthPath("/create-account", inviteToken, "email-exists"));
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
 
-  const provider = await db.provider.create({
-    data: {
-      email,
-      passwordHash,
-      firstName,
-      lastName,
-      role,
-      providerRole: role,
-      authType: "email",
-    },
-    select: {
-      id: true,
-      role: true,
-    },
-  });
+  let provider: { id: string; role: string };
+  try {
+    provider = await db.$transaction(async (transaction) => {
+      const created = await transaction.provider.create({
+        data: {
+          email,
+          passwordHash,
+          firstName,
+          lastName,
+          role,
+          providerRole: role,
+          authType: "email",
+        },
+        select: {
+          id: true,
+          role: true,
+        },
+      });
+
+      if (inviteToken) {
+        await acceptOrganizationInvitation(transaction, {
+          token: inviteToken,
+          email,
+          providerId: created.id,
+          currentRole: role,
+        });
+      }
+
+      return created;
+    });
+  } catch {
+    redirect(
+      invitationAuthPath("/create-account", inviteToken,
+        inviteToken ? "invalid-invite" : "email-exists")
+    );
+  }
 
   await setSession({
     providerId: provider.id,
     role: provider.role,
   });
 
-  redirect("/dashboard");
+  redirect(inviteToken ? "/portal/organization/invitations?joined=1" : "/dashboard");
 }

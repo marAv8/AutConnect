@@ -19,8 +19,30 @@ require.extensions[".ts"] = (module, filename) => {
 
 const {
   annotateDeterministicInsight,
+  contextualQuestionCategory,
   shouldAttemptSynthesis,
 } = require("../insightAnswerContract.ts");
+
+test("contextual questions route provider performance to provider evidence", () => {
+  assert.equal(
+    contextualQuestionCategory(
+      "How did the behavior therapist perform with this client?",
+      "overview"
+    ),
+    "providers"
+  );
+  assert.equal(
+    contextualQuestionCategory("What pattern is present?", "progress"),
+    "progress"
+  );
+  assert.equal(
+    contextualQuestionCategory(
+      "Why did the recorded behavior frequency decrease?",
+      "progress"
+    ),
+    "progress"
+  );
+});
 
 test("a directly covered Team Focus answer is high-confidence and deterministic", () => {
   const result = annotateDeterministicInsight(
@@ -66,4 +88,20 @@ test("an unsupported no-data answer is labeled insufficient and is not synthesiz
   assert.equal(result.answerMode, "insufficient");
   assert.equal(result.confidence, "low");
   assert.equal(shouldAttemptSynthesis(question, "overview", result), false);
+});
+
+test("progress and provider-performance answers stay deterministic", () => {
+  const result = { answerMode: "deterministic", summary: "Recorded evidence." };
+  assert.equal(
+    shouldAttemptSynthesis("Why did the target decrease?", "progress", result),
+    false
+  );
+  assert.equal(
+    shouldAttemptSynthesis(
+      "How did the educator perform?",
+      "providers",
+      result
+    ),
+    false
+  );
 });

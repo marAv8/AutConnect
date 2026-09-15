@@ -1,0 +1,525 @@
+.page {
+  width: min(1060px, 100%);
+  margin: 0 auto;
+  padding: 18px 32px 48px;
+  box-sizing: border-box;
+}
+
+.pageHeader {
+  display: grid;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.backRow,
+.titleRow {
+  display: flex;
+  align-items: center;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.15rem);
+  font-weight: 720;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.form {
+  width: min(860px, 100%);
+  margin: 0 auto;
+}
+
+.finishGroup {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.cardActionRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 42px;
+}
+
+.finishGroup > span {
+  color: var(--muted-foreground, #63716d);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.finishButton,
+.continueButton,
+.saveButton {
+  min-height: 42px;
+  padding: 9px 18px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.finishButton:disabled,
+.continueButton:disabled,
+.saveButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.pager {
+  display: grid;
+  grid-template-columns: 44px minmax(76px, auto) 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 16px;
+  color: var(--carousel-navigation-text, rgb(20 24 29 / 64%));
+}
+
+.pagerCount {
+  min-width: 76px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  min-height: 430px;
+  padding: 30px;
+  border-radius: 24px;
+  box-sizing: border-box;
+}
+
+.cardContent {
+  flex: 1;
+  display: grid;
+  align-content: center;
+  gap: 28px;
+  min-height: 326px;
+  padding: 8px 24px;
+  box-sizing: border-box;
+}
+
+.cardContent h2 {
+  margin: 0;
+  font-size: clamp(1.45rem, 3vw, 2rem);
+  font-weight: 680;
+  letter-spacing: -0.025em;
+  text-align: center;
+}
+
+.detailsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+  gap: 18px;
+}
+
+.field,
+.noteField {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  color: var(--foreground);
+  font-size: 0.87rem;
+  font-weight: 650;
+}
+
+.noteField small {
+  color: var(--muted-foreground, #63716d);
+  font-size: 0.76rem;
+  font-weight: 500;
+}
+
+.field input,
+.field select,
+.noteField textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid rgb(70 86 82 / 18%);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 48%);
+  color: var(--foreground);
+  box-sizing: border-box;
+  font: inherit;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.field input[type="datetime-local"] {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* iOS 26 WebKit adds temporal-input padding outside width: 100%, despite
+   border-box. Subtract only that input's horizontal padding on affected iOS. */
+@supports (-webkit-touch-callout: none) {
+  .field input[type="datetime-local"] {
+    width: calc(100% - 24px);
+    max-width: calc(100% - 24px);
+  }
+}
+
+.field input,
+.field select {
+  min-height: 46px;
+  padding: 10px 12px;
+}
+
+.noteField textarea {
+  min-height: 150px;
+  padding: 12px 14px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.field input:focus,
+.field select:focus,
+.noteField textarea:focus {
+  border-color: rgb(55 113 95 / 65%);
+  box-shadow: 0 0 0 3px rgb(73 142 120 / 12%);
+}
+
+.emptyNotice {
+  padding: 20px;
+  border: 1px dashed rgb(70 86 82 / 22%);
+  border-radius: 15px;
+  color: var(--muted-foreground, #63716d);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.criterionCard {
+  justify-items: stretch;
+}
+
+.criterionTitle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.ratingChoices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: min(610px, 100%);
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+}
+
+.ratingChoices label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  padding: 10px 14px;
+  border: 1px solid rgb(70 86 82 / 17%);
+  border-radius: 13px;
+  background: rgb(255 255 255 / 20%);
+  color: var(--muted-foreground, #63716d);
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 650;
+  line-height: 1.3;
+  text-align: center;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.ratingChoices input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ratingChoices label:hover,
+.ratingChoices .ratingSelected {
+  border-color: rgb(72 106 96 / 42%);
+  background: rgb(102 132 122 / 13%);
+  color: var(--foreground);
+}
+
+.ratingChoices label:focus-within {
+  outline: 2px solid rgb(65 105 93 / 48%);
+  outline-offset: 2px;
+}
+
+.summaryCard > div:first-child {
+  display: grid;
+  gap: 10px;
+  text-align: center;
+}
+
+.summaryCard > div:first-child p {
+  max-width: 590px;
+  margin: 0 auto;
+  color: var(--muted-foreground, #63716d);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.errorFeedback {
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.errorFeedback {
+  color: #85575b;
+  background: rgb(137 91 98 / 10%);
+}
+
+.dialogBackdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(26 31 30 / 34%);
+  backdrop-filter: blur(5px);
+}
+
+.dialog {
+  display: grid;
+  gap: 20px;
+  width: min(520px, 100%);
+  max-height: calc(100dvh - 40px);
+  padding: 26px;
+  overflow-y: auto;
+  border-radius: 22px;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.dialog:focus-visible {
+  box-shadow: var(--shadow-soft), 0 0 0 3px rgb(65 105 93 / 18%);
+}
+
+.dialogHeading {
+  display: grid;
+  gap: 7px;
+  text-align: center;
+}
+
+.dialogHeading h2,
+.dialogHeading p,
+.coverageSummary p {
+  margin: 0;
+}
+
+.dialogHeading h2 {
+  font-size: 1.45rem;
+  letter-spacing: -0.02em;
+}
+
+.dialogHeading p,
+.coverageSummary p,
+.helperText {
+  color: var(--muted-foreground, #63716d);
+  font-size: 0.84rem;
+  font-weight: 500;
+  line-height: 1.48;
+}
+
+.coverageSummary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 15px 16px;
+  border: 1px solid rgb(70 86 82 / 13%);
+  border-radius: 14px;
+  background: rgb(102 132 122 / 7%);
+}
+
+.coverageSummary > div {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.coverageSummary span {
+  color: var(--muted-foreground, #63716d);
+  font-size: 0.72rem;
+}
+
+.coverageSummary strong {
+  font-size: 1.45rem;
+}
+
+.helperText {
+  display: block;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.successToast {
+  position: fixed;
+  z-index: 1100;
+  right: 24px;
+  bottom: 24px;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 13px 16px;
+  border: 1px solid rgb(83 117 103 / 20%);
+  border-radius: 13px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-soft);
+  color: #44685b;
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:global(.dark) .field input,
+:global(.dark) .field select,
+:global(.dark) .noteField textarea,
+:global(.dark) .ratingChoices label {
+  background: rgb(255 255 255 / 4%);
+}
+
+:global(.dark) .ratingChoices label:hover,
+:global(.dark) .ratingChoices .ratingSelected {
+  border-color: rgb(255 255 255 / 28%);
+  background: rgb(255 255 255 / 9%);
+}
+
+:global(.dark) .errorFeedback {
+  color: #ead4d6;
+  background: rgb(171 111 120 / 13%);
+}
+
+:global(.dark) .coverageSummary {
+  border-color: rgb(255 255 255 / 10%);
+  background: rgb(255 255 255 / 4%);
+}
+
+:global(.dark) .successToast {
+  border-color: rgb(255 255 255 / 12%);
+  color: #c1d4ca;
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding: 14px 16px 36px;
+  }
+
+  .pageHeader {
+    gap: 18px;
+    margin-bottom: 20px;
+  }
+
+  .title {
+    font-size: clamp(1.35rem, 5vw, 2rem);
+  }
+
+  .card {
+    min-height: 440px;
+    padding: 22px;
+    border-radius: 19px;
+  }
+
+  .cardContent {
+    min-height: 350px;
+    padding: 6px 4px;
+  }
+
+  .detailsGrid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding-inline: 12px;
+  }
+
+  .pager {
+    gap: 18px;
+  }
+
+  .card {
+    min-height: 470px;
+    padding: 18px 16px;
+  }
+
+  .cardContent {
+    min-height: 390px;
+    gap: 22px;
+  }
+
+  .ratingChoices {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .ratingChoices label {
+    min-height: 48px;
+  }
+
+  .dialogBackdrop {
+    align-items: end;
+    padding: 12px;
+  }
+
+  .dialog {
+    gap: 17px;
+    max-height: calc(100dvh - 24px);
+    padding: 22px 18px;
+    border-radius: 20px;
+  }
+
+  .coverageSummary {
+    grid-template-columns: 1fr;
+  }
+
+  .coverageSummary > div {
+    justify-items: start;
+  }
+
+  .dialogActions {
+    flex-direction: column-reverse;
+  }
+
+  .dialogActions button {
+    width: 100%;
+  }
+
+  .successToast {
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+    max-width: none;
+    text-align: center;
+  }
+}

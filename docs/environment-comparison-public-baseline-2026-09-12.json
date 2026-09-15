@@ -1,0 +1,98 @@
+{
+  "browser": "151.0.7922.34",
+  "kind": "Unauthenticated desktop Chromium baseline only",
+  "modes": [
+    {
+      "mode": "development",
+      "records": [
+        {
+          "attempt": 1,
+          "httpStatus": 200,
+          "loginVisible": true,
+          "loadToControlMs": 136,
+          "recorderAvailable": true,
+          "uncaughtErrors": 0
+        },
+        {
+          "attempt": 2,
+          "httpStatus": 200,
+          "loginVisible": true,
+          "loadToControlMs": 125,
+          "recorderAvailable": true,
+          "uncaughtErrors": 0
+        },
+        {
+          "attempt": 3,
+          "httpStatus": 200,
+          "loginVisible": true,
+          "loadToControlMs": 129,
+          "recorderAvailable": true,
+          "uncaughtErrors": 0
+        },
+        {
+          "attempt": 4,
+          "httpStatus": 200,
+          "loginVisible": true,
+          "loadToControlMs": 131,
+          "recorderAvailable": true,
+          "uncaughtErrors": 0
+        },
+        {
+          "attempt": 5,
+          "httpStatus": 200,
+          "loginVisible": true,
+          "loadToControlMs": 130,
+          "recorderAvailable": true,
+          "uncaughtErrors": 0
+        }
+      ],
+      "unauthenticatedDashboardReturnsLogin": true
+    },
+    {
+      "mode": "production",
+      "records": [
+        {
+          "attempt": 1,
+          "httpStatus": 200,
+          "loginVisible": true,
+          "loadToControlMs": 91,
+          "recorderAvailable": false,
+          "uncaughtErrors": 0
+        },
+        {
+          "attempt": 2,
+          "httpStatus": 200,
+          "loginVisible": true,
+          "loadToControlMs": 57,
+          "recorderAvailable": false,
+          "uncaughtErrors": 0
+        },
+        {
+          "attempt": 3,
+          "httpStatus": 200,
+          "loginVisible": true,
+          "loadToControlMs": 54,
+          "recorderAvailable": false,
+          "uncaughtErrors": 0
+        },
+        {
+          "attempt": 4,
+          "httpStatus": 200,
+          "loginVisible": true,
+          "loadToControlMs": 54,
+          "recorderAvailable": false,
+          "uncaughtErrors": 0
+        },
+        {
+          "attempt": 5,
+          "httpStatus": 200,
+          "loginVisible": true,
+          "loadToControlMs": 51,
+          "recorderAvailable": false,
+          "uncaughtErrors": 0
+        }
+      ],
+      "unauthenticatedDashboardReturnsLogin": true
+    }
+  ]
+}

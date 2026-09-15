@@ -8,6 +8,7 @@ import {
   clientDisplayCode,
   clientDisplayText,
 } from "@/app/libs/clientIdentity";
+import { formatProviderDisplayName } from "../../libs/providerDisplayName";
 import {
   generateAttention,
   type ProviderAssignment,
@@ -48,12 +49,13 @@ export async function buildClientDayContext(input: {
     clinicalDate < currentClinicalDate ? "FINALIZED" : "LIVE";
 
   const clientWhere =
-    options.viewerProviderId && options.viewerRole !== "Supervisor"
+    options.viewerProviderId
       ? {
           id: input.clientId,
           providerClients: {
             some: {
               providerId: options.viewerProviderId,
+              revokedAt: null,
             },
           },
         }
@@ -130,7 +132,7 @@ export async function buildClientDayContext(input: {
       },
     }),
     db.providerClient.findMany({
-      where: { clientId: input.clientId },
+      where: { clientId: input.clientId, revokedAt: null },
       select: {
         providerId: true,
         role: true,
@@ -371,7 +373,7 @@ function toNormalizableTeamFocus(teamFocus: {
 }
 
 function providerName(provider: { firstName: string; lastName: string }) {
-  return `${provider.firstName} ${provider.lastName}`.trim();
+  return formatProviderDisplayName(provider.firstName, provider.lastName);
 }
 
 function revisionChangeLabels(value: Prisma.JsonValue) {

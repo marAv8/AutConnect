@@ -72,13 +72,15 @@ export function projectDashboardEntrySaved(
 
     const entries = client.entries ?? [];
     const hasEntry = entries.some((entry) => entry.id === entryId);
+    const authorReadAt =
+      authorProviderId === currentProviderId ? new Date() : null;
     const nextEntry = {
       id: entryId,
       providerId: authorProviderId,
       kind,
       visibility,
       status,
-      reads: visibility === "Private" ? [] : [{ readAt: null }],
+      reads: visibility === "Private" ? [] : [{ readAt: authorReadAt }],
     };
 
     return {
@@ -96,7 +98,7 @@ export function projectDashboardEntrySaved(
                     visibility === "Private"
                       ? []
                       : authorProviderId === currentProviderId
-                        ? [{ readAt: null }]
+                        ? [{ readAt: authorReadAt }]
                         : entry.reads,
                 }
               : entry

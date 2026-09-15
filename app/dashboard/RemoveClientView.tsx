@@ -8,6 +8,7 @@ import {
   STATUS_BADGE_SIZE,
 } from "./layoutConfig";
 import ModeContentFrame from "./ModeContentFrame";
+import administrativeStyles from "@/app/components/administrative/AdministrativeCarousel.module.css";
 
 type Client = {
   id: string;
@@ -40,7 +41,7 @@ export default function RemoveClientView({
   return (
     <ModeContentFrame>
       <div
-        className="client-cavity-tray"
+        className={`client-cavity-tray ${administrativeStyles.card}`}
         style={{
           width: "100%",
           maxWidth: visibleWidth + 196,

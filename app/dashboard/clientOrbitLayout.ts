@@ -13,6 +13,115 @@ export const CLIENT_ORBIT_LAYOUT = {
   actionBadgeSize: 28,
 } as const;
 
+export const CLIENT_ORBIT_MAX_SCALE = 1.34;
+export const CLIENT_ORBIT_VERTICAL_RESERVE = 110;
+export const CLIENT_ORBIT_WIDE_VERTICAL_RESERVE = 80;
+export const CLIENT_ORBIT_GROWTH_START = 700;
+export const CLIENT_ORBIT_GROWTH_SPAN = 500;
+
+export function responsiveClientOrbitScale(
+  availableInline: number,
+  availableBlock: number
+) {
+  const widthScale = availableInline / CLIENT_ORBIT_LAYOUT.orbitSize;
+  const verticalReserve =
+    availableInline <= CLIENT_ORBIT_GROWTH_START
+      ? CLIENT_ORBIT_VERTICAL_RESERVE
+      : CLIENT_ORBIT_WIDE_VERTICAL_RESERVE;
+  const heightScale =
+    availableBlock > verticalReserve + CLIENT_ORBIT_LAYOUT.providerBadgeSize
+      ? (availableBlock - verticalReserve) / CLIENT_ORBIT_LAYOUT.orbitSize
+      : Number.POSITIVE_INFINITY;
+  const geometryLimitedInline = Math.min(
+    availableInline,
+    availableBlock * 1.55
+  );
+  const growthProgress = Math.max(
+    0,
+    Math.min(
+      1,
+      (geometryLimitedInline - CLIENT_ORBIT_GROWTH_START) /
+        CLIENT_ORBIT_GROWTH_SPAN
+    )
+  );
+  const responsiveMaximum =
+    1 + growthProgress * (CLIENT_ORBIT_MAX_SCALE - 1);
+
+  return Math.max(
+    0,
+    Math.min(widthScale, heightScale, responsiveMaximum, CLIENT_ORBIT_MAX_SCALE)
+  );
+}
+
+export type ProviderActionPopoverPosition = {
+  left: number;
+  top?: number;
+  bottom?: number;
+  maxHeight: number;
+  transformOrigin:
+    | "top left"
+    | "top center"
+    | "top right"
+    | "bottom left"
+    | "bottom center"
+    | "bottom right";
+};
+
+export function resolveProviderActionPopoverPosition(
+  anchor: { left: number; top: number; right: number; bottom: number },
+  viewport: { width: number; height: number },
+  popoverWidth = 300,
+  estimatedHeight = 320,
+  gap = 12,
+  edge = 16
+): ProviderActionPopoverPosition {
+  const anchorCenter = (anchor.left + anchor.right) / 2;
+  const leftCandidate = anchor.left - gap - popoverWidth;
+  const rightCandidate = anchor.right + gap;
+  const canPlaceLeft = leftCandidate >= edge;
+  const canPlaceRight = rightCandidate + popoverWidth <= viewport.width - edge;
+  const preferLeft = anchorCenter <= viewport.width / 2;
+  let left: number;
+  let horizontalOrigin: "left" | "center" | "right";
+
+  if ((preferLeft && canPlaceLeft) || (!canPlaceRight && canPlaceLeft)) {
+    left = leftCandidate;
+    horizontalOrigin = "right";
+  } else if (canPlaceRight) {
+    left = rightCandidate;
+    horizontalOrigin = "left";
+  } else {
+    left = Math.max(
+      edge,
+      Math.min(
+        anchorCenter - popoverWidth / 2,
+        viewport.width - popoverWidth - edge
+      )
+    );
+    horizontalOrigin = "center";
+  }
+  const belowSpace = viewport.height - anchor.bottom - gap - edge;
+  const aboveSpace = anchor.top - gap - edge;
+  const placeBelow =
+    belowSpace >= estimatedHeight ||
+    (aboveSpace < estimatedHeight && belowSpace >= aboveSpace);
+  const availableHeight = Math.max(44, placeBelow ? belowSpace : aboveSpace);
+
+  return placeBelow
+    ? {
+        left,
+        top: anchor.bottom + gap,
+        maxHeight: availableHeight,
+        transformOrigin: `top ${horizontalOrigin}`,
+      }
+    : {
+        left,
+        bottom: viewport.height - anchor.top + gap,
+        maxHeight: availableHeight,
+        transformOrigin: `bottom ${horizontalOrigin}`,
+      };
+}
+
 const providerLayouts: Record<number, Array<readonly [number, number]>> = {
   1: [[0, -1]],
   2: [

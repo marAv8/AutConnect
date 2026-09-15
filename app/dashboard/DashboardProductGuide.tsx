@@ -71,6 +71,14 @@ export default function DashboardProductGuide({ onClose }: Props) {
           documentation day.
         </GuideSection>
 
+        <GuideSection title="Team Focus signal">
+          Team Focus shares the supervisor&apos;s current direction for the selected
+          client. In the client carousel, its solid-circle control brightens and
+          radiates when Team Focus is new or updated. Open the control to read the
+          full Team Focus; the signal dims after you read it and brightens again
+          when the supervisor posts another update.
+        </GuideSection>
+
         <GuideSection title="Navigation">
           Open the client badge for Client Summary. Open a provider badge to
           view available notes or add your permitted documentation. Use the

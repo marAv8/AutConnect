@@ -6,6 +6,7 @@ import type {
   CaretakerContextKind,
 } from "@/app/libs/caretakerContext";
 import type { NoteEntryKind } from "@/app/libs/entryKinds";
+import AuthenticatedPageHeader from "@/app/components/AuthenticatedPageHeader";
 import EntryForm from "@/app/portal/notes/add/EntryForm";
 import NoteHistoryViewer from "@/app/portal/notes/view/NoteHistoryViewer";
 
@@ -68,6 +69,9 @@ type TargetOption = {
     | "Adaptive"
     | "Regulation"
     | "Other";
+  group?: string;
+  recommendedMeasurementProfile?: string;
+  direction?: "higherIsBetter" | "lowerIsBetter" | "goalDependent";
   description?: string;
   tags?: string[];
 };
@@ -75,7 +79,6 @@ type TargetOption = {
 type HistoryOverlayData = {
   clientId: string;
   clientInitials: string;
-  backLabel: string;
   entries: ComponentProps<typeof NoteHistoryViewer>["entries"];
 };
 
@@ -85,6 +88,8 @@ type Props = {
   providerId: string;
   noteKind?: NoteEntryKind | null;
   contextKind?: CaretakerContextKind | null;
+  authenticatedDisplayName?: string;
+  authenticatedRole?: string;
   onClose: () => void;
   onRead?: (authorProviderId: string) => void;
   onSaved?: (
@@ -102,6 +107,8 @@ export default function DashboardNoteOverlay({
   providerId,
   noteKind,
   contextKind,
+  authenticatedDisplayName,
+  authenticatedRole,
   onClose,
   onRead,
   onSaved,
@@ -110,6 +117,13 @@ export default function DashboardNoteOverlay({
   const [formData, setFormData] = useState<FormOverlayData | null>(null);
   const [historyData, setHistoryData] = useState<HistoryOverlayData | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
+  const authenticatedHeader =
+    authenticatedDisplayName && authenticatedRole ? (
+      <AuthenticatedPageHeader
+        displayName={authenticatedDisplayName}
+        role={authenticatedRole}
+      />
+    ) : null;
 
   useEffect(() => {
     let isMounted = true;
@@ -186,30 +200,39 @@ export default function DashboardNoteOverlay({
 
   if (status === "loading") {
     return (
-      <div className="dashboard-note-overlay-content dashboard-note-overlay-status p-8 text-center text-foreground">
-        Loading notes...
+      <div className="dashboard-note-overlay-content">
+        {authenticatedHeader}
+        <div className="dashboard-note-overlay-status p-8 text-center text-foreground">
+          Loading notes...
+        </div>
       </div>
     );
   }
 
   if (status === "empty") {
     return (
-      <div className="dashboard-note-overlay-content dashboard-note-overlay-status p-8 text-center text-foreground">
-        <p className="mb-6">No notes are available for this provider yet.</p>
-        <button type="button" onClick={onClose} className="back-link">
-          Client
-        </button>
+      <div className="dashboard-note-overlay-content">
+        {authenticatedHeader}
+        <div className="dashboard-note-overlay-status p-8 text-center text-foreground">
+          <p className="mb-6">No notes are available for this provider yet.</p>
+          <button type="button" onClick={onClose} className="back-link">
+            Back
+          </button>
+        </div>
       </div>
     );
   }
 
   if (status === "error") {
     return (
-      <div className="dashboard-note-overlay-content dashboard-note-overlay-status p-8 text-center text-foreground">
-        <p className="mb-6">Notes could not be loaded.</p>
-        <button type="button" onClick={onClose} className="back-link">
-          Client
-        </button>
+      <div className="dashboard-note-overlay-content">
+        {authenticatedHeader}
+        <div className="dashboard-note-overlay-status p-8 text-center text-foreground">
+          <p className="mb-6">Notes could not be loaded.</p>
+          <button type="button" onClick={onClose} className="back-link">
+            Back
+          </button>
+        </div>
       </div>
     );
   }
@@ -221,7 +244,8 @@ export default function DashboardNoteOverlay({
         clientInitials={historyData.clientInitials}
         entries={historyData.entries}
         variant="page"
-        backLabel={historyData.backLabel}
+        authenticatedDisplayName={authenticatedDisplayName}
+        authenticatedRole={authenticatedRole}
         onClose={onClose}
       />
     );
@@ -235,13 +259,14 @@ export default function DashboardNoteOverlay({
   ) {
     return (
       <div className="dashboard-note-overlay-content">
+        {authenticatedHeader}
         <div className="mb-6 flex items-center">
           <button
             type="button"
             onClick={onClose}
             className="back-link"
           >
-            {formData.role === "Caregiver" ? "Children" : "Client"}
+            Back
           </button>
         </div>
           <EntryForm
@@ -266,7 +291,6 @@ export default function DashboardNoteOverlay({
             onSaved?.(formData.providerId, entryId, visibility, status)
           }
           onSubmitted={onClose}
-          onCancel={onClose}
           onCancelToProgress={onReturnToProgress}
         />
       </div>

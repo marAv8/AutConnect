@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import styles from "./MaterialSelect.module.css";
 
@@ -8,6 +8,7 @@ export type MaterialSelectOption = {
   value: string;
   label: string;
   disabled?: boolean;
+  group?: string;
 };
 
 type Props = {
@@ -61,11 +62,7 @@ export function MaterialSelect({
         className={styles.nativeSelect}
         onChange={(event) => onValueChange?.(event.target.value)}
       >
-        {resolvedOptions.map((option) => (
-          <option key={option.value || "empty"} value={option.value} disabled={option.disabled}>
-            {option.label}
-          </option>
-        ))}
+        {groupOptions(resolvedOptions)}
       </select>
       <ChevronDown
         aria-hidden="true"
@@ -75,4 +72,38 @@ export function MaterialSelect({
       />
     </div>
   );
+}
+
+function groupOptions(options: MaterialSelectOption[]) {
+  const rendered: ReactNode[] = [];
+  const groups = new Map<string, MaterialSelectOption[]>();
+
+  for (const option of options) {
+    if (!option.group) {
+      rendered.push(
+        <option key={option.value || "empty"} value={option.value} disabled={option.disabled}>
+          {option.label}
+        </option>
+      );
+      continue;
+    }
+
+    const group = groups.get(option.group) ?? [];
+    group.push(option);
+    groups.set(option.group, group);
+  }
+
+  for (const [label, group] of groups) {
+    rendered.push(
+      <optgroup key={`group-${label}`} label={label}>
+        {group.map((option) => (
+          <option key={option.value} value={option.value} disabled={option.disabled}>
+            {option.label}
+          </option>
+        ))}
+      </optgroup>
+    );
+  }
+
+  return rendered;
 }

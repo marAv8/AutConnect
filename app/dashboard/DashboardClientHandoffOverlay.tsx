@@ -16,6 +16,17 @@ type HandoffItem = {
   providerRoles: string[];
 };
 
+type HandoffSection = {
+  key:
+    | "home-context"
+    | "session-context"
+    | "provider-observations"
+    | "emerging-priorities";
+  title: string;
+  summary: string;
+  sourceReferenceIds: string[];
+};
+
 type SourceReference = {
   id: string;
   providerName: string;
@@ -35,6 +46,7 @@ type ClientDailyHandoffPayload = {
   date: string;
   status: "LIVE" | "FINALIZED";
   overview: string;
+  sections?: HandoffSection[];
   keyEvents: HandoffItem[];
   currentConsiderations: HandoffItem[];
   positiveDevelopments: HandoffItem[];
@@ -179,34 +191,45 @@ export default function DashboardClientHandoffOverlay({ clientId, onClose }: Pro
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ fontSize: 16, fontWeight: 650 }}>
-                    {activeView === "today"
-                      ? "Current Session"
-                      : "Previous Session"}
+                    Daily summary — {formatSummaryDate(activeHandoff.date)}
                   </div>
-                  {activeHandoff.inProgressEntryCount > 0 ? (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        letterSpacing: "0.04em",
-                        textTransform: "uppercase",
-                        opacity: 0.64,
-                      }}
-                    >
-                      Live · provisional
-                    </span>
-                  ) : null}
                 </div>
                 {updatedLabel ? (
                   <div style={{ fontSize: 12, opacity: 0.58 }}>{updatedLabel}</div>
                 ) : null}
               </div>
-              <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>
-                {activeHandoff.overview}
-              </p>
+              {activeHandoff.sections?.length ? (
+                <div style={{ display: "grid", gap: 18 }}>
+                  {activeHandoff.sections.map((section) => (
+                    <section
+                      key={section.key}
+                      style={{ display: "grid", gap: 7 }}
+                    >
+                      <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.68 }}>
+                        {section.title}
+                      </div>
+                      <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>
+                        {section.summary}
+                      </p>
+                      <ReferencedNotes
+                        references={activeHandoff.supportingReferences.filter(
+                          (reference) =>
+                            section.sourceReferenceIds.includes(reference.id)
+                        )}
+                        label="View Sources"
+                      />
+                    </section>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>
+                    {activeHandoff.overview}
+                  </p>
+                  <ReferencedNotes references={activeHandoff.supportingReferences} />
+                </>
+              )}
             </section>
-
-            <ReferencedNotes references={activeHandoff.supportingReferences} />
           </div>
         ) : (
           <div style={{ textAlign: "center", opacity: 0.72 }}>
@@ -288,7 +311,13 @@ function HandoffTab({
   );
 }
 
-function ReferencedNotes({ references }: { references: SourceReference[] }) {
+function ReferencedNotes({
+  references,
+  label = "Referenced notes",
+}: {
+  references: SourceReference[];
+  label?: string;
+}) {
   const visibleReferences = references.filter(isVisibleReference);
   const referenceGroups = groupReferencesByProviderRole(visibleReferences);
 
@@ -306,7 +335,7 @@ function ReferencedNotes({ references }: { references: SourceReference[] }) {
           opacity: 0.66,
         }}
       >
-        Referenced notes
+        {label}
       </summary>
       <div style={{ display: "grid", gap: 8, paddingTop: 10 }}>
         {referenceGroups.map((group) => (
@@ -346,6 +375,15 @@ function ReferencedNotes({ references }: { references: SourceReference[] }) {
       </div>
     </details>
   );
+}
+
+function formatSummaryDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${value}T12:00:00.000Z`));
 }
 
 function isVisibleReference(reference: SourceReference) {

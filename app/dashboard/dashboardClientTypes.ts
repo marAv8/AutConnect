@@ -34,17 +34,22 @@ export type DashboardRecentEntryState = {
   status?: string;
 };
 
-export type DashboardTeamFocus = {
+export type DashboardTeamFocusRevision = {
   id: string;
   title?: string | null;
   content: string;
   displayStartedAt: Date | string;
+  createdAt: Date | string;
   updatedAt: Date | string;
   author: {
     firstName: string;
     lastName: string;
     role: string;
   };
+};
+
+export type DashboardTeamFocus = DashboardTeamFocusRevision & {
+  revisions?: DashboardTeamFocusRevision[];
 };
 
 export type DashboardClient = {

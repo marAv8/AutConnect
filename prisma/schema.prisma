@@ -8,36 +8,63 @@ datasource db {
 }
 
 model Provider {
-  id           String   @id @default(uuid())
-  email        String   @unique
+  id           String         @id @default(uuid())
+  email        String         @unique
   passwordHash String?
   firstName    String
   lastName     String
   role         String
   providerRole String?
-  authType     String   @default("email")
-  createdAt    DateTime @default(now())
+  authType     String         @default("email")
+  status       ProviderStatus @default(ACTIVE)
+  createdAt    DateTime       @default(now())
 
   providerClients ProviderClient[]
   goalDefinitions GoalDefinition[]
 
-  entries                      Entry[]
-  entryReads                   EntryRead[]
-  clientSignalReads            ClientSignalRead[]
-  entryRevisions               EntryRevision[]
-  teamFocusItems               TeamFocus[]
-  documentationDrafts          DocumentationDraft[]
-  ownedCaseSupportCases        CaseSupportCase[]         @relation("CaseSupportOwner")
-  caseSupportMemberships       CaseSupportMember[]       @relation("CaseSupportMemberProvider")
-  caseSupportAccessGrants      CaseSupportMember[]       @relation("CaseSupportGrantedBy")
-  caseSupportAuditEvents       CaseSupportAuditEvent[]   @relation("CaseSupportAuditActor")
-  caseSupportEntries           CaseSupportEntry[]
-  caseSupportCoordinations     CaseSupportCoordination[]
-  submittedCaseSupportRequests CaseSupportRequest[]      @relation("CaseSupportRequester")
-  receivedCaseSupportRequests  CaseSupportRequest[]      @relation("CaseSupportRecipient")
-  organizationMemberships      OrganizationMembership[]
+  entries                          Entry[]
+  entryReads                       EntryRead[]
+  clientSignalReads                ClientSignalRead[]
+  entryRevisions                   EntryRevision[]
+  teamFocusItems                   TeamFocus[]
+  documentationDrafts              DocumentationDraft[]
+  ownedCaseSupportCases            CaseSupportCase[]             @relation("CaseSupportOwner")
+  caseSupportMemberships           CaseSupportMember[]           @relation("CaseSupportMemberProvider")
+  caseSupportAccessGrants          CaseSupportMember[]           @relation("CaseSupportGrantedBy")
+  caseSupportAuditEvents           CaseSupportAuditEvent[]       @relation("CaseSupportAuditActor")
+  receivedCaseSupportNotifications CaseSupportNotification[]     @relation("CaseSupportNotificationRecipient")
+  sentCaseSupportNotifications     CaseSupportNotification[]     @relation("CaseSupportNotificationActor")
+  caseSupportEntries               CaseSupportEntry[]
+  caseSupportCoordinations         CaseSupportCoordination[]
+  submittedCaseSupportRequests     CaseSupportRequest[]          @relation("CaseSupportRequester")
+  receivedCaseSupportRequests      CaseSupportRequest[]          @relation("CaseSupportRecipient")
+  organizationMemberships          OrganizationMembership[]
+  sentOrganizationInvitations      OrganizationInvitation[]      @relation("OrganizationInvitationSender")
+  reviewedAgencyAccessRequests     AgencyAccessRequest[]         @relation("AgencyAccessRequestReviewer")
+  authoredFieldObservations        FieldObservation[]            @relation("FieldObservationSupervisor")
+  receivedFieldObservations        FieldObservation[]            @relation("FieldObservationObservedProvider")
+  requestedClientOrganizations     ClientOrganization[]          @relation("ClientOrganizationRequestedBy")
+  approvedClientOrganizations      ClientOrganization[]          @relation("ClientOrganizationApprovedBy")
+  revokedClientOrganizations       ClientOrganization[]          @relation("ClientOrganizationRevokedBy")
+  clientTeamManagerGrants          ClientTeamManager[]           @relation("ClientTeamManagerProvider")
+  grantedClientTeamManagers        ClientTeamManager[]           @relation("ClientTeamManagerGrantedBy")
+  revokedClientTeamManagers        ClientTeamManager[]           @relation("ClientTeamManagerRevokedBy")
+  assignedClientRelationships      ProviderClient[]              @relation("ProviderClientAssignedBy")
+  revokedClientRelationships       ProviderClient[]              @relation("ProviderClientRevokedBy")
+  clientTeamAuditEvents            ClientTeamAuditEvent[]        @relation("ClientTeamAuditActor")
+  clientTeamAuditSubjects          ClientTeamAuditEvent[]        @relation("ClientTeamAuditSubjectProvider")
+  requestedClientAttachRequests    ClientAttachRequest[]         @relation("ClientAttachRequester")
+  decidedClientAttachRequests      ClientAttachRequest[]         @relation("ClientAttachDecider")
+  clientAttachRateLimitBuckets     ClientAttachRateLimitBucket[]
+  clientAttachSecurityEvents       ClientAttachSecurityEvent[]
 
   @@index([createdAt])
+}
+
+enum ProviderStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
 }
 
 enum Role {
@@ -47,6 +74,22 @@ enum Role {
   Caregiver
   BehaviorTherapist
   OccupationalTherapist
+}
+
+enum FieldObservationRating {
+  IMPLEMENTED
+  PARTIALLY_IMPLEMENTED
+  NOT_IMPLEMENTED
+  NOT_OBSERVED
+}
+
+enum FieldObservationSetting {
+  CLINIC
+  HOME
+  SCHOOL
+  COMMUNITY
+  TELEHEALTH
+  OTHER
 }
 
 enum OrganizationType {
@@ -62,20 +105,75 @@ enum OrganizationMembershipRole {
   MEMBER
 }
 
-model Organization {
-  id             String           @id @default(uuid())
-  name           String
-  normalizedName String           @unique
-  type           OrganizationType
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+enum ClientOrganizationRole {
+  LEAD
+  PARTICIPATING
+}
 
-  memberships         OrganizationMembership[]
-  providerClients     ProviderClient[]
-  caseSupportCases    CaseSupportCase[]
-  caseSupportRequests CaseSupportRequest[]
+enum ClientOrganizationStatus {
+  PENDING
+  ACTIVE
+  REVOKED
+}
+
+enum ClientTeamAuditAction {
+  ORGANIZATION_REQUESTED
+  ORGANIZATION_APPROVED
+  ORGANIZATION_REVOKED
+  TEAM_MANAGER_GRANTED
+  TEAM_MANAGER_REVOKED
+  PROVIDER_ASSIGNED
+  PROVIDER_REVOKED
+  PROVIDER_REACTIVATED
+  LEAD_ORGANIZATION_CHANGED
+  ATTACH_REQUESTED
+  ATTACH_APPROVED
+  ATTACH_REJECTED
+  ATTACH_CANCELLED
+}
+
+enum ClientAttachRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ClientAttachSecurityOutcome {
+  REQUEST_CREATED
+  CASE_CODE_NOT_FOUND
+  ALREADY_PARTICIPATING
+  PENDING_REQUEST_EXISTS
+  UNAUTHORIZED
+  RATE_LIMITED
+  FAILED_CLOSED
+}
+
+model Organization {
+  id                   String           @id @default(uuid())
+  name                 String
+  normalizedName       String           @unique
+  type                 OrganizationType
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  parentOrganizationId String?
+
+  memberships                  OrganizationMembership[]
+  providerClients              ProviderClient[]
+  caseSupportCases             CaseSupportCase[]
+  caseSupportRequests          CaseSupportRequest[]
+  invitations                  OrganizationInvitation[]
+  accessRequests               AgencyAccessRequest[]
+  parentOrganization           Organization?                 @relation("OrganizationHierarchy", fields: [parentOrganizationId], references: [id], onDelete: SetNull)
+  childOrganizations           Organization[]                @relation("OrganizationHierarchy")
+  clientOrganizations          ClientOrganization[]
+  clientTeamAuditEvents        ClientTeamAuditEvent[]
+  clientAttachRequests         ClientAttachRequest[]
+  clientAttachRateLimitBuckets ClientAttachRateLimitBucket[]
+  clientAttachSecurityEvents   ClientAttachSecurityEvent[]
 
   @@index([type, name])
+  @@index([parentOrganizationId])
 }
 
 model OrganizationMembership {
@@ -94,6 +192,58 @@ model OrganizationMembership {
   @@index([providerId, active])
 }
 
+model OrganizationInvitation {
+  id                  String                     @id @default(uuid())
+  organizationId      String
+  email               String
+  normalizedEmail     String
+  providerRole        String
+  membershipRole      OrganizationMembershipRole @default(MEMBER)
+  tokenHash           String                     @unique
+  expiresAt           DateTime
+  acceptedAt          DateTime?
+  revokedAt           DateTime?
+  invitedByProviderId String
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    Provider     @relation("OrganizationInvitationSender", fields: [invitedByProviderId], references: [id], onDelete: Cascade)
+
+  @@index([normalizedEmail, expiresAt])
+  @@index([organizationId, acceptedAt, revokedAt])
+}
+
+enum AgencyAccessRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
+model AgencyAccessRequest {
+  id                     String                    @id @default(uuid())
+  organizationName       String
+  normalizedOrganization String
+  organizationType       OrganizationType
+  contactFirstName       String
+  contactLastName        String
+  contactEmail           String
+  normalizedEmail        String
+  status                 AgencyAccessRequestStatus @default(PENDING)
+  reviewedAt             DateTime?
+  reviewedByProviderId   String?
+  approvedOrganizationId String?
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+
+  reviewedBy           Provider?     @relation("AgencyAccessRequestReviewer", fields: [reviewedByProviderId], references: [id], onDelete: SetNull)
+  approvedOrganization Organization? @relation(fields: [approvedOrganizationId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([normalizedEmail, status])
+  @@index([normalizedOrganization, status])
+}
+
 enum MetricType {
   Percentage
   Frequency
@@ -105,6 +255,11 @@ enum ComparisonType {
   LessThan
   GreaterThan
   Equal
+}
+
+enum GoalMasteryBasis {
+  LEGACY_NORMALIZED
+  POLICY_V1
 }
 
 enum AssessmentDomain {
@@ -140,6 +295,7 @@ enum EntryStatus {
 
 model Client {
   id                           String    @id @default(uuid())
+  caseCode                     String    @unique @default(uuid())
   firstName                    String
   lastName                     String
   dateOfBirth                  DateTime?
@@ -150,14 +306,181 @@ model Client {
   providerClients ProviderClient[]
   goalDefinitions GoalDefinition[]
 
-  entries             Entry[]
-  teamFocusItems      TeamFocus[]
-  documentationDrafts DocumentationDraft[]
-  caseSupportCases    CaseSupportCase[]
-  caseSupportRequests CaseSupportRequest[]
-  clientSignalReads   ClientSignalRead[]
+  entries               Entry[]
+  teamFocusItems        TeamFocus[]
+  documentationDrafts   DocumentationDraft[]
+  caseSupportCases      CaseSupportCase[]
+  caseSupportRequests   CaseSupportRequest[]
+  clientSignalReads     ClientSignalRead[]
+  fieldObservations     FieldObservation[]
+  clientOrganizations   ClientOrganization[]
+  teamManagers          ClientTeamManager[]
+  clientTeamAuditEvents ClientTeamAuditEvent[]
+  attachRequests        ClientAttachRequest[]
 
   @@index([createdAt])
+}
+
+model ClientOrganization {
+  id               String                   @id @default(uuid())
+  clientId         String
+  organizationId   String
+  role             ClientOrganizationRole
+  status           ClientOrganizationStatus @default(PENDING)
+  requestedById    String
+  approvedById     String?
+  requestedAt      DateTime                 @default(now())
+  activatedAt      DateTime?
+  revokedAt        DateTime?
+  revokedById      String?
+  revocationReason String?
+
+  client       Client       @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  requestedBy  Provider     @relation("ClientOrganizationRequestedBy", fields: [requestedById], references: [id], onDelete: Restrict)
+  approvedBy   Provider?    @relation("ClientOrganizationApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  revokedBy    Provider?    @relation("ClientOrganizationRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@unique([clientId, organizationId])
+  @@index([clientId, status])
+  @@index([organizationId, status])
+}
+
+model ClientTeamManager {
+  id          String    @id @default(uuid())
+  clientId    String
+  providerId  String
+  grantedById String
+  grantedAt   DateTime  @default(now())
+  revokedAt   DateTime?
+  revokedById String?
+
+  client    Client    @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  provider  Provider  @relation("ClientTeamManagerProvider", fields: [providerId], references: [id], onDelete: Restrict)
+  grantedBy Provider  @relation("ClientTeamManagerGrantedBy", fields: [grantedById], references: [id], onDelete: Restrict)
+  revokedBy Provider? @relation("ClientTeamManagerRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@unique([clientId, providerId])
+  @@index([providerId, revokedAt])
+  @@index([clientId, revokedAt])
+}
+
+model ClientTeamAuditEvent {
+  id                String                @id @default(uuid())
+  clientId          String
+  actorId           String
+  action            ClientTeamAuditAction
+  subjectProviderId String?
+  organizationId    String?
+  assignmentId      String?
+  metadata          Json?
+  createdAt         DateTime              @default(now())
+
+  client          Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  actor           Provider      @relation("ClientTeamAuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+  subjectProvider Provider?     @relation("ClientTeamAuditSubjectProvider", fields: [subjectProviderId], references: [id], onDelete: SetNull)
+  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([clientId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([assignmentId])
+}
+
+model ClientAttachRequest {
+  id             String                    @id @default(uuid())
+  clientId       String
+  organizationId String
+  requestedById  String
+  status         ClientAttachRequestStatus @default(PENDING)
+  requestedAt    DateTime                  @default(now())
+  decidedById    String?
+  decidedAt      DateTime?
+  reason         String?
+  updatedAt      DateTime                  @updatedAt
+
+  client         Client                      @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  organization   Organization                @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  requestedBy    Provider                    @relation("ClientAttachRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  decidedBy      Provider?                   @relation("ClientAttachDecider", fields: [decidedById], references: [id], onDelete: Restrict)
+  securityEvents ClientAttachSecurityEvent[]
+
+  @@index([clientId, status, requestedAt])
+  @@index([organizationId, status, requestedAt])
+  @@index([requestedById, status, requestedAt])
+}
+
+model ClientAttachRateLimitBucket {
+  id              String   @id @default(uuid())
+  providerId      String
+  organizationId  String
+  bucketStartedAt DateTime
+  attemptCount    Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  provider     Provider     @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([providerId, organizationId, bucketStartedAt])
+  @@index([bucketStartedAt])
+}
+
+model ClientAttachSecurityEvent {
+  id             String                      @id @default(uuid())
+  actorId        String
+  organizationId String?
+  requestId      String?
+  outcome        ClientAttachSecurityOutcome
+  createdAt      DateTime                    @default(now())
+
+  actor        Provider             @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  organization Organization?        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  request      ClientAttachRequest? @relation(fields: [requestId], references: [id], onDelete: Restrict)
+
+  @@index([actorId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([createdAt])
+}
+
+model FieldObservation {
+  id                   String                  @id @default(uuid())
+  clientId             String
+  supervisorId         String
+  observedProviderId   String
+  observedProviderRole Role
+  observedAt           DateTime
+  setting              FieldObservationSetting
+  durationMinutes      Int?
+  rubricVersion        String
+  fidelityPercent      Int
+  applicableItemCount  Int
+  strengths            String?
+  coachingFocus        String?
+  followUp             String?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  client               Client                  @relation(fields: [clientId], references: [id])
+  supervisor           Provider                @relation("FieldObservationSupervisor", fields: [supervisorId], references: [id])
+  observedProvider     Provider                @relation("FieldObservationObservedProvider", fields: [observedProviderId], references: [id])
+  items                FieldObservationItem[]
+
+  @@index([clientId, observedAt])
+  @@index([supervisorId, observedAt])
+  @@index([observedProviderId, observedAt])
+}
+
+model FieldObservationItem {
+  id                 String                 @id @default(uuid())
+  fieldObservationId String
+  criterionKey       String
+  criterionLabel     String
+  rating             FieldObservationRating
+  displayOrder       Int
+  note               String?
+  fieldObservation   FieldObservation       @relation(fields: [fieldObservationId], references: [id], onDelete: Cascade)
+
+  @@unique([fieldObservationId, criterionKey])
+  @@index([fieldObservationId, displayOrder])
 }
 
 model TeamFocus {
@@ -183,16 +506,24 @@ model TeamFocus {
 }
 
 model ProviderClient {
-  id             String  @id @default(uuid())
-  providerId     String
-  clientId       String
-  organizationId String?
-  role           Role
+  id               String    @id @default(uuid())
+  providerId       String
+  clientId         String
+  organizationId   String?
+  role             Role
+  assignedById     String?
+  assignedAt       DateTime  @default(now())
+  revokedAt        DateTime?
+  revokedById      String?
+  revocationReason String?
 
   provider     Provider      @relation(fields: [providerId], references: [id])
   client       Client        @relation(fields: [clientId], references: [id])
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  assignedBy   Provider?     @relation("ProviderClientAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  revokedBy    Provider?     @relation("ProviderClientRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
 
+  @@unique([providerId, clientId])
   @@index([providerId])
   @@index([clientId])
   @@index([providerId, clientId])
@@ -327,6 +658,14 @@ model GoalDefinition {
   isActive   Boolean @default(true)
   isMastered Boolean @default(false)
 
+  masteryBasis                   GoalMasteryBasis?
+  masteredAt                     DateTime?
+  masteryEvidenceEntryIds        Json?
+  masteryRevokedAt               DateTime?
+  masteryRevokedEvidenceEntryIds Json?
+  masteryThreshold               Float?
+  masteryRequiredSessions        Int               @default(3)
+
   createdAt DateTime @default(now())
 
   client   Client   @relation(fields: [clientId], references: [id])
@@ -453,6 +792,14 @@ enum CaseSupportCommunicationMethod {
   OTHER
 }
 
+enum CaseSupportNotificationType {
+  CASE_UPDATE
+  CLARIFICATION
+  CASE_OPENED
+  ACCESS_GRANTED
+  CASE_RESOLVED
+}
+
 model CaseSupportCase {
   id String @id @default(uuid())
 
@@ -477,10 +824,32 @@ model CaseSupportCase {
   entries             CaseSupportEntry[]
   coordinations       CaseSupportCoordination[]
   originatingRequests CaseSupportRequest[]
+  notifications       CaseSupportNotification[]
 
   @@index([clientId, status, updatedAt])
   @@index([ownerSupervisorId, status])
   @@index([organizationId, status])
+}
+
+model CaseSupportNotification {
+  id String @id @default(uuid())
+
+  caseId      String
+  recipientId String
+  actorId     String
+  eventType   CaseSupportNotificationType
+  eventKey    String
+
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  case      CaseSupportCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  recipient Provider        @relation("CaseSupportNotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor     Provider        @relation("CaseSupportNotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@unique([recipientId, eventKey])
+  @@index([recipientId, readAt, createdAt])
+  @@index([caseId, recipientId, readAt])
 }
 
 model CaseSupportRequest {
@@ -494,6 +863,8 @@ model CaseSupportRequest {
 
   concern          String
   requestedSupport String
+  title            String?
+  occurredAt       DateTime?
   status           CaseSupportRequestStatus @default(REQUESTED)
   responseNote     String?
 

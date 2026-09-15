@@ -2,28 +2,17 @@
 
 import { useState } from "react";
 import { updateTeamFocus } from "@/app/actions/updateTeamFocus";
+import { formatProviderDisplayName } from "@/app/libs/providerDisplayName";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-
-type TeamFocusData = {
-  id: string;
-  title?: string | null;
-  content: string;
-  displayStartedAt: Date | string;
-  updatedAt: Date | string;
-  author: {
-    firstName: string;
-    lastName: string;
-    role: string;
-  };
-};
+import type { DashboardTeamFocus } from "./dashboardClientTypes";
 
 type Props = {
   clientId: string;
-  teamFocus?: TeamFocusData | null;
+  teamFocus?: DashboardTeamFocus | null;
   onClose: () => void;
-  onSaved?: (teamFocus: TeamFocusData) => void;
+  onSaved?: (teamFocus: DashboardTeamFocus) => void;
 };
 
 export default function DashboardTeamFocusOverlay({
@@ -52,8 +41,7 @@ export default function DashboardTeamFocusOverlay({
 
     setStatus("saved");
     onSaved?.(result.teamFocus);
-    // Let the updated banner settle behind the overlay before revealing it.
-    // This avoids exposing the carousel's necessary layout update to the user.
+    // Let the updated client-specific signal settle before closing the editor.
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(onClose);
     });
@@ -106,7 +94,22 @@ export default function DashboardTeamFocusOverlay({
             boxSizing: "border-box",
           }}
         />
+        {teamFocus ? (
+          <div style={{ fontSize: 12, lineHeight: 1.45, opacity: 0.62 }}>
+            Last updated by{" "}
+            {formatProviderDisplayName(
+              teamFocus.author.firstName,
+              teamFocus.author.lastName
+            )}
+            {" · "}
+            {formatTeamFocusTimestamp(teamFocus.createdAt)}
+          </div>
+        ) : null}
       </div>
+
+      {teamFocus?.revisions?.length ? (
+        <TeamFocusRevisionHistory revisions={teamFocus.revisions} />
+      ) : null}
 
       <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
         <Button
@@ -125,4 +128,55 @@ export default function DashboardTeamFocusOverlay({
       ) : null}
     </form>
   );
+}
+
+function TeamFocusRevisionHistory({
+  revisions,
+}: {
+  revisions: NonNullable<DashboardTeamFocus["revisions"]>;
+}) {
+  return (
+    <details className="paper-surface" style={{ padding: "14px 18px" }}>
+      <summary style={{ cursor: "pointer", fontSize: 14, fontWeight: 650 }}>
+        Earlier updates ({revisions.length})
+      </summary>
+      <div style={{ display: "grid", gap: 16, paddingTop: 16 }}>
+        {revisions.map((revision) => (
+          <article
+            key={revision.id}
+            style={{
+              display: "grid",
+              gap: 7,
+              paddingTop: 14,
+              borderTop: "1px solid var(--team-focus-divider)",
+            }}
+          >
+            {revision.title ? (
+              <div style={{ fontSize: 14, fontWeight: 650 }}>
+                {revision.title}
+              </div>
+            ) : null}
+            <div style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+              {revision.content}
+            </div>
+            <div style={{ fontSize: 12, opacity: 0.62 }}>
+              {formatProviderDisplayName(
+                revision.author.firstName,
+                revision.author.lastName
+              )}
+              {" · "}
+              {formatTeamFocusTimestamp(revision.createdAt)}
+            </div>
+          </article>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function formatTeamFocusTimestamp(value: Date | string) {
+  return new Date(value).toLocaleString([], {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }

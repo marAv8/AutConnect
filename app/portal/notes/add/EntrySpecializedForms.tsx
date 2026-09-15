@@ -10,7 +10,6 @@ import type { FormEvent, ReactNode } from "react";
 import type { CaretakerContextCard } from "@/app/libs/caretakerContext";
 import { Button } from "@/components/ui/button";
 import { ChevronControl } from "@/components/ui/ChevronControl";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useGuardedSwipe } from "@/components/useGuardedSwipe";
 
@@ -36,13 +35,18 @@ function EntryFormHeader({
   providerName,
   providerRole,
   todayLabel,
-}: Pick<SharedFormProps, "clientName" | "providerName" | "providerRole" | "todayLabel">) {
+  showProviderIdentity = true,
+}: Pick<SharedFormProps, "clientName" | "providerName" | "providerRole" | "todayLabel"> & {
+  showProviderIdentity?: boolean;
+}) {
   return (
     <div className="add-note-header-text" style={{ marginBottom: 14, opacity: 0.7 }}>
       <div>{clientName}</div>
-      <div>
-        {providerName} — {providerRole}
-      </div>
+      {showProviderIdentity ? (
+        <div>
+          {providerName} — {providerRole}
+        </div>
+      ) : null}
       <div>{todayLabel}</div>
     </div>
   );
@@ -95,6 +99,7 @@ export function ClinicalReflectionEntryForm({
         providerName={providerName}
         providerRole={providerRole}
         todayLabel={todayLabel}
+        showProviderIdentity={false}
       />
 
       <div
@@ -114,33 +119,35 @@ export function ClinicalReflectionEntryForm({
         }}
         {...reflectionSwipe.swipeHandlers}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: 28,
-            marginBottom: 12,
-          }}
-        >
-          <ChevronControl
-            direction="left"
-            onClick={onPrevious}
-            disabled={activeIndex === 0}
-            aria-label="Previous reflection"
-          />
-          <div style={{ display: "grid", justifyItems: "center", gap: 6, minWidth: 76 }}>
-            <div style={{ fontWeight: 600 }}>
-              {activeIndex + 1} of {cardCount}
+        {cardCount > 1 ? (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: 28,
+              marginBottom: 12,
+            }}
+          >
+            <ChevronControl
+              direction="left"
+              onClick={onPrevious}
+              disabled={activeIndex === 0}
+              aria-label="Previous reflection"
+            />
+            <div style={{ display: "grid", justifyItems: "center", gap: 6, minWidth: 76 }}>
+              <div style={{ fontWeight: 600 }}>
+                {activeIndex + 1} of {cardCount}
+              </div>
             </div>
+            <ChevronControl
+              direction="right"
+              onClick={onNext}
+              disabled={activeIndex === cardCount - 1}
+              aria-label="Next reflection"
+            />
           </div>
-          <ChevronControl
-            direction="right"
-            onClick={onNext}
-            disabled={activeIndex === cardCount - 1}
-            aria-label="Next reflection"
-          />
-        </div>
+        ) : null}
 
         {visibilityControl}
 
@@ -154,42 +161,22 @@ export function ClinicalReflectionEntryForm({
             boxSizing: "border-box",
           }}
         >
-          {activeIndex === 0 ? (
-            <>
-              <div style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}>
-                Clinical Reflection
-              </div>
-              <Textarea
-                value={contextValues.clinicalReflection ?? ""}
-                onChange={(event) =>
-                  onContextValueChange("clinicalReflection", event.target.value)
-                }
-                placeholder="What clinical insight or interpretation would you like to record?"
-                style={{
-                  minHeight: 122,
-                  padding: "12px 14px",
-                  resize: "none",
-                  ...fieldInputStyle,
-                }}
-              />
-            </>
-          ) : null}
-
-          {activeIndex === 1 ? (
-            <>
-              <div style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}>
-                Optional Reference
-              </div>
-              <Input
-                value={contextValues.optionalReference ?? ""}
-                onChange={(event) =>
-                  onContextValueChange("optionalReference", event.target.value)
-                }
-                placeholder="Optional reference (example: Full supervision documentation completed in agency record.)"
-                style={{ minHeight: 44, padding: "10px 12px", ...fieldInputStyle }}
-              />
-            </>
-          ) : null}
+          <div style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}>
+            Clinical Reflection
+          </div>
+          <Textarea
+            value={contextValues.clinicalReflection ?? ""}
+            onChange={(event) =>
+              onContextValueChange("clinicalReflection", event.target.value)
+            }
+            placeholder="What clinical insight or interpretation would you like to record?"
+            style={{
+              minHeight: 122,
+              padding: "12px 14px",
+              resize: "none",
+              ...fieldInputStyle,
+            }}
+          />
         </div>
       </div>
 
@@ -399,13 +386,19 @@ export function CaretakerContextEntryForm({
           minHeight: 44,
         }}
       >
-        <Button
-          type="submit"
-          className="material-control action-positive"
-          disabled={saveStatus === "saving"}
-        >
-          {saveStatus === "saving" ? "Saving..." : isEditMode ? "Update Note" : "Submit"}
-        </Button>
+        {activeContextCard?.kind === "comment" ? (
+          <Button
+            type="submit"
+            className="material-control action-positive"
+            disabled={saveStatus === "saving"}
+          >
+            {saveStatus === "saving"
+              ? "Saving..."
+              : isEditMode
+                ? "Update today's note"
+                : "Add note to today's update"}
+          </Button>
+        ) : null}
         {saveStatus === "saved" ? <span style={{ opacity: 0.68 }}>Saved</span> : null}
         {saveStatus === "error" ? <span style={{ opacity: 0.72 }}>Could not save.</span> : null}
       </div>

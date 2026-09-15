@@ -1,18 +1,9 @@
-import AppUserHeader from "@/app/components/AppUserHeader";
-import AuthenticatedViewportStabilizer from "@/app/components/AuthenticatedViewportStabilizer";
+import DashboardShell from "./DashboardShell";
 
 export default function DashboardLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <>
-      <AuthenticatedViewportStabilizer />
-      <div className="app-shell-pad">
-        <AppUserHeader />
-      </div>
-      {children}
-    </>
-  );
+  return <DashboardShell>{children}</DashboardShell>;
 }

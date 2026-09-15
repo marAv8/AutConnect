@@ -4,6 +4,13 @@ import { db } from "@/lib/db";
 import { formatRole } from "@/app/libs/roles";
 import { clientDisplayText } from "@/app/libs/clientIdentity";
 import { sevenDayHistoryStart } from "@/app/libs/documentationDay";
+import { formatProviderDisplayName } from "@/app/libs/providerDisplayName";
+import {
+  redactMedicationContextData,
+  redactMedicationNote,
+  redactMedicationRevisionValue,
+  shouldRedactCaregiverMedication,
+} from "@/app/libs/caregiverMedicationPrivacy";
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -26,6 +33,7 @@ export async function GET(request: Request) {
       providerClients: {
         some: {
           providerId: session.providerId,
+          revokedAt: null,
         },
       },
     },
@@ -181,7 +189,10 @@ export async function GET(request: Request) {
     clientId,
     clientInitials: `${client.firstName.slice(0, 2)}${client.lastName.slice(0, 2)}`,
     backLabel: session.role === "Caregiver" ? "Back to Children" : "Back to Client",
-    entries: consolidateEntries(entries, client),
+    entries: consolidateEntries(entries, client, {
+      providerId: session.providerId,
+      role: session.role,
+    }),
   });
 }
 
@@ -243,21 +254,39 @@ function consolidateEntries(entries: Array<{
       role: string;
     };
   }>;
-}>, client: { firstName: string; lastName: string }) {
+}>, client: { firstName: string; lastName: string }, viewer: {
+  providerId: string;
+  role: string;
+}) {
   const formatted = entries.map((entry) => {
-    const providerName = `${entry.provider.firstName} ${entry.provider.lastName}`;
+    const providerName = formatProviderDisplayName(
+      entry.provider.firstName,
+      entry.provider.lastName
+    );
     const safeText = (value: string) =>
       clientDisplayText(value, client.firstName, client.lastName);
+    const redactMedication = shouldRedactCaregiverMedication({
+      kind: entry.kind,
+      viewerProviderId: viewer.providerId,
+      viewerRole: viewer.role,
+      authorProviderId: entry.providerId,
+    });
+    const safeContextData = redactMedication
+      ? redactMedicationContextData(entry.contextData)
+      : entry.contextData;
+    const safeNote = redactMedication
+      ? redactMedicationNote(entry.note)
+      : entry.note;
 
     return {
       id: entry.id,
       kind: entry.kind,
       status: entry.status,
-      note: safeText(entry.note ?? ""),
+      note: safeText(safeNote ?? ""),
       clinicalReflection: entry.clinicalReflection
         ? safeText(entry.clinicalReflection)
         : null,
-      contextData: entry.contextData,
+      contextData: safeContextData,
       date: entry.date.toISOString(),
       completedAt: (entry.completedAt ?? entry.updatedAt).toISOString(),
       finalScore: entry.finalScore,
@@ -278,17 +307,24 @@ function consolidateEntries(entries: Array<{
         id: revision.id,
         revisionNumber: revision.revisionNumber,
         createdAt: revision.createdAt.toISOString(),
-        createdByName: `${revision.createdBy.firstName} ${revision.createdBy.lastName}`,
+        createdByName: formatProviderDisplayName(
+          revision.createdBy.firstName,
+          revision.createdBy.lastName
+        ),
         createdByRole: formatRole(revision.createdBy.role),
-        changes: sanitizeRevisionChanges(revision.changes, safeText),
+        changes: redactMedication
+          ? redactMedicationRevisionValue(
+              sanitizeRevisionChanges(revision.changes, safeText)
+            )
+          : sanitizeRevisionChanges(revision.changes, safeText),
       })),
       sensoryObservations: extractSensoryObservations(
-        entry.contextData,
+        safeContextData,
         entry.createdAt,
         providerName
       ),
       communicationObservations: extractCommunicationObservations(
-        entry.contextData,
+        safeContextData,
         entry.createdAt,
         providerName
       ),

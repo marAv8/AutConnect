@@ -61,6 +61,9 @@ export type ProfessionTargetOption = {
   label: string;
   recommendedMetricType: TemplateMetricType;
   defaultDomain: TemplateAssessmentDomain;
+  group?: string;
+  recommendedMeasurementProfile?: string;
+  direction?: "higherIsBetter" | "lowerIsBetter" | "goalDependent";
   description?: string;
   tags?: string[];
 };
@@ -193,6 +196,146 @@ const supervisorMeasurements: ProfessionMeasurementOption[] = [
   measurement("subjective", "Subjective", "Subjective", "text", "text", "textOnly", null, null, "goalDependent"),
 ];
 
+export const STRENGTHS_AND_EMERGING_SKILLS_GROUP =
+  "Strengths and Emerging Skills";
+export const CUSTOM_OBSERVABLE_SKILL_TARGET = "Custom Observable Skill";
+
+const strengthsAndEmergingSkillsBase: ProfessionTargetOption[] = [
+  {
+    value: "Self-Advocacy",
+    label: "Self-Advocacy",
+    recommendedMetricType: "Frequency",
+    recommendedMeasurementProfile: "Frequency",
+    defaultDomain: "Communication",
+    direction: "higherIsBetter",
+    description: "Communicates a need, preference, boundary, or request for support.",
+  },
+  {
+    value: "Appropriate Help-Seeking",
+    label: "Appropriate Help-Seeking",
+    recommendedMetricType: "Frequency",
+    recommendedMeasurementProfile: "Frequency",
+    defaultDomain: "Communication",
+    direction: "higherIsBetter",
+    description: "Requests help when support is needed.",
+  },
+  {
+    value: "Spontaneous Initiation",
+    label: "Spontaneous Initiation",
+    recommendedMetricType: "Frequency",
+    recommendedMeasurementProfile: "Frequency",
+    defaultDomain: "Communication",
+    direction: "higherIsBetter",
+    description: "Initiates communication, interaction, or an activity without a prompt.",
+  },
+  {
+    value: "Flexible Response to Change",
+    label: "Flexible Response to Change",
+    recommendedMetricType: "Subjective",
+    recommendedMeasurementProfile: "SupportLevel",
+    defaultDomain: "Regulation",
+    direction: "higherIsBetter",
+    description: "Responds to a change in routine, expectation, or environment with increasing independence.",
+  },
+  {
+    value: "Independent Problem-Solving",
+    label: "Independent Problem-Solving",
+    recommendedMetricType: "Subjective",
+    recommendedMeasurementProfile: "SupportLevel",
+    defaultDomain: "SkillAcquisition",
+    direction: "higherIsBetter",
+    description: "Attempts an appropriate solution with decreasing adult support.",
+  },
+  {
+    value: "Recovery After Frustration",
+    label: "Recovery After Frustration",
+    recommendedMetricType: "Subjective",
+    recommendedMeasurementProfile: "SupportLevel",
+    defaultDomain: "Regulation",
+    direction: "higherIsBetter",
+    description: "Returns to engagement or regulation with increasing independence.",
+  },
+  {
+    value: "Independent Engagement",
+    label: "Independent Engagement",
+    recommendedMetricType: "Subjective",
+    recommendedMeasurementProfile: "SupportLevel",
+    defaultDomain: "SkillAcquisition",
+    direction: "higherIsBetter",
+    description: "Engages with an activity with decreasing adult support.",
+  },
+  {
+    value: "Successful Transition",
+    label: "Successful Transition",
+    recommendedMetricType: "Subjective",
+    recommendedMeasurementProfile: "SupportLevel",
+    defaultDomain: "Adaptive",
+    direction: "higherIsBetter",
+    description: "Moves between activities or settings with increasing independence.",
+  },
+  {
+    value: "Generalization of a Learned Skill",
+    label: "Generalization of a Learned Skill",
+    recommendedMetricType: "Subjective",
+    recommendedMeasurementProfile: "SupportLevel",
+    defaultDomain: "SkillAcquisition",
+    direction: "higherIsBetter",
+    description: "Uses a learned skill with a different person, activity, or setting.",
+  },
+  {
+    value: "Communication of Needs",
+    label: "Communication of Needs",
+    recommendedMetricType: "Frequency",
+    recommendedMeasurementProfile: "Frequency",
+    defaultDomain: "Communication",
+    direction: "higherIsBetter",
+    description: "Communicates a need through speech, AAC, gesture, sign, or another established mode.",
+  },
+  {
+    value: "Appropriate Coping Response",
+    label: "Appropriate Coping Response",
+    recommendedMetricType: "Frequency",
+    recommendedMeasurementProfile: "Frequency",
+    defaultDomain: "Regulation",
+    direction: "higherIsBetter",
+    description: "Uses an established coping or regulation strategy in context.",
+  },
+  {
+    value: "Increased Independence",
+    label: "Increased Independence",
+    recommendedMetricType: "Subjective",
+    recommendedMeasurementProfile: "SupportLevel",
+    defaultDomain: "Adaptive",
+    direction: "higherIsBetter",
+    description: "Completes a meaningful action with less assistance or prompting.",
+  },
+  {
+    value: "Positive Peer Interaction",
+    label: "Positive Peer Interaction",
+    recommendedMetricType: "Frequency",
+    recommendedMeasurementProfile: "Frequency",
+    defaultDomain: "SkillAcquisition",
+    direction: "higherIsBetter",
+    description: "Initiates, responds to, or sustains an appropriate interaction with a peer.",
+  },
+  {
+    value: CUSTOM_OBSERVABLE_SKILL_TARGET,
+    label: CUSTOM_OBSERVABLE_SKILL_TARGET,
+    recommendedMetricType: "Subjective",
+    recommendedMeasurementProfile: "SupportLevel",
+    defaultDomain: "Other",
+    direction: "goalDependent",
+    description: "Names another observable strength or emerging skill.",
+  },
+];
+
+const strengthsAndEmergingSkillsTargets: ProfessionTargetOption[] =
+  strengthsAndEmergingSkillsBase.map((target) => ({
+  ...target,
+  group: STRENGTHS_AND_EMERGING_SKILLS_GROUP,
+  tags: [...(target.tags ?? []), "strength", "emerging skill", "observable"],
+  }));
+
 const abaTargets: ProfessionTargetOption[] = [
   "Manding",
   "Tacting",
@@ -210,8 +353,7 @@ const abaTargets: ProfessionTargetOption[] = [
   "Social Skills",
   "Functional Communication",
   "Replacement Behavior",
-  "Other",
-].map((target) => ({
+].map<ProfessionTargetOption>((target) => ({
   value: target,
   label: target,
   recommendedMetricType: "Subjective",
@@ -230,11 +372,9 @@ const abaTargets: ProfessionTargetOption[] = [
             target === "Elopement Reduction" ||
             target === "Replacement Behavior"
           ? "Behavior"
-          : target === "Other"
-            ? "Other"
-            : "SkillAcquisition",
+          : "SkillAcquisition",
   tags: ["aba"],
-}));
+})).concat(strengthsAndEmergingSkillsTargets);
 
 const speechPathologistTargets: ProfessionTargetOption[] = [
   "Expressive Language",
@@ -249,14 +389,13 @@ const speechPathologistTargets: ProfessionTargetOption[] = [
   "Turn Taking",
   "Pragmatic Language",
   "AAC",
-  "Other",
-].map((target) => ({
+].map<ProfessionTargetOption>((target) => ({
   value: target,
   label: target,
   recommendedMetricType: "Subjective",
-  defaultDomain: target === "Other" ? "Other" : "Communication",
+  defaultDomain: "Communication",
   tags: ["speech"],
-}));
+})).concat(strengthsAndEmergingSkillsTargets);
 
 const occupationalTherapistTargets: ProfessionTargetOption[] = [
   "Fine Motor Coordination",
@@ -274,8 +413,7 @@ const occupationalTherapistTargets: ProfessionTargetOption[] = [
   "Toileting Independence",
   "Attention to Task",
   "Transitions",
-  "Other",
-].map((target) => ({
+].map<ProfessionTargetOption>((target) => ({
   value: target,
   label: target,
   recommendedMetricType: "Subjective",
@@ -284,13 +422,11 @@ const occupationalTherapistTargets: ProfessionTargetOption[] = [
     target === "Attention to Task" ||
     target === "Transitions"
       ? "Regulation"
-      : target === "Other"
-        ? "Other"
-        : "Adaptive",
+      : "Adaptive",
   tags: ["occupational therapy"],
-}));
+})).concat(strengthsAndEmergingSkillsTargets);
 
-const educatorTargets: ProfessionTargetOption[] = [
+const educatorCoreTargets: ProfessionTargetOption[] = [
   {
     value: "Transition to Classroom",
     label: "Transition to Classroom",
@@ -404,6 +540,10 @@ const educatorTargets: ProfessionTargetOption[] = [
     tags: ["classroom", "engagement"],
   },
 ];
+
+const educatorTargets: ProfessionTargetOption[] = educatorCoreTargets.concat(
+  strengthsAndEmergingSkillsTargets
+);
 
 const caregiverTargets: ProfessionTargetOption[] = [
   {

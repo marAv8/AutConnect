@@ -14,15 +14,24 @@ test("replays without reading expected signals", () => {
   assert.ok(replay.every((item) => !("expectedSignal" in item)));
 });
 
-test("holds red from formal request until coordinated plan", () => {
+test("Case Support records do not affect synthetic client signal replay", () => {
   const dataset = buildSuDoTimeline();
   const evaluationDates = dataset.expectedSignals.map((item) => item.date);
-  const replay = replaySignals({ sourceRecords: dataset.sourceRecords, evaluationDates });
-  const signal = new Map(replay.map((item) => [item.date, item.signal]));
+  const withCaseSupport = replaySignals({
+    sourceRecords: dataset.sourceRecords,
+    evaluationDates,
+  });
+  const withoutCaseSupport = replaySignals({
+    sourceRecords: dataset.sourceRecords.filter(
+      (record) => !record.recordType.startsWith("caseSupport")
+    ),
+    evaluationDates,
+  });
 
-  assert.equal(signal.get("2025-10-03"), "red");
-  assert.equal(signal.get("2025-10-20"), "red");
-  assert.equal(signal.get("2025-10-21"), "amber");
+  assert.deepEqual(
+    withCaseSupport.map(({ date, signal, reason }) => ({ date, signal, reason })),
+    withoutCaseSupport.map(({ date, signal, reason }) => ({ date, signal, reason }))
+  );
 });
 
 test("classifies the bounded Special Olympics event as amber", () => {
@@ -51,4 +60,3 @@ test("produces a measurable comparison without changing evaluator output", () =>
     evaluationDates.length
   );
 });
-

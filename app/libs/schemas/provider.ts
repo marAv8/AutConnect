@@ -9,6 +9,14 @@ export const providerRoleEnum = z.enum([
   "OccupationalTherapist",
 ]);
 
+export const publicProviderRoleEnum = z.enum([
+  "Educator",
+  "SpeechPathologist",
+  "Caregiver",
+  "BehaviorTherapist",
+  "OccupationalTherapist",
+]);
+
 export const createProviderSchema = z.object({
   email: z.string().email(),
 

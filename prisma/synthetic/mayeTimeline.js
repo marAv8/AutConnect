@@ -28,7 +28,6 @@ const PROFILE = Object.freeze({
   },
   dateRange: { start: "2026-02-02", end: "2026-03-27" },
   calibration: {
-    activeCaseSignal: "amber",
     amberTransitionLatencyMinutes: 35,
     amberRefusalFrequency: 3,
     personalBaselinePerformanceFloor: 0.38,

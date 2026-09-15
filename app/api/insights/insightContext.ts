@@ -6,12 +6,14 @@
 import { MetricType, Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { isTeamFocusVisible } from "@/app/libs/teamFocusLifecycle";
+import { formatProviderDisplayName } from "../../libs/providerDisplayName";
 import type { InsightCategory } from "@/app/libs/insights/categories";
 import type { ParsedInsightQuestion } from "./insightsEngine";
 import type {
   InsightAbcEvent,
   InsightClinicalEvent,
   InsightContext,
+  InsightFieldObservation,
 } from "./insightContextTypes";
 import {
   buildBehaviorRelationships,
@@ -49,10 +51,18 @@ export async function buildInsightContext(
   parsed: ParsedInsightQuestion,
   options: {
     viewerProviderId: string;
-    category: InsightCategory;
+    category?: InsightCategory;
+    includeCaseSupport?: boolean;
   }
 ): Promise<InsightContext | null> {
-  const [client, providerAssignments, activeGoals, sessions, currentTeamFocus] =
+  const [
+    client,
+    providerAssignments,
+    goalDefinitions,
+    sessions,
+    currentTeamFocus,
+    fieldObservationRecords,
+  ] =
     await Promise.all([
     db.client.findUnique({
       where: { id: clientId },
@@ -65,7 +75,7 @@ export async function buildInsightContext(
       },
     }),
     db.providerClient.findMany({
-      where: { clientId },
+      where: { clientId, revokedAt: null },
       orderBy: {
         provider: {
           firstName: "asc",
@@ -88,7 +98,6 @@ export async function buildInsightContext(
     db.goalDefinition.findMany({
       where: {
         clientId,
-        isActive: true,
       },
       orderBy: [{ providerId: "asc" }, { weight: "desc" }, { createdAt: "asc" }],
       select: {
@@ -100,8 +109,17 @@ export async function buildInsightContext(
         domain: true,
         targetValue: true,
         comparison: true,
+        measurementProfile: true,
         weight: true,
+        isActive: true,
         isMastered: true,
+        masteryBasis: true,
+        masteredAt: true,
+        masteryEvidenceEntryIds: true,
+        masteryRevokedAt: true,
+        masteryRevokedEvidenceEntryIds: true,
+        masteryThreshold: true,
+        masteryRequiredSessions: true,
         provider: {
           select: {
             firstName: true,
@@ -189,8 +207,18 @@ export async function buildInsightContext(
                 domain: true,
                 targetValue: true,
                 comparison: true,
+                measurementProfile: true,
                 weight: true,
                 providerId: true,
+                isActive: true,
+                isMastered: true,
+                masteryBasis: true,
+                masteredAt: true,
+                masteryEvidenceEntryIds: true,
+                masteryRevokedAt: true,
+                masteryRevokedEvidenceEntryIds: true,
+                masteryThreshold: true,
+                masteryRequiredSessions: true,
               },
             },
           },
@@ -245,6 +273,46 @@ export async function buildInsightContext(
           },
         },
       }),
+      db.fieldObservation.findMany({
+        where: { clientId },
+        orderBy: [{ observedAt: "desc" }, { createdAt: "desc" }],
+        select: {
+          id: true,
+          observedAt: true,
+          setting: true,
+          durationMinutes: true,
+          observedProviderId: true,
+          observedProviderRole: true,
+          rubricVersion: true,
+          fidelityPercent: true,
+          applicableItemCount: true,
+          strengths: true,
+          coachingFocus: true,
+          followUp: true,
+          observedProvider: {
+            select: {
+              firstName: true,
+              lastName: true,
+            },
+          },
+          supervisor: {
+            select: {
+              firstName: true,
+              lastName: true,
+            },
+          },
+          items: {
+            orderBy: { displayOrder: "asc" },
+            select: {
+              criterionKey: true,
+              criterionLabel: true,
+              rating: true,
+              displayOrder: true,
+              note: true,
+            },
+          },
+        },
+      }),
     ]);
 
   if (!client) {
@@ -256,6 +324,35 @@ export async function buildInsightContext(
     isTeamFocusVisible(currentTeamFocus.displayStartedAt)
       ? currentTeamFocus
       : null;
+
+  const fieldObservations: InsightFieldObservation[] =
+    fieldObservationRecords.map((observation) => ({
+      id: observation.id,
+      observedAt: observation.observedAt.toISOString(),
+      setting: observation.setting,
+      durationMinutes: observation.durationMinutes,
+      observedProvider: {
+        id: observation.observedProviderId,
+        name: formatProviderDisplayName(
+          observation.observedProvider.firstName,
+          observation.observedProvider.lastName
+        ),
+        role: observation.observedProviderRole,
+      },
+      supervisor: {
+        name: formatProviderDisplayName(
+          observation.supervisor.firstName,
+          observation.supervisor.lastName
+        ),
+      },
+      rubricVersion: observation.rubricVersion,
+      fidelityPercent: observation.fidelityPercent,
+      applicableItemCount: observation.applicableItemCount,
+      items: observation.items,
+      strengths: observation.strengths,
+      coachingFocus: observation.coachingFocus,
+      followUp: observation.followUp,
+    }));
 
   const documentationRecords = sessions.map((entry) => ({
     id: entry.id,
@@ -270,8 +367,10 @@ export async function buildInsightContext(
     clinicalReflection: entry.clinicalReflection,
     contextData: entry.contextData ?? null,
     providerId: entry.providerId,
-    providerName:
-      `${entry.provider.firstName} ${entry.provider.lastName}`.trim(),
+    providerName: formatProviderDisplayName(
+      entry.provider.firstName,
+      entry.provider.lastName
+    ),
     providerRole: entry.provider.role,
     observations: entry.items.flatMap((item) =>
       item.observation
@@ -283,8 +382,10 @@ export async function buildInsightContext(
       id: revision.id,
       revisionNumber: revision.revisionNumber,
       createdAt: revision.createdAt.toISOString(),
-      createdByName:
-        `${revision.createdBy.firstName} ${revision.createdBy.lastName}`.trim(),
+      createdByName: formatProviderDisplayName(
+        revision.createdBy.firstName,
+        revision.createdBy.lastName
+      ),
       createdByRole: revision.createdBy.role,
       snapshot: revision.snapshot,
       changes: revision.changes,
@@ -292,7 +393,9 @@ export async function buildInsightContext(
   }));
 
   const caseSupport =
-    options.category === "caseSupport" || options.category === "overview"
+    options.includeCaseSupport === true ||
+    options.category === "caseSupport" ||
+    options.category === "overview"
       ? await loadAccessibleCaseSupport(clientId, options.viewerProviderId)
       : { requests: [], cases: [] };
 
@@ -321,7 +424,10 @@ export async function buildInsightContext(
 
   const careTeam = providerAssignments.map((assignment) => ({
     providerId: assignment.providerId,
-    providerName: `${assignment.provider.firstName} ${assignment.provider.lastName}`,
+    providerName: formatProviderDisplayName(
+      assignment.provider.firstName,
+      assignment.provider.lastName
+    ),
     accountRole: assignment.provider.role,
     assignmentRole: assignment.role,
   }));
@@ -332,19 +438,36 @@ export async function buildInsightContext(
     assignmentRole: assignment.role,
     provider: assignment.provider,
   }));
-  const activeGoalsContext = activeGoals.map((goal) => ({
+  const goalDefinitionsContext = goalDefinitions.map((goal) => ({
     goalId: goal.id,
     providerId: goal.providerId,
-    providerName: `${goal.provider.firstName} ${goal.provider.lastName}`,
+    providerName: formatProviderDisplayName(
+      goal.provider.firstName,
+      goal.provider.lastName
+    ),
     target: goal.target,
     goal: goal.goal,
     metricType: goal.metricType,
     domain: goal.domain,
     targetValue: goal.targetValue,
     comparison: goal.comparison,
+    measurementProfile: goal.measurementProfile,
     weight: goal.weight,
+    isActive: goal.isActive,
     isMastered: goal.isMastered,
+    masteryBasis: goal.masteryBasis,
+    masteredAt: goal.masteredAt?.toISOString() ?? null,
+    masteryEvidenceEntryIds: stringArray(goal.masteryEvidenceEntryIds),
+    masteryRevokedAt: goal.masteryRevokedAt?.toISOString() ?? null,
+    masteryRevokedEvidenceEntryIds: stringArray(
+      goal.masteryRevokedEvidenceEntryIds
+    ),
+    masteryThreshold: goal.masteryThreshold,
+    masteryRequiredSessions: goal.masteryRequiredSessions,
   }));
+  const activeGoalsContext = goalDefinitionsContext.filter(
+    (goal) => goal.isActive
+  );
   const providerGoalSeries = buildProviderGoalSeries(normalizedSessions);
   const providerDomainSeries = buildProviderDomainSeries(normalizedSessions);
   const performanceTrends = buildPerformanceTrends(normalizedSessions);
@@ -433,15 +556,19 @@ export async function buildInsightContext(
           title: visibleCurrentTeamFocus.title,
           content: visibleCurrentTeamFocus.content,
           updatedAt: visibleCurrentTeamFocus.updatedAt.toISOString(),
-          authorName:
-            `${visibleCurrentTeamFocus.author.firstName} ${visibleCurrentTeamFocus.author.lastName}`.trim(),
+          authorName: formatProviderDisplayName(
+            visibleCurrentTeamFocus.author.firstName,
+            visibleCurrentTeamFocus.author.lastName
+          ),
           authorRole: visibleCurrentTeamFocus.author.role,
         }
       : null,
+    fieldObservations,
     documentationRecords,
     caseSupport,
     providerAssignments: providerAssignmentsContext,
     activeGoals: activeGoalsContext,
+    goalDefinitions: goalDefinitionsContext,
     sessions: normalizedSessions,
     assessmentItems,
     providerGoalSeries,
@@ -467,7 +594,7 @@ export async function buildInsightContext(
     precomputedStatistics: {
       sessionCount: normalizedSessions.length,
       assessmentItemCount: assessmentItems.length,
-      activeGoalCount: activeGoals.length,
+      activeGoalCount: activeGoalsContext.length,
       providersWithSessions: new Set(normalizedSessions.map((session) => session.providerId)).size,
     },
   };
@@ -591,11 +718,15 @@ async function loadAccessibleCaseSupport(
       responseNote: request.responseNote,
       createdAt: request.createdAt.toISOString(),
       updatedAt: request.updatedAt.toISOString(),
-      requesterName:
-        `${request.requester.firstName} ${request.requester.lastName}`.trim(),
+      requesterName: formatProviderDisplayName(
+        request.requester.firstName,
+        request.requester.lastName
+      ),
       requesterRole: request.requester.role,
-      recipientSupervisorName:
-        `${request.recipientSupervisor.firstName} ${request.recipientSupervisor.lastName}`.trim(),
+      recipientSupervisorName: formatProviderDisplayName(
+        request.recipientSupervisor.firstName,
+        request.recipientSupervisor.lastName
+      ),
     })),
     cases: cases.map((caseRecord) => ({
       id: caseRecord.id,
@@ -606,8 +737,10 @@ async function loadAccessibleCaseSupport(
       createdAt: caseRecord.createdAt.toISOString(),
       updatedAt: caseRecord.updatedAt.toISOString(),
       resolvedAt: caseRecord.resolvedAt?.toISOString() ?? null,
-      ownerName:
-        `${caseRecord.ownerSupervisor.firstName} ${caseRecord.ownerSupervisor.lastName}`.trim(),
+      ownerName: formatProviderDisplayName(
+        caseRecord.ownerSupervisor.firstName,
+        caseRecord.ownerSupervisor.lastName
+      ),
       entries: caseRecord.entries.map((entry) => ({
         id: entry.id,
         entryType: entry.entryType,
@@ -618,8 +751,10 @@ async function loadAccessibleCaseSupport(
         communication: entry.communication,
         followUp: entry.followUp,
         clarification: entry.clarification,
-        authorName:
-          `${entry.author.firstName} ${entry.author.lastName}`.trim(),
+        authorName: formatProviderDisplayName(
+          entry.author.firstName,
+          entry.author.lastName
+        ),
         authorRole: entry.author.role,
       })),
       coordinations: caseRecord.coordinations.map((coordination) => ({
@@ -631,9 +766,17 @@ async function loadAccessibleCaseSupport(
         requestOrDecision: coordination.requestOrDecision,
         responseSummary: coordination.responseSummary,
         nextStep: coordination.nextStep,
-        authorName:
-          `${coordination.author.firstName} ${coordination.author.lastName}`.trim(),
+        authorName: formatProviderDisplayName(
+          coordination.author.firstName,
+          coordination.author.lastName
+        ),
       })),
     })),
   };
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
 }

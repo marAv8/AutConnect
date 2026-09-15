@@ -1,0 +1,71 @@
+.page {
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 12px 24px 48px;
+}
+
+.container {
+  display: grid;
+  width: min(100%, 920px);
+  margin: 0 auto;
+  gap: 20px;
+}
+
+.heading,
+.section,
+.workflowSection,
+.sectionHeading,
+.requestForm,
+.field,
+.list,
+.historyList,
+.cancelForm {
+  display: grid;
+}
+
+.heading { gap: 8px; padding: 12px 2px 4px; }
+.heading h1, .heading p, .section h2, .section p, .requestCard h3, .emptyState h3 { margin: 0; }
+.heading h1 { font-size: clamp(30px, 5vw, 46px); letter-spacing: -0.04em; line-height: 1.05; }
+.heading > p:last-child, .sectionHeading p, .helper, .metadata, .emptyState p, .emptyHistory, .actionMessage { color: var(--muted-foreground); line-height: 1.55; }
+.eyebrow { color: var(--muted-foreground); font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+
+.section { align-content: start; gap: 18px; padding: clamp(18px, 4vw, 26px); }
+.workflowSection { align-content: start; gap: 14px; }
+.sectionHeading { gap: 5px; }
+.sectionHeading h2 { font-size: 22px; }
+.sectionTitleRow, .cardTitleRow, .historyRow, .requestCard { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+
+.requestForm { width: min(100%, 620px); gap: 18px; }
+.field { gap: 8px; }
+.field label { font-size: 14px; font-weight: 650; }
+.field input, .field select { box-sizing: border-box; width: 100%; min-height: 44px; border-radius: 12px; padding: 10px 12px; color: var(--foreground); }
+.field select { background-color: var(--background); }
+.helper { font-size: 13px; }
+.requestForm > button { justify-self: start; min-height: 44px; }
+.response { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; font-weight: 600; }
+
+.countBadge, .statusBadge { display: inline-flex; min-width: 28px; min-height: 28px; box-sizing: border-box; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 999px; background: var(--glass); padding: 4px 9px; color: var(--foreground); font-size: 12px; font-weight: 700; line-height: 18px; white-space: nowrap; }
+.list, .historyList { gap: 12px; }
+.requestCard { border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+.requestCard > div { min-width: 0; }
+.requestCard h3 { overflow-wrap: anywhere; font-size: 18px; }
+.metadata { margin-top: 7px !important; font-size: 13px; }
+.cancelForm { justify-items: end; gap: 5px; }
+.cancelForm button { min-height: 44px; }
+.actionMessage { max-width: 260px; font-size: 12px; text-align: right; }
+.historyRow { border-top: 1px solid var(--line); padding: 14px 0 2px; }
+.emptyState { display: grid; justify-items: center; gap: 6px; border: 1px dashed var(--line); border-radius: 16px; padding: 24px 18px; text-align: center; }
+.emptyHistory { margin: 0; }
+
+@media (max-width: 700px) {
+  .page { padding-right: 14px; padding-left: 14px; }
+  .requestCard { align-items: flex-start; flex-direction: column; }
+  .cancelForm { width: 100%; justify-items: stretch; }
+  .cancelForm button { width: 100%; }
+  .actionMessage { max-width: none; text-align: left; }
+}
+
+@media (max-width: 440px) {
+  .sectionTitleRow, .historyRow, .cardTitleRow { align-items: flex-start; }
+  .sectionTitleRow { flex-direction: column; }
+}

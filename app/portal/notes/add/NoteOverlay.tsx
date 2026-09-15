@@ -8,6 +8,7 @@ import type {
   CaretakerContextKind,
 } from "@/app/libs/caretakerContext";
 import type { NoteEntryKind } from "@/app/libs/entryKinds";
+import AuthenticatedPageHeader from "@/app/components/AuthenticatedPageHeader";
 
 type Props = {
   clientId: string;
@@ -90,8 +91,6 @@ export default function NoteOverlay({
   educatorMode,
 }: Props) {
   const today = new Date().toLocaleDateString();
-  const backLabel = role === "Caregiver" ? "Back to Children" : "Back to Client";
-
   return (
     <OverlayContainer>
       <div
@@ -101,6 +100,9 @@ export default function NoteOverlay({
           width: "100%",
         }}
       >
+        {role === "Supervisor" ? (
+          <AuthenticatedPageHeader displayName={providerName} role={role} />
+        ) : null}
         <div className="mb-6 flex items-center">
           {onClose ? (
             <button
@@ -108,14 +110,14 @@ export default function NoteOverlay({
               onClick={onClose}
               className="back-link"
             >
-              {backLabel.replace("Back to ", "")}
+              Back
             </button>
           ) : (
             <Link
               href={`/dashboard?clientId=${clientId}&view=orbit`}
               className="back-link"
             >
-              {backLabel.replace("Back to ", "")}
+              Back
             </Link>
           )}
         </div>
@@ -139,7 +141,6 @@ export default function NoteOverlay({
             contextCards={contextCards}
             educatorMode={educatorMode}
             onSubmitted={onSubmitted}
-            onCancel={onClose}
           />
         </div>
       </div>

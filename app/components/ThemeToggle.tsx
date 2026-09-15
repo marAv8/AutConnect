@@ -2,6 +2,7 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
+import { traceDashboardInteractionHandled, traceDashboardInteractionState } from "@/app/dashboard/dashboardInteractionTraceClient";
 
 const THEME_STORAGE_KEY = "autconnect-theme";
 const THEME_CHANGE_EVENT = "autconnect-theme-change";
@@ -37,6 +38,10 @@ export default function ThemeToggle() {
     return () => window.removeEventListener(THEME_CHANGE_EVENT, onThemeChange);
   }, []);
 
+  useEffect(() => {
+    traceDashboardInteractionState(theme === "dark" ? "theme-dark" : "theme-light");
+  }, [theme]);
+
   const isDark = theme === "dark";
   const label = isDark ? "Switch to light mode" : "Switch to dark mode";
 
@@ -44,10 +49,12 @@ export default function ThemeToggle() {
     <button
       type="button"
       className="material-control dashboard-round-icon-control dashboard-theme-control"
+      data-dashboard-trace-control="theme"
       aria-label={label}
       title={label}
       aria-pressed={isDark}
       onClick={() => {
+        traceDashboardInteractionHandled("theme");
         const nextTheme: Theme = isDark ? "light" : "dark";
         applyTheme(nextTheme);
         setTheme(nextTheme);

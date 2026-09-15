@@ -26,7 +26,7 @@ export default async function AddNotePage({
     providerId: session.providerId,
     sessionRole: session.role,
     forceEditMode: edit === "1",
-    requireAssignedClient: false,
+    requireAssignedClient: true,
     contextKind: parseCaretakerContextKind(contextKind ?? null),
     noteKind: parseNoteEntryKind(noteKind ?? null),
   });

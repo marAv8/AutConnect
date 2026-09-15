@@ -16,6 +16,7 @@ export async function markClientSignalRead(input: {
     where: {
       clientId: input.clientId,
       providerId: session.providerId,
+      revokedAt: null,
     },
     select: { id: true },
   });

@@ -51,3 +51,20 @@ test("Saturday and Sunday remain visible without consuming display days", () => 
     1
   );
 });
+
+test("a weekend-created Team Focus expires after its fifth business day", () => {
+  const saturday = "2026-08-01T19:00:00.000Z";
+
+  assert.equal(
+    isTeamFocusVisible(saturday, "2026-08-07T19:00:00.000Z"),
+    true
+  );
+  assert.equal(
+    isTeamFocusVisible(saturday, "2026-08-08T07:00:00.000Z"),
+    false
+  );
+  assert.equal(
+    isTeamFocusVisible(saturday, "2026-08-09T19:00:00.000Z"),
+    false
+  );
+});

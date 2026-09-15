@@ -1,0 +1,5498 @@
+[
+  {
+    "role": "supervisor",
+    "journey": "note",
+    "back": "browser",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "supervisor",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 48,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 48,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        }
+      }
+    ],
+    "project": "desktop-chromium"
+  },
+  {
+    "role": "supervisor",
+    "journey": "note",
+    "back": "visible",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "supervisor",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 41,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 37,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        }
+      }
+    ],
+    "project": "desktop-chromium"
+  },
+  {
+    "role": "supervisor",
+    "journey": "route",
+    "back": "browser",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "supervisor",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "workflow-route",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "workflow-route",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 28,
+          "menuFrames": 0,
+          "missingStageFrames": 2,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            0,
+            510
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 29,
+          "menuFrames": 0,
+          "missingStageFrames": 3,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            0,
+            510
+          ]
+        }
+      }
+    ],
+    "project": "desktop-chromium"
+  },
+  {
+    "role": "supervisor",
+    "journey": "route",
+    "back": "visible",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "supervisor",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "workflow-route",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "workflow-route",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 31,
+          "menuFrames": 0,
+          "missingStageFrames": 5,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            0,
+            510
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 30,
+          "menuFrames": 0,
+          "missingStageFrames": 5,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            0,
+            510
+          ]
+        }
+      }
+    ],
+    "project": "desktop-chromium"
+  },
+  {
+    "role": "supervisor",
+    "journey": "view",
+    "back": "browser",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "supervisor",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 47,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 48,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        }
+      }
+    ],
+    "project": "desktop-chromium"
+  },
+  {
+    "role": "supervisor",
+    "journey": "view",
+    "back": "visible",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "supervisor",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 38,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 46,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        }
+      }
+    ],
+    "project": "desktop-chromium"
+  },
+  {
+    "role": "provider",
+    "journey": "note",
+    "back": "browser",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "provider",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 48,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 49,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        }
+      }
+    ],
+    "project": "desktop-chromium"
+  },
+  {
+    "role": "provider",
+    "journey": "note",
+    "back": "visible",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "provider",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 37,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 46,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        }
+      }
+    ],
+    "project": "desktop-chromium"
+  },
+  {
+    "role": "provider",
+    "journey": "route",
+    "back": "browser",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "provider",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "workflow-route",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "workflow-route",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 3,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 29,
+          "menuFrames": 0,
+          "missingStageFrames": 3,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 3,
+          "stageHeightRange": [
+            0,
+            510
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 3,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 29,
+          "menuFrames": 0,
+          "missingStageFrames": 3,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 3,
+          "stageHeightRange": [
+            0,
+            510
+          ]
+        }
+      }
+    ],
+    "project": "desktop-chromium"
+  },
+  {
+    "role": "provider",
+    "journey": "route",
+    "back": "visible",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "provider",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "workflow-route",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "workflow-route",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 3,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 31,
+          "menuFrames": 0,
+          "missingStageFrames": 5,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 3,
+          "stageHeightRange": [
+            0,
+            510
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 3,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 30,
+          "menuFrames": 0,
+          "missingStageFrames": 4,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 3,
+          "stageHeightRange": [
+            0,
+            510
+          ]
+        }
+      }
+    ],
+    "project": "desktop-chromium"
+  },
+  {
+    "role": "provider",
+    "journey": "view",
+    "back": "browser",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "provider",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 49,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 48,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        }
+      }
+    ],
+    "project": "desktop-chromium"
+  },
+  {
+    "role": "provider",
+    "journey": "view",
+    "back": "visible",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "provider",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 48,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        },
+        "transitionFrames": {
+          "count": 44,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            510,
+            510
+          ]
+        }
+      }
+    ],
+    "project": "desktop-chromium"
+  },
+  {
+    "role": "supervisor",
+    "journey": "note",
+    "back": "browser",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "supervisor",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 49,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 49,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        }
+      }
+    ],
+    "project": "older-phone-chromium"
+  },
+  {
+    "role": "supervisor",
+    "journey": "note",
+    "back": "visible",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "supervisor",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 42,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 50,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        }
+      }
+    ],
+    "project": "older-phone-chromium"
+  },
+  {
+    "role": "supervisor",
+    "journey": "route",
+    "back": "browser",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "supervisor",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "workflow-route",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "workflow-route",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 30,
+          "menuFrames": 0,
+          "missingStageFrames": 3,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            0,
+            455
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 29,
+          "menuFrames": 0,
+          "missingStageFrames": 3,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            0,
+            455
+          ]
+        }
+      }
+    ],
+    "project": "older-phone-chromium"
+  },
+  {
+    "role": "supervisor",
+    "journey": "route",
+    "back": "visible",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "supervisor",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "workflow-route",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "workflow-route",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": true,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 31,
+          "menuFrames": 0,
+          "missingStageFrames": 5,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            0,
+            455
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 30,
+          "menuFrames": 0,
+          "missingStageFrames": 4,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            0,
+            455
+          ]
+        }
+      }
+    ],
+    "project": "older-phone-chromium"
+  },
+  {
+    "role": "supervisor",
+    "journey": "view",
+    "back": "browser",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "supervisor",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 49,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 48,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        }
+      }
+    ],
+    "project": "older-phone-chromium"
+  },
+  {
+    "role": "supervisor",
+    "journey": "view",
+    "back": "visible",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "supervisor",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "supervisor",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 38,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 38,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        }
+      }
+    ],
+    "project": "older-phone-chromium"
+  },
+  {
+    "role": "provider",
+    "journey": "note",
+    "back": "browser",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "provider",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 49,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 49,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        }
+      }
+    ],
+    "project": "older-phone-chromium"
+  },
+  {
+    "role": "provider",
+    "journey": "note",
+    "back": "visible",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "provider",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 40,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 39,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        }
+      }
+    ],
+    "project": "older-phone-chromium"
+  },
+  {
+    "role": "provider",
+    "journey": "route",
+    "back": "browser",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "provider",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "workflow-route",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "workflow-route",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 3,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 30,
+          "menuFrames": 0,
+          "missingStageFrames": 3,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 3,
+          "stageHeightRange": [
+            0,
+            455
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 3,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 29,
+          "menuFrames": 0,
+          "missingStageFrames": 2,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 3,
+          "stageHeightRange": [
+            0,
+            455
+          ]
+        }
+      }
+    ],
+    "project": "older-phone-chromium"
+  },
+  {
+    "role": "provider",
+    "journey": "route",
+    "back": "visible",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "provider",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "workflow-route",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "workflow-route",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 3,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 31,
+          "menuFrames": 0,
+          "missingStageFrames": 4,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 3,
+          "stageHeightRange": [
+            0,
+            455
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 3,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 31,
+          "menuFrames": 0,
+          "missingStageFrames": 4,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 3,
+          "stageHeightRange": [
+            0,
+            455
+          ]
+        }
+      }
+    ],
+    "project": "older-phone-chromium"
+  },
+  {
+    "role": "provider",
+    "journey": "view",
+    "back": "browser",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "provider",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 53,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 48,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        }
+      }
+    ],
+    "project": "older-phone-chromium"
+  },
+  {
+    "role": "provider",
+    "journey": "view",
+    "back": "visible",
+    "history": [
+      {
+        "operation": "replaceState",
+        "path": "fixture-or-login",
+        "urlOrbit": false,
+        "mode": null,
+        "owner": null,
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": false,
+        "mode": "grid",
+        "owner": "provider",
+        "clientMatchesUrl": false,
+        "gridPredecessor": false,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "pushState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": true,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      },
+      {
+        "operation": "popstate",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "replaceState",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": true
+      },
+      {
+        "operation": "returned",
+        "path": "dashboard",
+        "urlOrbit": true,
+        "mode": "orbit",
+        "owner": "provider",
+        "clientMatchesUrl": true,
+        "gridPredecessor": true,
+        "overlay": false,
+        "presentation": false,
+        "menu": false,
+        "workflow": false
+      }
+    ],
+    "results": [
+      {
+        "attempt": 0,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 39,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        }
+      },
+      {
+        "attempt": 1,
+        "frames": {
+          "count": 24,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        },
+        "transitionFrames": {
+          "count": 51,
+          "menuFrames": 0,
+          "missingStageFrames": 0,
+          "hiddenFrames": 0,
+          "maxReadyProviders": 0,
+          "stageHeightRange": [
+            455,
+            455
+          ]
+        }
+      }
+    ],
+    "project": "older-phone-chromium"
+  }
+]

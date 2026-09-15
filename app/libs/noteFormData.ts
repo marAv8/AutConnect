@@ -16,6 +16,7 @@ import {
 } from "@/app/libs/entryKinds";
 import { db } from "@/lib/db";
 import { clientDisplayCode } from "@/app/libs/clientIdentity";
+import { formatProviderDisplayName } from "@/app/libs/providerDisplayName";
 
 export type EntryFormItem = {
   goalId: string;
@@ -97,6 +98,7 @@ export async function loadNoteFormData({
               providerClients: {
                 some: {
                   providerId,
+                  revokedAt: null,
                 },
               },
             }
@@ -199,7 +201,10 @@ export async function loadNoteFormData({
       role: provider.role,
       providerId,
       clientName: clientDisplayCode(client.firstName, client.lastName),
-      providerName: `${provider.firstName} ${provider.lastName}`,
+      providerName: formatProviderDisplayName(
+        provider.firstName,
+        provider.lastName
+      ),
       providerRole: contextKindLabel(contextKind),
       targetOptions: [],
       contextKind,
@@ -354,7 +359,10 @@ export async function loadNoteFormData({
     role: provider.role,
     providerId,
     clientName: clientDisplayCode(client.firstName, client.lastName),
-    providerName: `${provider.firstName} ${provider.lastName}`,
+    providerName: formatProviderDisplayName(
+      provider.firstName,
+      provider.lastName
+    ),
     providerRole: isSupervisorDocumentation
       ? noteEntryKindLabel(noteKind)
       : formatRole(provider.role),
@@ -500,6 +508,11 @@ async function targetOptionsForProvider(
   );
 
   return [...template.targets].sort((first, second) => {
+    if (first.group !== second.group) {
+      if (!first.group) return -1;
+      if (!second.group) return 1;
+      return first.group.localeCompare(second.group);
+    }
     const firstCount = countByTarget.get(first.value) ?? 0;
     const secondCount = countByTarget.get(second.value) ?? 0;
     return secondCount - firstCount;

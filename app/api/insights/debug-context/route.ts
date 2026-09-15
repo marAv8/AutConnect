@@ -7,7 +7,10 @@ import type { ParsedInsightQuestion } from "../insightsEngine";
 const DEBUG_FLAG = "INSIGHT_CONTEXT_DEBUG";
 
 function isDebugContextEnabled() {
-  return process.env.NODE_ENV === "development" || process.env[DEBUG_FLAG] === "true";
+  return (
+    process.env.NODE_ENV !== "production" &&
+    (process.env.NODE_ENV === "development" || process.env[DEBUG_FLAG] === "true")
+  );
 }
 
 const debugParsedQuestion: ParsedInsightQuestion = {
@@ -39,6 +42,7 @@ export async function GET(request: Request) {
     where: {
       clientId,
       providerId: session.providerId,
+      revokedAt: null,
       role: "Supervisor",
     },
     select: { id: true },

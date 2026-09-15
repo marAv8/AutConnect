@@ -73,6 +73,7 @@ Module._load = originalLoad;
 
 function baseContext() {
   return {
+    fieldObservations: [],
     documentationRecords: [],
     caseSupport: { requests: [], cases: [] },
     careTeam: [],
@@ -87,6 +88,37 @@ function baseContext() {
       assessmentItemCount: 0,
       activeGoalCount: 0,
     },
+  };
+}
+
+function fieldObservation(overrides = {}) {
+  return {
+    id: "field-observation-1",
+    observedAt: "2026-08-10T17:00:00.000Z",
+    setting: "SCHOOL",
+    durationMinutes: 45,
+    observedProvider: {
+      id: "educator-1",
+      name: "Casey Sch",
+      role: "Educator",
+    },
+    supervisor: { name: "Erin Arr" },
+    rubricVersion: "1.0",
+    fidelityPercent: 75,
+    applicableItemCount: 8,
+    items: [
+      {
+        criterionKey: "prompting_and_independence",
+        criterionLabel: "Prompting and independence",
+        rating: "PARTIALLY_IMPLEMENTED",
+        displayOrder: 3,
+        note: "Prompts were not consistently faded.",
+      },
+    ],
+    strengths: "Prepared materials and maintained respectful communication.",
+    coachingFocus: "Fade verbal prompts after the initial direction.",
+    followUp: "Review again next month.",
+    ...overrides,
   };
 }
 
@@ -412,6 +444,176 @@ test("provider observation questions return that provider's latest documentation
   assert.equal(result.headline, "Casey Sch contribution");
   assert.match(result.summary, /Classroom Progress/);
   assert.match(result.evidence[0].value, /visual classroom routine/);
+});
+
+test("provider performance questions report native provider-linked data without competence claims", async () => {
+  currentContext = {
+    ...baseContext(),
+    providerRelationships: [
+      {
+        providerId: "educator-1",
+        providerName: "Casey Sch",
+        accountRole: "Educator",
+        assignmentRole: "Educator",
+        totalSessions: 3,
+        activeGoals: [],
+      },
+    ],
+    providerGoalSeries: [
+      {
+        providerId: "educator-1",
+        providerName: "Casey Sch",
+        providerRole: "Educator",
+        target: "Waiting duration",
+        metricType: "Duration",
+        measurementTrend: "down",
+        sessions: [
+          {
+            sessionId: "session-1",
+            date: "2026-08-01T17:00:00.000Z",
+            completedAt: "2026-08-01T18:00:00.000Z",
+            measurementValue: 10,
+          },
+          {
+            sessionId: "session-2",
+            date: "2026-08-02T17:00:00.000Z",
+            completedAt: "2026-08-02T18:00:00.000Z",
+            measurementValue: 7,
+          },
+          {
+            sessionId: "session-3",
+            date: "2026-08-03T17:00:00.000Z",
+            completedAt: "2026-08-03T18:00:00.000Z",
+            measurementValue: 5,
+          },
+        ],
+      },
+    ],
+  };
+
+  const result = await buildInsight(
+    "client-1",
+    "How did the educator perform with this client according to the data?",
+    { category: "providers", viewerProviderId: "supervisor-1" }
+  );
+
+  assert.match(result.summary, /Casey Sch/);
+  assert.match(result.summary, /Waiting duration decreased across 3 completed sessions/i);
+  assert.equal(result.evidence[0].sourceId, "session-3");
+  assert.doesNotMatch(result.summary, /good|bad|competent|incompetent/i);
+});
+
+test("provider questions summarize Field Observations with dated record evidence", async () => {
+  currentContext = {
+    ...baseContext(),
+    fieldObservations: [fieldObservation()],
+  };
+
+  const result = await buildInsight(
+    "client-1",
+    "Summarize Casey's recent Field Observations.",
+    { category: "providers", viewerProviderId: "supervisor-1" }
+  );
+
+  assert.equal(result.category, "providers");
+  assert.match(result.summary, /Casey Sch/);
+  assert.match(result.summary, /75% fidelity/);
+  assert.equal(result.evidence[0].sourceId, "field-observation-1");
+  assert.equal(result.evidence[0].date, "2026-08-10T17:00:00.000Z");
+});
+
+test("documentation questions preserve recurring rubric ratings and coaching notes", async () => {
+  currentContext = {
+    ...baseContext(),
+    fieldObservations: [
+      fieldObservation(),
+      fieldObservation({
+        id: "field-observation-2",
+        observedAt: "2026-08-01T17:00:00.000Z",
+        fidelityPercent: 63,
+        items: [
+          {
+            criterionKey: "prompting_and_independence",
+            criterionLabel: "Prompting and independence",
+            rating: "NOT_IMPLEMENTED",
+            displayOrder: 3,
+            note: "Repeated verbal prompts continued throughout the activity.",
+          },
+        ],
+      }),
+    ],
+  };
+
+  const result = await buildInsight(
+    "client-1",
+    "Which rubric criteria show recurring coaching needs?",
+    { category: "documentation", viewerProviderId: "supervisor-1" }
+  );
+
+  assert.equal(result.category, "documentation");
+  assert.match(result.summary, /Prompting and independence \(2 observations\)/);
+  assert.match(result.evidence[0].value, /Partially Implemented/);
+  assert.match(result.evidence[0].value, /not consistently faded/);
+  assert.equal(result.evidence[0].sourceId, "field-observation-1");
+  assert.equal(result.evidence[0].date, "2026-08-10T17:00:00.000Z");
+});
+
+test("overview questions compare fidelity within the observed provider", async () => {
+  currentContext = {
+    ...baseContext(),
+    fieldObservations: [
+      fieldObservation({ fidelityPercent: 88 }),
+      fieldObservation({
+        id: "field-observation-older",
+        observedAt: "2026-07-10T17:00:00.000Z",
+        fidelityPercent: 63,
+      }),
+    ],
+  };
+
+  const result = await buildInsight(
+    "client-1",
+    "Has fidelity changed across Field Observations?",
+    { category: "overview", viewerProviderId: "supervisor-1" }
+  );
+
+  assert.equal(result.category, "overview");
+  assert.match(result.summary, /increased from 63% to 88%/);
+  assert.deepEqual(
+    result.evidence.map((evidence) => evidence.sourceId),
+    ["field-observation-1", "field-observation-older"]
+  );
+  assert.ok(result.evidence.every((evidence) => evidence.date));
+});
+
+test("empty Field Observation history does not infer performance from notes", async () => {
+  currentContext = {
+    ...baseContext(),
+    documentationRecords: [
+      {
+        id: "unrelated-note",
+        providerId: "educator-1",
+        providerName: "Casey Sch",
+        providerRole: "Educator",
+        kind: "ClinicalNote",
+        note: "An unrelated provider note.",
+        observations: [],
+        revisions: [],
+        updatedAt: "2026-08-10T17:00:00.000Z",
+        completedAt: "2026-08-10T17:00:00.000Z",
+      },
+    ],
+  };
+
+  const result = await buildInsight(
+    "client-1",
+    "Summarize recent Field Observations.",
+    { category: "documentation", viewerProviderId: "supervisor-1" }
+  );
+
+  assert.match(result.summary, /No Field Observations are available/);
+  assert.match(result.summary, /cannot be inferred from unrelated notes/);
+  assert.deepEqual(result.evidence, []);
 });
 
 test("progress target questions rank targets rather than providers", async () => {

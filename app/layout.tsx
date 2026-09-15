@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
+import { dashboardInteractionTraceBootstrap } from "./dashboard/dashboardInteractionTraceBootstrap";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -33,10 +34,18 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const interactionTraceScript =
+    process.env.NODE_ENV !== "production"
+      ? dashboardInteractionTraceBootstrap()
+      : null;
+
   return (
     <html lang="en" className={manrope.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitializationScript }} />
+        {interactionTraceScript ? (
+          <script dangerouslySetInnerHTML={{ __html: interactionTraceScript }} />
+        ) : null}
       </head>
       <body>{children}</body>
     </html>

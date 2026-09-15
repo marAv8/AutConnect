@@ -1,0 +1,130 @@
+.page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding:
+    max(28px, calc(env(safe-area-inset-top) + 14px))
+    max(24px, calc(env(safe-area-inset-right) + 24px))
+    max(40px, calc(env(safe-area-inset-bottom) + 24px))
+    max(24px, calc(env(safe-area-inset-left) + 24px));
+}
+
+.content {
+  display: grid;
+  width: min(100%, 760px);
+  margin: 0 auto;
+}
+
+.backRow {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.titleRow {
+  margin-top: 24px;
+}
+
+.titleRow h1,
+.card h2,
+.card p {
+  margin: 0;
+}
+
+.titleRow h1 {
+  font-size: clamp(2rem, 6vw, 2.75rem);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+.carousel {
+  display: grid;
+}
+
+.carouselNavigation {
+  display: grid;
+  grid-template-columns: 44px minmax(72px, auto) 44px;
+  align-items: center;
+  justify-content: center;
+  column-gap: 24px;
+  margin-top: 28px;
+  color: var(--carousel-navigation-text, rgb(0 0 0 / 64%));
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+  text-align: center;
+}
+
+.card {
+  display: grid;
+  gap: 18px;
+  margin-top: 28px;
+  padding: clamp(24px, 5vw, 36px);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-note-raised);
+}
+
+.card h2 {
+  font-size: clamp(1.25rem, 4vw, 1.55rem);
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.card p {
+  max-width: 58ch;
+  color: var(--muted-foreground);
+  line-height: 1.65;
+}
+
+.card .cardDetail {
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.openButton,
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+@media (max-width: 520px) {
+  .page {
+    padding-right: max(18px, env(safe-area-inset-right));
+    padding-left: max(18px, env(safe-area-inset-left));
+  }
+
+  .titleRow {
+    margin-top: 18px;
+  }
+
+  .carouselNavigation,
+  .card {
+    margin-top: 22px;
+  }
+
+  .card {
+    gap: 16px;
+    padding: 24px 20px;
+  }
+
+  .cardActions {
+    display: grid;
+  }
+
+  .openButton,
+  .secondaryButton {
+    width: 100%;
+  }
+}

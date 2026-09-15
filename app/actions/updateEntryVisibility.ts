@@ -5,6 +5,7 @@ import { getSession } from "@/lib/session";
 import { EntryKind, EntryVisibility } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { ensureEntryRevision } from "@/app/libs/entryRevision";
+import { syncEntryReadsAfterAuthorSave } from "@/app/libs/entryReadState";
 
 export async function updateEntryVisibility(formData: FormData) {
   const session = await getSession();
@@ -78,7 +79,12 @@ export async function updateEntryVisibility(formData: FormData) {
       data: { visibility },
     });
   }
-  await resetEntryReads(entry.id, providerIds, visibility);
+  await syncEntryReadsAfterAuthorSave({
+    entryId: entry.id,
+    authorProviderId: session.providerId,
+    assignedProviderIds: providerIds,
+    visibility,
+  });
 
   revalidatePath("/dashboard");
   return { ok: true, entryId: entry.id, visibility };
@@ -86,44 +92,9 @@ export async function updateEntryVisibility(formData: FormData) {
 
 async function getAssignedProviderIds(clientId: string) {
   const providerClients = await db.providerClient.findMany({
-    where: { clientId },
+    where: { clientId, revokedAt: null },
     select: { providerId: true },
   });
 
   return providerClients.map((pc) => pc.providerId);
-}
-
-async function resetEntryReads(
-  entryId: string,
-  providerIds: string[],
-  visibility: EntryVisibility
-) {
-  if (visibility === EntryVisibility.Private) {
-    await db.entryRead.deleteMany({
-      where: { entryId },
-    });
-    return;
-  }
-
-  if (providerIds.length === 0) {
-    return;
-  }
-
-  await db.$transaction([
-    db.entryRead.deleteMany({
-      where: {
-        entryId,
-        providerId: {
-          in: providerIds,
-        },
-      },
-    }),
-    db.entryRead.createMany({
-      data: providerIds.map((providerId) => ({
-        entryId,
-        providerId,
-        readAt: null,
-      })),
-    }),
-  ]);
 }

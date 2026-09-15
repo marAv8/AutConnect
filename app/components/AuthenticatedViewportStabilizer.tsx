@@ -3,15 +3,12 @@
 import { useLayoutEffect } from "react";
 
 /**
- * Older mobile Safari versions can restore a small document scroll offset when
- * an authenticated route mounts, making the header initially appear clipped.
- * Keep the authenticated workspace anchored to its true top on first paint.
+ * Dashboard state lives inside a viewport-sized shell and must not inherit a
+ * stale document offset when returning from a portal route. This intentionally
+ * leaves the browser's scroll-restoration policy alone.
  */
 export default function AuthenticatedViewportStabilizer() {
   useLayoutEffect(() => {
-    const previousRestoration = window.history.scrollRestoration;
-    window.history.scrollRestoration = "manual";
-
     const anchorToTop = () => {
       if (window.scrollX !== 0 || window.scrollY !== 0) {
         window.scrollTo(0, 0);
@@ -28,7 +25,6 @@ export default function AuthenticatedViewportStabilizer() {
     return () => {
       window.cancelAnimationFrame(firstFrame);
       if (secondFrame) window.cancelAnimationFrame(secondFrame);
-      window.history.scrollRestoration = previousRestoration;
     };
   }, []);
 

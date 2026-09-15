@@ -28,6 +28,7 @@ export async function updateTeamFocus(formData: FormData) {
     where: {
       clientId,
       providerId: session.providerId,
+      revokedAt: null,
       role: "Supervisor",
     },
     select: {
@@ -96,6 +97,7 @@ export async function updateTeamFocus(formData: FormData) {
         title: true,
         content: true,
         displayStartedAt: true,
+        createdAt: true,
         updatedAt: true,
         author: {
           select: {

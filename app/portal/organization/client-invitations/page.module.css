@@ -1,0 +1,244 @@
+.page {
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 12px 24px 48px;
+}
+
+.container {
+  display: grid;
+  width: min(100%, 920px);
+  margin: 0 auto;
+  gap: 20px;
+}
+
+.heading {
+  display: grid;
+  gap: 8px;
+  padding: 12px 2px 4px;
+}
+
+.heading h1,
+.heading p,
+.section h2,
+.section p,
+.invitationCard h3,
+.emptyState h3 {
+  margin: 0;
+}
+
+.heading h1 {
+  font-size: clamp(30px, 5vw, 46px);
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+.headingTitleRow,
+.sectionTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.headingTitleRow {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.sectionHeading p,
+.emptyState p,
+.emptyHistory {
+  color: var(--muted-foreground);
+  line-height: 1.55;
+}
+
+.eyebrow {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.success,
+.error {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-weight: 600;
+}
+
+.success { color: var(--positive); }
+.error { color: var(--negative); }
+
+.section {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  padding: 0;
+}
+
+.sectionHeading { display: block; }
+
+.sectionHeadingCopy {
+  display: grid;
+  gap: 5px;
+}
+
+.sectionTitleRow { justify-content: space-between; }
+.sectionHeading h2 { font-size: 22px; }
+
+.countBadge,
+.statusBadge {
+  display: inline-flex;
+  min-width: 28px;
+  min-height: 28px;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--glass);
+  padding: 4px 9px;
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pending { color: var(--foreground); }
+.list, .historyList { display: grid; gap: 12px; }
+
+.invitationCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.invitationBody { min-width: 0; }
+
+.invitationCard h3 {
+  overflow-wrap: anywhere;
+  font-size: 18px;
+}
+
+.cardTitleRow,
+.historyRow,
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.metadata {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 18px;
+  margin: 16px 0 0;
+}
+
+.metadata div { min-width: 0; }
+
+.metadata dt {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.metadata dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.actions { align-self: end; }
+.actions button { min-height: 44px; }
+
+.historyRow {
+  border-top: 1px solid var(--line);
+  padding: 14px 0 2px;
+}
+
+.emptyState {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+  padding: 24px 18px;
+  text-align: center;
+}
+
+.emptyHistory {
+  margin: 0;
+  padding: 2px 0;
+}
+
+.infoControl {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.infoButton {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.infoButton:hover,
+.infoButton[aria-expanded="true"] {
+  background: var(--glass);
+  color: var(--foreground);
+}
+
+.infoButton:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.infoPopover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(310px, calc(100vw - 40px));
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-tactile);
+  padding: 11px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+@media (max-width: 700px) {
+  .page { padding-right: 14px; padding-left: 14px; }
+  .invitationCard { grid-template-columns: 1fr; }
+  .actions { justify-content: flex-start; }
+}
+
+@media (max-width: 440px) {
+  .headingTitleRow { align-items: flex-start; }
+  .headingTitleRow .infoControl { margin-top: 3px; }
+  .infoPopover { right: 0; left: auto; }
+  .metadata { grid-template-columns: 1fr; }
+  .cardTitleRow, .historyRow { align-items: flex-start; }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .actions button { width: 100%; }
+}

@@ -3,7 +3,12 @@
  * The API builder, deterministic analysis helpers, and Insights engine all use
  * this shape so the UI receives one stable longitudinal client context.
  */
-import type { AssessmentDomain, ComparisonType, MetricType } from "@prisma/client";
+import type {
+  AssessmentDomain,
+  ComparisonType,
+  GoalMasteryBasis,
+  MetricType,
+} from "@prisma/client";
 import type { ParsedInsightQuestion } from "./insightsEngine";
 
 export type InsightTrend = "up" | "down" | "flat";
@@ -99,6 +104,36 @@ export type InsightClinicalEvent = {
   data: Record<string, string | null>;
 };
 
+export type InsightMeasurementValueBasis = "rawValue" | "score";
+
+export type InsightFieldObservation = {
+  id: string;
+  observedAt: string;
+  setting: string;
+  durationMinutes: number | null;
+  observedProvider: {
+    id: string;
+    name: string;
+    role: string;
+  };
+  supervisor: {
+    name: string;
+  };
+  rubricVersion: string;
+  fidelityPercent: number;
+  applicableItemCount: number;
+  items: Array<{
+    criterionKey: string;
+    criterionLabel: string;
+    rating: string;
+    displayOrder: number;
+    note: string | null;
+  }>;
+  strengths: string | null;
+  coachingFocus: string | null;
+  followUp: string | null;
+};
+
 export type InsightContext = {
   client: {
     id: string;
@@ -134,6 +169,7 @@ export type InsightContext = {
     authorName: string;
     authorRole: string;
   } | null;
+  fieldObservations: InsightFieldObservation[];
   documentationRecords: Array<{
     id: string;
     kind: string;
@@ -241,10 +277,32 @@ export type InsightContext = {
     weight: number;
     isMastered: boolean;
   }>;
+  goalDefinitions: Array<{
+    goalId: string;
+    providerId: string;
+    target: string;
+    goal: string;
+    metricType: MetricType;
+    domain: AssessmentDomain | null;
+    measurementProfile: string | null;
+    targetValue: number | null;
+    comparison: ComparisonType | null;
+    isActive: boolean;
+    isMastered: boolean;
+    masteryBasis: GoalMasteryBasis | null;
+    masteredAt: string | null;
+    masteryEvidenceEntryIds: string[];
+    masteryRevokedAt: string | null;
+    masteryRevokedEvidenceEntryIds: string[];
+    masteryThreshold: number | null;
+    masteryRequiredSessions: number;
+  }>;
   sessions: Array<{
     id: string;
     date: Date;
     createdAt: Date;
+    completedAt: Date | null;
+    status: string;
     note: string | null;
     finalScore: number | null;
     providerId: string;
@@ -277,8 +335,18 @@ export type InsightContext = {
         domain: AssessmentDomain | null;
         targetValue: number | null;
         comparison: ComparisonType | null;
+        measurementProfile: string | null;
         weight: number;
         providerId: string;
+        isActive: boolean;
+        isMastered: boolean;
+        masteryBasis: GoalMasteryBasis | null;
+        masteredAt: Date | null;
+        masteryEvidenceEntryIds: unknown;
+        masteryRevokedAt: Date | null;
+        masteryRevokedEvidenceEntryIds: unknown;
+        masteryThreshold: number | null;
+        masteryRequiredSessions: number;
       } | null;
     }>;
   }>;
@@ -304,15 +372,35 @@ export type InsightContext = {
   providerGoalSeries: Array<{
     providerId: string;
     providerName: string;
+    providerRole: string;
     goalKey: string;
     goalId: string | null;
     target: string;
     goal: string;
     domain: AssessmentDomain | null;
     metricType: MetricType;
+    targetValue: number | null;
+    comparison: ComparisonType | null;
+    metadataConsistent: boolean;
+    measurementProfile: string | null;
+    goalIsActive: boolean | null;
+    legacyIsMastered: boolean;
+    masteryBasis: GoalMasteryBasis | null;
+    masteredAt: string | null;
+    masteryEvidenceEntryIds: string[];
+    masteryRevokedAt: string | null;
+    masteryRevokedEvidenceEntryIds: string[];
+    masteryThreshold: number | null;
+    masteryRequiredSessions: number;
+    measurementValueBasis: InsightMeasurementValueBasis;
     sessions: Array<{
+      itemId: string;
       sessionId: string;
       date: string;
+      status: string;
+      completedAt: string | null;
+      measurementValue: number | null;
+      valueBasis: InsightMeasurementValueBasis;
       rawValue: number | null;
       score: number | null;
       normalizedScore: number | null;
@@ -322,6 +410,12 @@ export type InsightContext = {
       lowData: boolean;
       clinicallySmallButPositiveChange: boolean;
     }>;
+    measurementTrend?: InsightTrend;
+    measurementFirstAverage: number | null;
+    measurementSecondAverage: number | null;
+    normalizedTrend?: InsightTrend;
+    normalizedFirstAverage: number | null;
+    normalizedSecondAverage: number | null;
     trend?: InsightTrend;
   }>;
   providerDomainSeries: Array<{

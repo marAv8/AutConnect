@@ -3,6 +3,7 @@ import {
   clientDisplayCode,
   clientDisplayText,
 } from "@/app/libs/clientIdentity";
+import { formatProviderDisplayName } from "../../libs/providerDisplayName";
 import {
   generateAttention,
   type ProviderAssignment,
@@ -86,7 +87,7 @@ export async function buildGatewayContextForEntry(
       },
     }),
     db.providerClient.findMany({
-      where: { clientId: currentEntry.clientId },
+      where: { clientId: currentEntry.clientId, revokedAt: null },
       select: {
         providerId: true,
         role: true,
@@ -332,7 +333,7 @@ function toGatewayProvider(
 ): GatewayProvider {
   return {
     id: providerId,
-    name: `${provider.firstName} ${provider.lastName}`.trim(),
+    name: formatProviderDisplayName(provider.firstName, provider.lastName),
     role: provider.role,
   };
 }

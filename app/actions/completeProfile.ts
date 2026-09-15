@@ -1,6 +1,6 @@
 "use server";
 
-import { providerRoleEnum } from "@/app/libs/schemas/provider";
+import { publicProviderRoleEnum } from "@/app/libs/schemas/provider";
 import { db } from "@/lib/db";
 import { getSession, setSession } from "@/lib/session";
 import { redirect } from "next/navigation";
@@ -9,7 +9,7 @@ import { z } from "zod";
 const completeProfileSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
-  role: providerRoleEnum,
+  role: publicProviderRoleEnum,
 });
 
 export async function completeProfile(formData: FormData): Promise<void> {

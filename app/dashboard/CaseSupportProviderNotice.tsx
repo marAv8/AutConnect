@@ -1,5 +1,6 @@
 import { viewCaseSupportRequestUpdate } from "@/app/actions/manageCaseSupport";
 import { clientDisplayCode } from "@/app/libs/clientIdentity";
+import { formatProviderDisplayName } from "@/app/libs/providerDisplayName";
 
 type ProviderUpdate = {
   id: string;
@@ -23,8 +24,10 @@ export default function CaseSupportProviderNotice({
 }) {
   const first = updates[0];
   const remaining = updates.length - 1;
-  const supervisorName =
-    `${first.recipientSupervisor.firstName} ${first.recipientSupervisor.lastName}`.trim();
+  const supervisorName = formatProviderDisplayName(
+    first.recipientSupervisor.firstName,
+    first.recipientSupervisor.lastName
+  );
   const title =
     first.status === "CASE_OPENED"
       ? "Case Support opened"

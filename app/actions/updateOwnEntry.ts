@@ -7,6 +7,8 @@ import { parseAssessmentItems } from "@/app/libs/entryItems";
 import { calculateSessionScore } from "@/lib/sessionScoring";
 import { ensureEntryRevision } from "@/app/libs/entryRevision";
 import { statusAfterEntrySave } from "@/app/libs/entryLifecycle";
+import { reconcileMasteryForCompletedGoals } from "@/app/libs/mastery/masteryPersistence";
+import { syncEntryReadsAfterAuthorSave } from "@/app/libs/entryReadState";
 import { EntryKind, EntryVisibility, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
@@ -34,6 +36,19 @@ export async function updateOwnEntry(formData: FormData) {
     return { ok: false, reason: "missing_client" as const };
   }
 
+  const assignedClient = await db.providerClient.findFirst({
+    where: {
+      clientId,
+      providerId: session.providerId,
+      revokedAt: null,
+    },
+    select: { id: true },
+  });
+
+  if (!assignedClient) {
+    return { ok: false, reason: "missing_client" as const };
+  }
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -50,6 +65,9 @@ export async function updateOwnEntry(formData: FormData) {
       id: true,
       status: true,
       completedAt: true,
+      items: {
+        select: { goalId: true },
+      },
       _count: {
         select: {
           revisions: true,
@@ -63,7 +81,7 @@ export async function updateOwnEntry(formData: FormData) {
   }
 
   const providerClients = await db.providerClient.findMany({
-    where: { clientId },
+    where: { clientId, revokedAt: null },
     select: { providerId: true },
   });
 
@@ -133,7 +151,8 @@ export async function updateOwnEntry(formData: FormData) {
     isCommunicationObservation;
   const nextStatus = statusAfterEntrySave(
     existingEntry.status,
-    existingEntry._count.revisions
+    existingEntry._count.revisions,
+    isCaretakerContext
   );
   const isCompletedUpdate = nextStatus === "COMPLETED";
   const nextCompletedAt = isCompletedUpdate ? new Date() : null;
@@ -171,7 +190,12 @@ export async function updateOwnEntry(formData: FormData) {
       }
     });
 
-    await resetEntryReads(existingEntry.id, providerIds, visibility);
+    await syncEntryReadsAfterAuthorSave({
+      entryId: existingEntry.id,
+      authorProviderId: session.providerId,
+      assignedProviderIds: providerIds,
+      visibility,
+    });
 
     revalidatePath("/dashboard");
     return { ok: true, status: nextStatus };
@@ -190,9 +214,12 @@ export async function updateOwnEntry(formData: FormData) {
         where: {
           id: { in: goalIds },
           clientId: parsed.data.clientId,
+          providerId: session.providerId,
         },
         select: {
           id: true,
+          isActive: true,
+          isMastered: true,
           metricType: true,
           domain: true,
           targetValue: true,
@@ -201,6 +228,21 @@ export async function updateOwnEntry(formData: FormData) {
         },
       })
     : [];
+
+  const existingGoalIds = new Set(
+    existingEntry.items
+      .map((item) => item.goalId)
+      .filter((goalId): goalId is string => Boolean(goalId))
+  );
+  const hasInvalidGoalAssociation = goalDefinitions.some(
+    (goalDefinition) =>
+      (!goalDefinition.isActive || goalDefinition.isMastered) &&
+      !existingGoalIds.has(goalDefinition.id)
+  );
+
+  if (goalDefinitions.length !== goalIds.length || hasInvalidGoalAssociation) {
+    return { ok: false, reason: "invalid_data" as const };
+  }
 
   const goalDefinitionsById = new Map(
     goalDefinitions.map((goalDefinition) => [goalDefinition.id, goalDefinition])
@@ -261,45 +303,28 @@ export async function updateOwnEntry(formData: FormData) {
     }
   });
 
-  await resetEntryReads(existingEntry.id, providerIds, visibility);
+  if (isCompletedUpdate) {
+    await reconcileMasteryForCompletedGoals({
+      clientId,
+      providerId: session.providerId,
+      goalIds: [
+        ...goalIds,
+        ...existingEntry.items
+          .map((item) => item.goalId)
+          .filter((goalId): goalId is string => Boolean(goalId)),
+      ],
+    });
+  }
+
+  await syncEntryReadsAfterAuthorSave({
+    entryId: existingEntry.id,
+    authorProviderId: session.providerId,
+    assignedProviderIds: providerIds,
+    visibility,
+  });
 
   revalidatePath("/dashboard");
   return { ok: true, status: nextStatus };
-}
-
-async function resetEntryReads(
-  entryId: string,
-  providerIds: string[],
-  visibility: EntryVisibility = EntryVisibility.Shared
-) {
-  if (visibility === EntryVisibility.Private) {
-    await db.entryRead.deleteMany({
-      where: { entryId },
-    });
-    return;
-  }
-
-  if (providerIds.length === 0) {
-    return;
-  }
-
-  await db.$transaction([
-    db.entryRead.deleteMany({
-      where: {
-        entryId,
-        providerId: {
-          in: providerIds,
-        },
-      },
-    }),
-    db.entryRead.createMany({
-      data: providerIds.map((providerId) => ({
-        entryId,
-        providerId,
-        readAt: null,
-      })),
-    }),
-  ]);
 }
 
 function parseContextData(value: FormDataEntryValue | null) {

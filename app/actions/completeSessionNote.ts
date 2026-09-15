@@ -2,15 +2,22 @@
 
 import { generateClinicalHandoffValidation } from "@/app/api/aiGateway";
 import { ensureEntryRevision } from "@/app/libs/entryRevision";
+import { reconcileMasteryForCompletedGoals } from "@/app/libs/mastery/masteryPersistence";
+import { syncEntryReadsAfterAuthorSave } from "@/app/libs/entryReadState";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
-import { EntryVisibility } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export async function completeSessionNote(formData: FormData) {
   const session = await getSession();
   if (!session) {
     throw new Error("Unauthorized");
+  }
+
+  // Caregiver context is shared as it is saved and never uses the clinical
+  // provider completion workflow.
+  if (session.role === "Caregiver") {
+    return { ok: false, reason: "not_applicable" as const };
   }
 
   const clientId = formData.get("clientId")?.toString();
@@ -22,6 +29,7 @@ export async function completeSessionNote(formData: FormData) {
     where: {
       clientId,
       providerId: session.providerId,
+      revokedAt: null,
     },
     select: { id: true },
   });
@@ -43,6 +51,9 @@ export async function completeSessionNote(formData: FormData) {
     select: {
       id: true,
       visibility: true,
+      items: {
+        select: { goalId: true },
+      },
     },
   });
 
@@ -77,6 +88,16 @@ export async function completeSessionNote(formData: FormData) {
     return revisedIds;
   });
 
+  await reconcileMasteryForCompletedGoals({
+    clientId,
+    providerId: session.providerId,
+    goalIds: entries.flatMap((entry) =>
+      entry.items
+        .map((item) => item.goalId)
+        .filter((goalId): goalId is string => Boolean(goalId))
+    ),
+  });
+
   const providerIds = await getAssignedProviderIds(clientId);
   await Promise.all(
     entries.map(async (entry) => {
@@ -84,7 +105,12 @@ export async function completeSessionNote(formData: FormData) {
       // The provider note remains the source of truth; no generated prose is stored on it.
       await generateClinicalHandoffValidation(entry.id);
       if (revisedEntryIds.includes(entry.id)) {
-        await resetEntryReads(entry.id, providerIds, entry.visibility);
+        await syncEntryReadsAfterAuthorSave({
+          entryId: entry.id,
+          authorProviderId: session.providerId,
+          assignedProviderIds: providerIds,
+          visibility: entry.visibility,
+        });
       }
     })
   );
@@ -118,44 +144,9 @@ function meaningfulEntryWhere() {
 
 async function getAssignedProviderIds(clientId: string) {
   const providerClients = await db.providerClient.findMany({
-    where: { clientId },
+    where: { clientId, revokedAt: null },
     select: { providerId: true },
   });
 
   return providerClients.map((pc) => pc.providerId);
-}
-
-async function resetEntryReads(
-  entryId: string,
-  providerIds: string[],
-  visibility: EntryVisibility = EntryVisibility.Shared
-) {
-  if (visibility === EntryVisibility.Private) {
-    await db.entryRead.deleteMany({
-      where: { entryId },
-    });
-    return;
-  }
-
-  if (providerIds.length === 0) {
-    return;
-  }
-
-  await db.$transaction([
-    db.entryRead.deleteMany({
-      where: {
-        entryId,
-        providerId: {
-          in: providerIds,
-        },
-      },
-    }),
-    db.entryRead.createMany({
-      data: providerIds.map((providerId) => ({
-        entryId,
-        providerId,
-        readAt: null,
-      })),
-    }),
-  ]);
 }

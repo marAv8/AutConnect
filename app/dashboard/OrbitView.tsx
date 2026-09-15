@@ -18,6 +18,7 @@ type Props = {
     status?: string
   ) => void;
   onTeamFocusSaved?: (clientId: string, teamFocus: DashboardTeamFocus) => void;
+  onFocusedDataEntryChange?: (active: boolean) => void;
 };
 
 export default function OrbitView({
@@ -30,6 +31,7 @@ export default function OrbitView({
   onClientSignalRead,
   onEntrySaved,
   onTeamFocusSaved,
+  onFocusedDataEntryChange,
 }: Props) {
   if (clients.length === 0) return null;
 
@@ -45,6 +47,7 @@ export default function OrbitView({
         onClientSignalRead={onClientSignalRead}
         onEntrySaved={onEntrySaved}
         onTeamFocusSaved={onTeamFocusSaved}
+        onFocusedDataEntryChange={onFocusedDataEntryChange}
       />
     </ModeContentFrame>
   );

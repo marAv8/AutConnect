@@ -6,10 +6,18 @@
  * ClientOrbit; the overlays themselves remain focused presentation modules.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import type { CaretakerContextKind } from "@/app/libs/caretakerContext";
 import type { NoteEntryKind } from "@/app/libs/entryKinds";
+import { formatProviderDisplayName } from "@/app/libs/providerDisplayName";
 import ClientOrbit from "./ClientOrbit";
 import DashboardAbcDataOverlay from "./DashboardAbcDataOverlay";
 import DashboardClientHandoffOverlay from "./DashboardClientHandoffOverlay";
@@ -17,26 +25,27 @@ import DashboardNoteOverlay from "./DashboardNoteOverlay";
 import DashboardTeamFocusOverlay from "./DashboardTeamFocusOverlay";
 import { ClientCarouselNavigation } from "./ClientCarouselNavigation";
 import { ClientCarouselSlide } from "./ClientCarouselSlide";
-import { TeamFocusBanner } from "./TeamFocusBanner";
+import {
+  TEAM_FOCUS_CAROUSEL_READY_EVENT,
+  TEAM_FOCUS_OPEN_EVENT,
+} from "./TeamFocusSignalControl";
 import { useGuardedSwipe } from "@/components/useGuardedSwipe";
 import { applyDashboardEntryMutations } from "./clientCarouselModel";
 import { markClientSignalRead } from "@/app/actions/markClientSignalRead";
+import { claimPublicationAnnouncement } from "./notePublicationFeedback";
+import {
+  isDashboardFocusedDataEntry,
+  type DashboardOverlayType,
+} from "./dashboardOverlayState";
+import {
+  dashboardOrbitPresentationKey,
+} from "./dashboardOrbitRestoration";
+import { traceDashboardInteractionState } from "./dashboardInteractionTraceClient";
 import type {
   DashboardClient,
   DashboardEntryMutation,
   DashboardTeamFocus,
 } from "./dashboardClientTypes";
-
-type OverlayType =
-  | "view"
-  | "add"
-  | "update"
-  | "abc"
-  | "teamFocus"
-  | "teamFocusView"
-  | "clientHandoff"
-  | "educatorTarget"
-  | null;
 
 type ClientCarouselProps = {
   clients: DashboardClient[];
@@ -54,10 +63,14 @@ type ClientCarouselProps = {
     status?: string
   ) => void;
   onTeamFocusSaved?: (clientId: string, teamFocus: DashboardTeamFocus) => void;
+  onFocusedDataEntryChange?: (active: boolean) => void;
 };
 
-const SCENE_WIDTH = 980;
 const DASHBOARD_OVERLAY_HISTORY_KEY = "autConnectDashboardOverlay";
+// Leave a narrow strip to the browser for native edge navigation gestures.
+const DASHBOARD_BROWSER_EDGE_GUARD_PX = 24;
+const DASHBOARD_SWIPE_BLOCKING_SELECTOR =
+  "[role='menu'], [role='dialog'], [aria-modal='true']";
 
 export default function ClientCarousel({
   clients,
@@ -69,8 +82,15 @@ export default function ClientCarousel({
   onClientSignalRead,
   onEntrySaved,
   onTeamFocusSaved,
+  onFocusedDataEntryChange,
 }: ClientCarouselProps) {
   const [entryMutations, setEntryMutations] = useState<DashboardEntryMutation[]>([]);
+  const [publicationConfirmationId, setPublicationConfirmationId] = useState<
+    number | null
+  >(null);
+  const publicationConfirmationSequenceRef = useRef(0);
+  const announcedPublicationEventsRef = useRef(new Set<string>());
+  const prefersReducedMotion = useReducedMotion();
   const visibleClients = useMemo(
     () => applyDashboardEntryMutations(clients, entryMutations, currentProviderId),
     [clients, currentProviderId, entryMutations]
@@ -81,13 +101,32 @@ export default function ClientCarousel({
     return matchedIndex >= 0 ? matchedIndex : 0;
   })();
   const [index, setIndex] = useState(initialIndex);
-  const [overlayType, setOverlayType] = useState<OverlayType>(null);
+  const [overlayType, setOverlayType] = useState<DashboardOverlayType>(null);
+  const focusedDataEntry = isDashboardFocusedDataEntry(overlayType);
   const [activeContextKind, setActiveContextKind] =
     useState<CaretakerContextKind | null>(null);
   const [activeNoteKind, setActiveNoteKind] = useState<NoteEntryKind | null>(null);
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
   const [useCompactOverlayMotion, setUseCompactOverlayMotion] = useState(false);
   const overlayHistoryActiveRef = useRef(false);
+  const overlayHistoryClosingRef = useRef(false);
+  const pendingOverlayOpenRef = useRef<null | (() => void)>(null);
+
+  useLayoutEffect(() => {
+    onFocusedDataEntryChange?.(focusedDataEntry);
+  }, [focusedDataEntry, onFocusedDataEntryChange]);
+
+  useLayoutEffect(
+    () => () => onFocusedDataEntryChange?.(false),
+    [onFocusedDataEntryChange]
+  );
+
+  useEffect(() => {
+    traceDashboardInteractionState(
+      focusedDataEntry ? "focused-workflow" : "orbit"
+    );
+  }, [focusedDataEntry]);
+
   const clearOverlay = useCallback(() => {
     setOverlayType(null);
     setActiveProviderId(null);
@@ -96,6 +135,11 @@ export default function ClientCarousel({
   }, []);
   const closeOverlay = useCallback(() => {
     if (overlayHistoryActiveRef.current) {
+      // Give touch interactions immediate visual feedback. History still moves
+      // back one layer, but the UI no longer waits for the popstate event.
+      overlayHistoryActiveRef.current = false;
+      overlayHistoryClosingRef.current = true;
+      clearOverlay();
       window.history.back();
       return;
     }
@@ -115,6 +159,18 @@ export default function ClientCarousel({
       ""
     );
   }, []);
+  const openOverlayLayer = useCallback(
+    (open: () => void) => {
+      if (overlayHistoryClosingRef.current) {
+        pendingOverlayOpenRef.current = open;
+        return;
+      }
+
+      prepareOverlayHistory();
+      open();
+    },
+    [prepareOverlayHistory]
+  );
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 700px)");
@@ -129,6 +185,17 @@ export default function ClientCarousel({
 
   useEffect(() => {
     const onPopState = () => {
+      if (overlayHistoryClosingRef.current) {
+        overlayHistoryClosingRef.current = false;
+        const pendingOpen = pendingOverlayOpenRef.current;
+        pendingOverlayOpenRef.current = null;
+        if (pendingOpen) {
+          prepareOverlayHistory();
+          pendingOpen();
+        }
+        return;
+      }
+
       if (!overlayHistoryActiveRef.current) {
         return;
       }
@@ -139,7 +206,7 @@ export default function ClientCarousel({
 
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [clearOverlay]);
+  }, [clearOverlay, prepareOverlayHistory]);
 
   useEffect(() => {
     if (visibleClients.length === 0 || !onActiveClientChange) return;
@@ -170,73 +237,134 @@ export default function ClientCarousel({
     };
   }, [closeOverlay, overlayType]);
 
+  useEffect(() => {
+    if (publicationConfirmationId === null) return;
+    const timeoutId = window.setTimeout(() => {
+      setPublicationConfirmationId((current) =>
+        current === publicationConfirmationId ? null : current
+      );
+    }, 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [publicationConfirmationId]);
+
   const safeIndex = Math.min(index, visibleClients.length - 1);
   const client = visibleClients[safeIndex];
+  const activePresentationKey = client
+    ? dashboardOrbitPresentationKey(client, currentProviderId)
+    : "";
   const clientEntries = client?.entries;
   const activeClientId = client?.id ?? "";
 
+  useEffect(() => {
+    if (!activeClientId) return;
+
+    const readyTimeout = window.setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent(TEAM_FOCUS_CAROUSEL_READY_EVENT, {
+          detail: { clientId: activeClientId },
+        })
+      );
+    }, 650);
+
+    return () => window.clearTimeout(readyTimeout);
+  }, [activeClientId]);
+
   const prev = useCallback(() => {
+    if (safeIndex <= 0) return;
     setIndex((current) => Math.max(0, current - 1));
-  }, []);
+  }, [safeIndex]);
   const next = useCallback(() => {
+    if (safeIndex >= visibleClients.length - 1) return;
     setIndex((current) =>
       Math.min(Math.max(visibleClients.length - 1, 0), current + 1)
     );
-  }, [visibleClients.length]);
+  }, [safeIndex, visibleClients.length]);
   const clientSwipe = useGuardedSwipe({
     onSwipeLeft: next,
     onSwipeRight: prev,
     canSwipeLeft: safeIndex < visibleClients.length - 1,
     canSwipeRight: safeIndex > 0,
     disabled: overlayType !== null || visibleClients.length < 2,
+    edgeGuard: DASHBOARD_BROWSER_EDGE_GUARD_PX,
+    blockingSelector: DASHBOARD_SWIPE_BLOCKING_SELECTOR,
   });
 
   const openNotesOverlay = (providerId: string) => {
-    prepareOverlayHistory();
-    setActiveProviderId(providerId);
-    setOverlayType("view");
+    openOverlayLayer(() => {
+      setActiveProviderId(providerId);
+      setOverlayType("view");
+    });
   };
   const openEntryOverlay = (
     providerId: string,
     nextOverlayType: "add" | "update",
     entryKind?: CaretakerContextKind | NoteEntryKind
   ) => {
-    prepareOverlayHistory();
-    setActiveProviderId(providerId);
-    setActiveContextKind(
-      entryKind === "MorningContext" || entryKind === "EveningContext"
-        ? entryKind
-        : null
-    );
-    setActiveNoteKind(
-      entryKind === "SupervisorObservation" ||
-        entryKind === "ClinicalNote" ||
-        entryKind === "SensoryObservation" ||
-        entryKind === "SpeechProgress" ||
-        entryKind === "CommunicationObservation" ||
-        entryKind === "SessionNote"
-        ? entryKind
-        : null
-    );
-    setOverlayType(nextOverlayType);
+    openOverlayLayer(() => {
+      setActiveProviderId(providerId);
+      setActiveContextKind(
+        entryKind === "MorningContext" || entryKind === "EveningContext"
+          ? entryKind
+          : null
+      );
+      setActiveNoteKind(
+        entryKind === "SupervisorObservation" ||
+          entryKind === "ClinicalNote" ||
+          entryKind === "SensoryObservation" ||
+          entryKind === "SpeechProgress" ||
+          entryKind === "CommunicationObservation" ||
+          entryKind === "SessionNote"
+          ? entryKind
+          : null
+      );
+      setOverlayType(nextOverlayType);
+    });
   };
   const openAbcDataOverlay = (providerId: string) => {
-    prepareOverlayHistory();
-    setActiveProviderId(providerId);
-    setActiveContextKind(null);
-    setActiveNoteKind("SessionNote");
-    setOverlayType("abc");
+    openOverlayLayer(() => {
+      setActiveProviderId(providerId);
+      setActiveContextKind(null);
+      setActiveNoteKind("SessionNote");
+      setOverlayType("abc");
+    });
   };
-  const openTeamFocusOverlay = () => {
-    prepareOverlayHistory();
-    setActiveProviderId(currentProviderId);
-    setOverlayType("teamFocus");
-  };
-  const openTeamFocusViewOverlay = () => {
-    prepareOverlayHistory();
-    setActiveProviderId(currentProviderId);
-    setOverlayType("teamFocusView");
-  };
+  const openTeamFocusOverlay = useCallback(() => {
+    openOverlayLayer(() => {
+      setActiveProviderId(currentProviderId);
+      setOverlayType("teamFocus");
+    });
+  }, [currentProviderId, openOverlayLayer]);
+  const openTeamFocusViewOverlay = useCallback(() => {
+    openOverlayLayer(() => {
+      setActiveProviderId(currentProviderId);
+      setOverlayType("teamFocusView");
+    });
+  }, [currentProviderId, openOverlayLayer]);
+
+  useEffect(() => {
+    const openFromUtilityControl = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{ clientId?: string; mode?: "edit" | "view" }>
+      ).detail;
+      if (detail?.clientId !== activeClientId) return;
+      if (detail.mode === "edit") {
+        openTeamFocusOverlay();
+        return;
+      }
+      if (client.teamFocusItems?.[0]) {
+        openTeamFocusViewOverlay();
+      }
+    };
+
+    window.addEventListener(TEAM_FOCUS_OPEN_EVENT, openFromUtilityControl);
+    return () =>
+      window.removeEventListener(TEAM_FOCUS_OPEN_EVENT, openFromUtilityControl);
+  }, [
+    activeClientId,
+    client.teamFocusItems,
+    openTeamFocusOverlay,
+    openTeamFocusViewOverlay,
+  ]);
   const openClientHandoffOverlay = () => {
     if (
       client.signal?.color !== "neutral" &&
@@ -249,16 +377,18 @@ export default function ClientCarousel({
         sessionDate: client.signal.sessionDate,
       });
     }
-    prepareOverlayHistory();
-    setActiveProviderId(null);
-    setOverlayType("clientHandoff");
+    openOverlayLayer(() => {
+      setActiveProviderId(null);
+      setOverlayType("clientHandoff");
+    });
   };
   const openEducatorTargetOverlay = (progressKind: NoteEntryKind = "SessionNote") => {
-    prepareOverlayHistory();
-    setActiveProviderId(currentProviderId);
-    setActiveContextKind(null);
-    setActiveNoteKind(progressKind);
-    setOverlayType("educatorTarget");
+    openOverlayLayer(() => {
+      setActiveProviderId(currentProviderId);
+      setActiveContextKind(null);
+      setActiveNoteKind(progressKind);
+      setOverlayType("educatorTarget");
+    });
   };
   const returnToProgressOverlay = useCallback(() => {
     if (!activeProviderId || !client) return;
@@ -305,7 +435,12 @@ export default function ClientCarousel({
       },
     ]);
     onEntrySaved?.(activeClientId, authorProviderId, entryId, visibility, status);
-  }, [activeClientId, activeContextKind, activeNoteKind, onEntrySaved]);
+  }, [
+    activeClientId,
+    activeContextKind,
+    activeNoteKind,
+    onEntrySaved,
+  ]);
   const markProviderSessionCompleted = useCallback((
     authorProviderId: string,
     completedEntryIds: string[]
@@ -341,12 +476,35 @@ export default function ClientCarousel({
         "COMPLETED"
       );
     });
-  }, [activeClientId, clientEntries, onEntrySaved]);
+
+    if (
+      authorProviderId === currentProviderId &&
+      claimPublicationAnnouncement(announcedPublicationEventsRef.current, {
+        clientId: activeClientId,
+        authorProviderId,
+        completedEntryIds,
+      })
+    ) {
+      publicationConfirmationSequenceRef.current += 1;
+      setPublicationConfirmationId(publicationConfirmationSequenceRef.current);
+    }
+  }, [activeClientId, clientEntries, currentProviderId, onEntrySaved]);
 
   if (visibleClients.length === 0 || !client) return null;
 
   const shouldShowPosition = !(viewerRole === "Caregiver" && visibleClients.length === 1);
   const activeTeamFocus = client.teamFocusItems?.[0] ?? null;
+  const viewerProviderClient = client.providerClients.find(
+    ({ provider }) => provider.id === currentProviderId
+  );
+  const authenticatedDisplayName = viewerProviderClient
+    ? formatProviderDisplayName(
+        viewerProviderClient.provider.firstName,
+        viewerProviderClient.provider.lastName
+      )
+    : undefined;
+  const authenticatedRole =
+    viewerRole ?? viewerProviderClient?.role;
   const usesFullScreenWorkspacePanel =
     overlayType === "abc" ||
     overlayType === "teamFocus" ||
@@ -354,16 +512,22 @@ export default function ClientCarousel({
   return (
     <div
       className="client-workspace-shell"
+      data-dashboard-focused-workflow={focusedDataEntry ? "true" : undefined}
       style={{
         width: "100%",
         height: "100%",
+        position: "relative",
       }}
     >
       <div
         className="client-carousel-stage"
+        data-dashboard-presentation-key={activePresentationKey}
+        data-team-focus-carousel-client={activeClientId}
+        data-team-focus-carousel-ready="true"
         style={{
-          width: "min(100%, 980px)",
-          maxWidth: SCENE_WIDTH,
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
           paddingLeft: "clamp(10px, 4vw, 24px)",
           paddingRight: "clamp(10px, 4vw, 24px)",
           boxSizing: "border-box",
@@ -390,24 +554,15 @@ export default function ClientCarousel({
           key={client.id}
           dragOffset={clientSwipe.dragOffset}
         >
-          {activeTeamFocus ? (
-            <TeamFocusBanner
-              key={`${activeTeamFocus.id}:${new Date(activeTeamFocus.updatedAt).toISOString()}`}
-              teamFocus={activeTeamFocus}
-              viewerProviderId={currentProviderId}
-              onOpen={openTeamFocusViewOverlay}
-            />
-          ) : null}
-
           <ClientOrbit
             client={client}
             currentProviderId={currentProviderId}
+            presentationKey={activePresentationKey}
             viewerRole={viewerRole}
             suspendMenuDismiss={overlayType !== null}
             onOpenNotes={openNotesOverlay}
             onOpenEntryForm={openEntryOverlay}
             onOpenAbcData={openAbcDataOverlay}
-            onOpenTeamFocus={openTeamFocusOverlay}
             onOpenClientHandoff={openClientHandoffOverlay}
             onOpenEducatorTarget={openEducatorTargetOverlay}
             onSessionCompleted={markProviderSessionCompleted}
@@ -415,8 +570,42 @@ export default function ClientCarousel({
         </ClientCarouselSlide>
       </div>
       <AnimatePresence>
+        {publicationConfirmationId !== null ? (
+          <motion.div
+            key={publicationConfirmationId}
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+            transition={{ duration: prefersReducedMotion ? 0 : 0.16 }}
+            style={{
+              position: "fixed",
+              top: "max(84px, calc(env(safe-area-inset-top) + 70px))",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 140,
+              padding: "10px 16px",
+              borderRadius: 12,
+              background: "var(--glass-strong)",
+              color: "var(--foreground)",
+              boxShadow: "var(--shadow-soft)",
+              fontSize: 14,
+              fontWeight: 600,
+              pointerEvents: "none",
+            }}
+          >
+            Note published
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+      <AnimatePresence>
         {overlayType && (activeProviderId || overlayType === "clientHandoff") ? (
-          <div className="fixed inset-0 z-50">
+          <div
+            className="fixed inset-0 z-50"
+            data-dashboard-trace-layer="workflow-overlay"
+          >
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -506,6 +695,8 @@ export default function ClientCarousel({
                     providerId={activeProviderId}
                     noteKind={activeNoteKind}
                     contextKind={activeContextKind}
+                    authenticatedDisplayName={authenticatedDisplayName}
+                    authenticatedRole={authenticatedRole}
                     onClose={closeOverlay}
                     onRead={markProviderEntriesRead}
                     onSaved={markProviderEntrySaved}
@@ -522,7 +713,7 @@ export default function ClientCarousel({
 }
 
 function isNoteOverlayType(
-  overlayType: OverlayType
+  overlayType: DashboardOverlayType
 ): overlayType is "view" | "add" | "update" | "educatorTarget" {
   return (
     overlayType === "view" ||
@@ -540,7 +731,10 @@ function TeamFocusReadOverlay({
   onClose: () => void;
 }) {
   const authorName = teamFocus
-    ? `${teamFocus.author.firstName} ${teamFocus.author.lastName}`.trim()
+    ? formatProviderDisplayName(
+        teamFocus.author.firstName,
+        teamFocus.author.lastName
+      )
     : "";
   const authorRole = teamFocus ? teamFocusRoleLabel(teamFocus.author.role) : "";
 
@@ -603,10 +797,54 @@ function TeamFocusReadOverlay({
             {authorName || "Supervisor"} {authorRole ? `— ${authorRole}` : null}
           </div>
           <div style={{ fontSize: 13, opacity: 0.66 }}>
-            {new Date(teamFocus.updatedAt).toLocaleDateString()}
+            {new Date(teamFocus.createdAt).toLocaleDateString()}
           </div>
         </div>
       </div>
+
+      {teamFocus.revisions?.length ? (
+        <details
+          className="paper-surface"
+          style={{ width: "min(420px, 82vw)", padding: "15px 18px" }}
+        >
+          <summary style={{ cursor: "pointer", fontSize: 14, fontWeight: 650 }}>
+            Earlier updates ({teamFocus.revisions.length})
+          </summary>
+          <div style={{ display: "grid", gap: 18, paddingTop: 16 }}>
+            {teamFocus.revisions.map((revision) => (
+              <article
+                key={revision.id}
+                style={{
+                  display: "grid",
+                  gap: 8,
+                  paddingTop: 15,
+                  borderTop: "1px solid var(--team-focus-divider)",
+                }}
+              >
+                {revision.title ? (
+                  <div style={{ fontSize: 15, fontWeight: 650 }}>
+                    {revision.title}
+                  </div>
+                ) : null}
+                <div style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+                  {revision.content}
+                </div>
+                <div style={{ fontSize: 12, opacity: 0.64 }}>
+                  {formatProviderDisplayName(
+                    revision.author.firstName,
+                    revision.author.lastName
+                  )}
+                  {" · "}
+                  {new Date(revision.createdAt).toLocaleString([], {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </div>
+              </article>
+            ))}
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }

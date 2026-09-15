@@ -22,6 +22,7 @@ export async function saveDocumentationDraft(formData: FormData) {
     where: {
       clientId,
       providerId: session.providerId,
+      revokedAt: null,
     },
     select: { id: true },
   });

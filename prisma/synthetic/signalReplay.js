@@ -5,8 +5,6 @@
  * separate comparison function so the evaluator cannot use them as features.
  */
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 function day(value) {
   return value.slice(0, 10);
 }
@@ -54,7 +52,6 @@ function extractDailyFeatures(records, history) {
   let hasStableHomeContext = false;
   let hasHighIntensityAbc = false;
   let hasCriticalSafetyEvent = false;
-  let hasCoordinationStrain = false;
   let hasIndependenceMilestone = false;
   const transitionLatencies = [];
   const refusalFrequencies = [];
@@ -84,14 +81,6 @@ function extractDailyFeatures(records, history) {
     ) {
       hasCriticalSafetyEvent = true;
     }
-    if (
-      /\b(scheduled BT support was interrupted|provider roles.*unclear|assigned BT coverage|responsibility remained unclear|supervisor response was requested)\b/i.test(
-        text
-      )
-    ) {
-      hasCoordinationStrain = true;
-    }
-
     for (const item of entry.items) {
       if (
         item.metricType === "Duration" &&
@@ -134,7 +123,6 @@ function extractDailyFeatures(records, history) {
     hasStableHomeContext,
     hasHighIntensityAbc,
     hasCriticalSafetyEvent,
-    hasCoordinationStrain,
     hasIndependenceMilestone,
     maximumTransitionLatency:
       transitionLatencies.length > 0 ? Math.max(...transitionLatencies) : null,
@@ -161,13 +149,7 @@ function updateHistory(records, history) {
   }
 }
 
-function datedRecord(sourceRecords, recordType, predicate = () => true) {
-  return sourceRecords
-    .filter((record) => record.recordType === recordType && predicate(record))
-    .sort((first, second) => first.date.localeCompare(second.date))[0] ?? null;
-}
-
-function evaluateSignal({ date, features, caseRequestDate, planDate, calibration = {} }) {
+function evaluateSignal({ features, calibration = {} }) {
   if (features.hasCriticalSafetyEvent) {
     return {
       signal: "red",
@@ -175,46 +157,6 @@ function evaluateSignal({ date, features, caseRequestDate, planDate, calibration
       confidence: "high",
       explanation:
         "Documentation identifies a predefined critical safety event beyond the client's ordinary support baseline.",
-    };
-  }
-
-  if (caseRequestDate && date >= caseRequestDate && (!planDate || date < planDate)) {
-    return {
-      signal: calibration.activeCaseSignal ?? "red",
-      reason:
-        calibration.activeCaseSignal === "amber"
-          ? "active_support_review"
-          : "care_coordination_breakdown",
-      confidence: "high",
-      explanation:
-        "A formal support request is active and no coordinated implementation plan is documented yet.",
-    };
-  }
-
-  if (planDate && date >= planDate) {
-    const elapsedDays = Math.floor(
-      (new Date(`${date}T12:00:00.000Z`).getTime() -
-        new Date(`${planDate}T12:00:00.000Z`).getTime()) /
-        DAY_MS
-    );
-    if (elapsedDays <= 7) {
-      return {
-        signal: "amber",
-        reason: "implementation_monitoring",
-        confidence: "high",
-        explanation:
-          "A coordinated plan is documented, but the implementation has not been stable long enough to clear monitoring.",
-      };
-    }
-  }
-
-  if (features.hasCoordinationStrain) {
-    return {
-      signal: "amber",
-      reason: "emerging_coordination_strain",
-      confidence: "high",
-      explanation:
-        "Provider documentation shows an emerging support-coverage or responsibility problem requiring review.",
     };
   }
 
@@ -321,19 +263,11 @@ function evaluateSignal({ date, features, caseRequestDate, planDate, calibration
 function replaySignals({ sourceRecords, evaluationDates, calibration = {} }) {
   const grouped = recordsByDay(sourceRecords);
   const history = new Map();
-  const caseRequest = datedRecord(sourceRecords, "caseSupportRequest");
-  const plan = datedRecord(
-    sourceRecords,
-    "caseSupportCoordination",
-    (record) => record.status === "MONITORING"
-  );
-  const caseRequestDate = caseRequest ? day(caseRequest.date) : null;
-  const planDate = plan ? day(plan.date) : null;
 
   return evaluationDates.map((date) => {
     const records = grouped.get(date) ?? [];
     const features = extractDailyFeatures(records, history);
-    const result = evaluateSignal({ date, features, caseRequestDate, planDate, calibration });
+    const result = evaluateSignal({ features, calibration });
     updateHistory(records, history);
     return { date, ...result, features };
   });

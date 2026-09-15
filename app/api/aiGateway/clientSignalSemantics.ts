@@ -24,6 +24,7 @@ const semanticSchema = z.object({
 
 export function isClientSignalSemanticsEnabled() {
   return (
+    process.env.NODE_ENV !== "production" &&
     process.env.CLIENT_SIGNAL_AI_ENABLED === "true" &&
     Boolean(process.env.OPENAI_API_KEY)
   );

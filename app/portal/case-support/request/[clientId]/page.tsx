@@ -1,28 +1,16 @@
-import { submitCaseSupportRequest } from "@/app/actions/manageCaseSupport";
-import { clientDisplayCode } from "@/app/libs/clientIdentity";
-import { ContextualHelp } from "@/components/ContextualHelp";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
+import { formatProviderDisplayName } from "@/app/libs/providerDisplayName";
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CaseSupportSuccessToast } from "../../[clientId]/CaseSupportSuccessToast";
-
-type PageQuery = {
-  submitted?: string;
-  alreadyPending?: string;
-};
+import { CaseSupportRequestCarousel } from "./CaseSupportRequestCarousel";
 
 export default async function RequestCaseSupportPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ clientId: string }>;
-  searchParams: Promise<PageQuery>;
 }) {
-  const [{ clientId }, query, session] = await Promise.all([
-    params,
-    searchParams,
-    getSession(),
-  ]);
+  const [{ clientId }, session] = await Promise.all([params, getSession()]);
 
   if (!session) {
     redirect("/login");
@@ -35,18 +23,13 @@ export default async function RequestCaseSupportPage({
     where: {
       clientId,
       providerId: session.providerId,
+      revokedAt: null,
     },
     select: {
       organizationId: true,
       organization: {
         select: {
           type: true,
-        },
-      },
-      client: {
-        select: {
-          firstName: true,
-          lastName: true,
         },
       },
     },
@@ -56,138 +39,113 @@ export default async function RequestCaseSupportPage({
     redirect("/dashboard");
   }
 
-  const [latestRequest, accessibleCase, eligibleSupervisor] = await Promise.all([
-    db.caseSupportRequest.findFirst({
-      where: {
-        clientId,
-        requesterId: session.providerId,
-      },
-      orderBy: { createdAt: "desc" },
-      include: {
-        recipientSupervisor: {
-          select: {
-            firstName: true,
-            lastName: true,
+  const [latestRequest, accessibleCases, supervisorAssignments] =
+    await Promise.all([
+      db.caseSupportRequest.findFirst({
+        where: {
+          clientId,
+          requesterId: session.providerId,
+        },
+        orderBy: { createdAt: "desc" },
+        include: {
+          recipientSupervisor: {
+            select: {
+              firstName: true,
+              lastName: true,
+            },
+          },
+          linkedCase: {
+            select: {
+              id: true,
+              status: true,
+            },
           },
         },
-        linkedCase: {
-          select: {
-            id: true,
-            status: true,
+      }),
+      db.caseSupportCase.findMany({
+        where: {
+          clientId,
+          status: "OPEN",
+          members: {
+            some: {
+              providerId: session.providerId,
+              revokedAt: null,
+            },
           },
         },
-      },
-    }),
-    db.caseSupportCase.findFirst({
-      where: {
-        clientId,
-        status: "OPEN",
-        members: {
-          some: {
-            providerId: session.providerId,
-            revokedAt: null,
-          },
-        },
-      },
-      select: { id: true },
-    }),
-    assignment.organizationId && assignment.organization?.type === "AGENCY"
-      ? db.providerClient.findFirst({
-          where: {
-            clientId,
-            role: "Supervisor",
-            organizationId: assignment.organizationId,
-            organization: { type: "AGENCY" },
-          },
-          select: { id: true },
-        })
-      : Promise.resolve(null),
-  ]);
+        select: { id: true },
+      }),
+      assignment.organizationId && assignment.organization?.type === "AGENCY"
+        ? db.providerClient.findMany({
+            where: {
+              clientId,
+              role: "Supervisor",
+              revokedAt: null,
+              organizationId: assignment.organizationId,
+              providerId: { not: session.providerId },
+              provider: { role: "Supervisor" },
+              organization: { type: "AGENCY" },
+            },
+            orderBy: { providerId: "asc" },
+            select: {
+              providerId: true,
+              provider: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
+          })
+        : Promise.resolve([]),
+    ]);
 
-  const isPending =
-    latestRequest?.status === "REQUESTED" ||
-    latestRequest?.status === "ACKNOWLEDGED";
+  const eligibleSupervisors = Array.from(
+    new Map(
+      supervisorAssignments.map((supervisor) => [
+        supervisor.providerId,
+        supervisor,
+      ])
+    ).values()
+  ).sort((left, right) => {
+    const leftName = `${left.provider.firstName} ${left.provider.lastName}`.trim();
+    const rightName = `${right.provider.firstName} ${right.provider.lastName}`.trim();
+    return leftName.localeCompare(rightName);
+  });
+
   const openedCase =
-    accessibleCase ||
-    (latestRequest?.status === "CASE_OPENED" ? latestRequest.linkedCase : null);
+    latestRequest?.status === "CASE_OPENED" &&
+    latestRequest.linkedCase?.status === "OPEN" &&
+    accessibleCases.some(
+      (supportCase) => supportCase.id === latestRequest.linkedCase?.id
+    )
+      ? latestRequest.linkedCase
+      : null;
   const canRequest = Boolean(
     assignment.organizationId &&
       assignment.organization?.type === "AGENCY" &&
-      eligibleSupervisor
+      eligibleSupervisors.length > 0
   );
-  const clientCode = clientDisplayCode(
-    assignment.client.firstName,
-    assignment.client.lastName
-  );
-  const successMessage =
-    query.submitted === "1"
-      ? "Request sent to the assigned supervisor."
-      : query.alreadyPending === "1"
-        ? "A request is already awaiting review."
-        : null;
-
   return (
     <main className="case-support-page">
-      {successMessage ? (
-        <CaseSupportSuccessToast message={successMessage} />
-      ) : null}
-
-      <a
+      <Link
         href={`/dashboard?clientId=${clientId}&view=orbit`}
         className="back-link"
       >
-        Client
-      </a>
+        Back
+      </Link>
 
       <header className="case-support-heading">
-        <div style={{ fontSize: 15, opacity: 0.62 }}>{clientCode}</div>
-        <div className="case-support-title-with-help">
-          <h1>Request Case Support</h1>
-          <ContextualHelp
-            title="About this request"
-            explanation="This sends an in-app request to the supervisor assigned to this client. It does not contact a school or outside organization and should not replace an established emergency procedure."
-          />
-        </div>
+        <h1>Case Support</h1>
       </header>
 
-      {openedCase ? (
-        <section className="paper-surface case-support-card">
-          <div className="case-support-eyebrow">CASE OPENED</div>
-          <h2 className="case-support-case-title">
-            Your request is now a Case Support record.
-          </h2>
-          <p className="case-support-request-copy">
-            You have contributor access and can add your documentation.
-          </p>
-          <div className="case-support-primary-action">
-            <a
-              href={`/portal/case-support/${clientId}`}
-              className="material-control action-positive"
-            >
-              Open Case Support
-            </a>
-          </div>
-        </section>
-      ) : isPending && latestRequest ? (
-        <section className="paper-surface case-support-card">
-          <div className="case-support-eyebrow">
-            {latestRequest.status === "ACKNOWLEDGED"
-              ? "ACKNOWLEDGED"
-              : "AWAITING REVIEW"}
-          </div>
-          <h2 className="case-support-case-title">
-            Your request has been sent.
-          </h2>
-          <CaseRequestSummary
-            concern={latestRequest.concern}
-            requestedSupport={latestRequest.requestedSupport}
-          />
-          <p className="case-support-request-meta">
-            Sent to{" "}
-            {`${latestRequest.recipientSupervisor.firstName} ${latestRequest.recipientSupervisor.lastName}`.trim()}{" "}
-            · {latestRequest.createdAt.toLocaleString()}
-          </p>
-        </section>
+      {latestRequest ? (
+        <RequestStatusCard
+          request={latestRequest}
+          canOpenCase={Boolean(openedCase)}
+          linkedCaseStatus={latestRequest.linkedCase?.status ?? null}
+          clientId={clientId}
+        />
       ) : !canRequest ? (
         <section className="paper-surface case-support-card">
           <div className="case-support-eyebrow">AGENCY ACCESS REQUIRED</div>
@@ -200,109 +158,138 @@ export default async function RequestCaseSupportPage({
           </p>
         </section>
       ) : (
-        <>
-          {latestRequest?.status === "DECLINED" ? (
-            <section className="paper-surface case-support-card">
-              {latestRequest.responseNote ? (
-                <>
-                  <div className="case-support-eyebrow">
-                    SUPERVISOR RESPONSE
-                  </div>
-                  <h2 className="case-support-case-title case-support-closed-response">
-                    {latestRequest.responseNote}
-                  </h2>
-                  <div className="case-support-closed-status">
-                    <strong>Request closed</strong>
-                    <p>The previous request was not opened as a case.</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="case-support-eyebrow">REQUEST CLOSED</div>
-                  <h2 className="case-support-case-title">
-                    The previous request was not opened as a case.
-                  </h2>
-                </>
-              )}
-            </section>
-          ) : null}
-
-          <form
-            action={submitCaseSupportRequest}
-            className="paper-surface case-support-card"
-          >
-            <input type="hidden" name="clientId" value={clientId} />
-            <div className="case-support-field">
-              <ContextualHelp
-                label={<span>What needs the supervisor’s attention?</span>}
-                title="Describing the concern"
-                explanation="Describe observable circumstances or a communication gap. Avoid assigning blame."
-                align="center"
-              />
-              <textarea
-                name="concern"
-                aria-label="What needs the supervisor’s attention?"
-                className="case-support-textarea"
-                rows={5}
-                minLength={10}
-                maxLength={2000}
-                required
-              />
-            </div>
-
-            <div className="case-support-field">
-              <ContextualHelp
-                label={<span>What support are you requesting?</span>}
-                title="Requested support"
-                explanation="State what you need the supervisor to clarify, coordinate, or review."
-                align="center"
-              />
-              <textarea
-                name="requestedSupport"
-                aria-label="What support are you requesting?"
-                className="case-support-textarea"
-                rows={4}
-                minLength={5}
-                maxLength={1500}
-                required
-              />
-            </div>
-
-            <div className="case-support-request-safety-note">
-              For an immediate safety concern, follow the agency or site’s
-              established urgent communication procedure.
-            </div>
-
-            <div className="case-support-primary-action">
-              <button
-                type="submit"
-                className="material-control action-positive"
-              >
-                Send Request
-              </button>
-            </div>
-          </form>
-        </>
+        <CaseSupportRequestCarousel
+          clientId={clientId}
+          supervisors={eligibleSupervisors.map((supervisor) => ({
+            id: supervisor.providerId,
+            name: formatProviderDisplayName(
+              supervisor.provider.firstName,
+              supervisor.provider.lastName
+            ),
+          }))}
+        />
       )}
     </main>
   );
 }
 
+function RequestStatusCard({
+  request,
+  canOpenCase,
+  linkedCaseStatus,
+  clientId,
+}: {
+  request: {
+    status: string;
+    title: string | null;
+    occurredAt: Date | null;
+    concern: string;
+    requestedSupport: string;
+    responseNote: string | null;
+    createdAt: Date;
+    recipientSupervisor: {
+      firstName: string;
+      lastName: string;
+    };
+  };
+  canOpenCase: boolean;
+  linkedCaseStatus: string | null;
+  clientId: string;
+}) {
+  const isOpened = request.status === "CASE_OPENED";
+  const isClosedCase =
+    isOpened &&
+    linkedCaseStatus !== null &&
+    linkedCaseStatus !== "OPEN";
+  const statusLabel =
+    request.status === "REQUESTED"
+      ? "AWAITING REVIEW"
+      : request.status === "ACKNOWLEDGED"
+        ? "ACKNOWLEDGED"
+        : request.status === "DECLINED"
+          ? "SUPERVISOR RESPONSE"
+          : isClosedCase
+            ? "CLOSED"
+            : "CASE OPENED";
+  const statusTitle =
+    request.status === "REQUESTED"
+      ? "Awaiting review"
+      : request.status === "ACKNOWLEDGED"
+        ? "Your supervisor received this request."
+        : request.status === "DECLINED"
+          ? "Request closed"
+          : isClosedCase
+            ? "The Case Support record is closed."
+            : "Your request is now a Case Support record.";
+  const recipientName = formatProviderDisplayName(
+    request.recipientSupervisor.firstName,
+    request.recipientSupervisor.lastName
+  );
+
+  return (
+    <section className="paper-surface case-support-card">
+      <div className="case-support-eyebrow">{statusLabel}</div>
+      <h2 className="case-support-case-title">{statusTitle}</h2>
+      <CaseRequestSummary
+        title={request.title}
+        occurredAt={request.occurredAt}
+        concern={request.concern}
+        requestedSupport={request.requestedSupport}
+      />
+      {request.responseNote ? (
+        <div className="case-support-closed-status">
+          <strong>Supervisor response</strong>
+          <p>{request.responseNote}</p>
+        </div>
+      ) : null}
+      <p className="case-support-request-meta">
+        Sent to {recipientName} · {request.createdAt.toLocaleString()}
+      </p>
+      {isOpened && canOpenCase ? (
+        <div className="case-support-primary-action">
+          <Link
+            href={`/portal/case-support/${clientId}`}
+            className="material-control action-positive"
+          >
+            Open Active Case
+          </Link>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function CaseRequestSummary({
+  title,
+  occurredAt,
   concern,
   requestedSupport,
 }: {
+  title: string | null;
+  occurredAt: Date | null;
   concern: string;
   requestedSupport: string;
 }) {
   return (
     <div className="case-support-request-summary">
+      {title ? (
+        <div>
+          <strong>Case title</strong>
+          <p>{title}</p>
+        </div>
+      ) : null}
+      {occurredAt ? (
+        <div>
+          <strong>Event date and time</strong>
+          <p>{occurredAt.toLocaleString()}</p>
+        </div>
+      ) : null}
       <div>
-        <strong>Concern</strong>
+        <strong>What needs support</strong>
         <p>{concern}</p>
       </div>
       <div>
-        <strong>Requested support</strong>
+        <strong>Desired outcome</strong>
         <p>{requestedSupport}</p>
       </div>
     </div>

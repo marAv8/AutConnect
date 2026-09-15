@@ -8,6 +8,7 @@ import {
   type EntryRevisionSnapshot,
 } from "@/app/libs/entryRevision";
 import { formatRevisionUpdate } from "@/app/portal/notes/view/noteHistoryRevision";
+import { formatProviderDisplayName } from "../../libs/providerDisplayName";
 
 export type ParsedInsightQuestion = {
   providerRole?: string;
@@ -280,7 +281,10 @@ function providerSummaries(entries: InsightEntry[], parsed: ParsedInsightQuestio
       providerMap.get(entry.providerId) ??
       {
         providerId: entry.providerId,
-        providerName: `${entry.provider.firstName} ${entry.provider.lastName}`,
+        providerName: formatProviderDisplayName(
+          entry.provider.firstName,
+          entry.provider.lastName
+        ),
         role: formatRole(entry.provider.role),
         scores: [],
         entries: [],
@@ -363,7 +367,10 @@ function noteTimingCompliance(entries: InsightEntry[]): InsightResult {
       providers.get(entry.providerId) ??
       {
         providerId: entry.providerId,
-        providerName: `${entry.provider.firstName} ${entry.provider.lastName}`,
+        providerName: formatProviderDisplayName(
+          entry.provider.firstName,
+          entry.provider.lastName
+        ),
         role: formatRole(entry.provider.role),
         delays: [],
       };
@@ -711,6 +718,13 @@ function buildOverviewInsight(
   context: InsightContext,
   question: string
 ): InsightResult {
+  const fieldObservationInsight = buildFieldObservationInsight(
+    context,
+    question,
+    "overview"
+  );
+  if (fieldObservationInsight) return fieldObservationInsight;
+
   const latestDocumentation = [...context.documentationRecords].sort(
     (left, right) =>
       new Date(right.completedAt ?? right.updatedAt).getTime() -
@@ -886,6 +900,13 @@ function buildDocumentationInsight(
   context: InsightContext,
   question: string
 ): InsightResult {
+  const fieldObservationInsight = buildFieldObservationInsight(
+    context,
+    question,
+    "documentation"
+  );
+  if (fieldObservationInsight) return fieldObservationInsight;
+
   const records = filterRecordsByProvider(
     context.documentationRecords,
     question
@@ -986,6 +1007,13 @@ function buildProviderInsight(
   context: InsightContext,
   question: string
 ): InsightResult {
+  const fieldObservationInsight = buildFieldObservationInsight(
+    context,
+    question,
+    "providers"
+  );
+  if (fieldObservationInsight) return fieldObservationInsight;
+
   const normalizedQuestion = question.toLowerCase();
   const matched = context.providerRelationships.filter((provider) => {
     const nameMatch = normalizedQuestion.includes(
@@ -1018,6 +1046,12 @@ function buildProviderInsight(
       summary: "No provider activity was found for this client.",
       supportingData: { providers: [], sessions: 0 },
     };
+  }
+
+  const asksProviderPerformance =
+    /\b(perform(?:ed|ance|ing)?|how (?:did|is|has)|doing)\b/i.test(question);
+  if (asksProviderPerformance && providers.length === 1) {
+    return buildProviderRecordedPerformanceInsight(context, providers[0]);
   }
 
   if (asksRecentContributors) {
@@ -1175,6 +1209,353 @@ function buildProviderInsight(
       value: `${humanizeValue(provider.assignmentRole)} · ${provider.totalSessions} completed session${provider.totalSessions === 1 ? "" : "s"} · ${provider.activeGoals.length} active goal${provider.activeGoals.length === 1 ? "" : "s"}`,
       sourceId: provider.providerId,
     })),
+  };
+}
+
+function buildProviderRecordedPerformanceInsight(
+  context: InsightContext,
+  provider: InsightContext["providerRelationships"][number]
+): InsightResult {
+  const observations = [...(context.fieldObservations ?? [])]
+    .filter(
+      (observation) =>
+        observation.observedProvider.id === provider.providerId
+    )
+    .sort(
+      (left, right) =>
+        new Date(right.observedAt).getTime() -
+        new Date(left.observedAt).getTime()
+    );
+  const series = context.providerGoalSeries
+    .filter((item) => item.providerId === provider.providerId)
+    .filter((item) => item.sessions.length > 0)
+    .slice(0, 3);
+
+  const measurementStatements = series.map((item) => {
+    const metric = humanizeValue(item.metricType).toLowerCase();
+    const subject = item.target.toLowerCase().includes(metric)
+      ? item.target
+      : `${item.target} ${metric}`;
+    const direction =
+      item.measurementTrend === "up"
+        ? "increased"
+        : item.measurementTrend === "down"
+          ? "decreased"
+          : item.measurementTrend === "flat"
+            ? "was stable"
+            : "does not yet have a supported direction";
+    return `${subject} ${direction} across ${item.sessions.length} completed session${
+      item.sessions.length === 1 ? "" : "s"
+    }`;
+  });
+  const observationStatement = observations[0]
+    ? `The most recent supervisor Field Observation recorded ${observations[0].fidelityPercent}% fidelity across ${observations[0].applicableItemCount} applicable criteria.`
+    : null;
+  const summaryParts = [observationStatement, ...measurementStatements].filter(
+    (value): value is string => Boolean(value)
+  );
+
+  const measurementEvidence = series.flatMap((item) =>
+    [...item.sessions]
+      .sort(
+        (left, right) =>
+          new Date(right.completedAt ?? right.date).getTime() -
+          new Date(left.completedAt ?? left.date).getTime()
+      )
+      .slice(0, 2)
+      .map((session) => ({
+        label: `${provider.providerName} · ${item.target}`,
+        value: `${humanizeValue(item.metricType)} recorded as ${
+          session.measurementValue ?? "no native value"
+        }`,
+        date: session.completedAt ?? session.date,
+        sourceId: session.sessionId,
+      }))
+  );
+
+  return {
+    category: "providers",
+    headline: `${provider.providerName} recorded data`,
+    summary: summaryParts.length
+      ? `${provider.providerName}: ${summaryParts.join(" ")}`
+      : `${provider.providerName} is assigned to this client, but no matching structured measurements or Field Observations were found.`,
+    confidence: observations.length || series.length ? "high" : "low",
+    limitations: [
+      "Client measurements and Field Observations describe recorded sessions; they do not independently establish causation or provider competency.",
+    ],
+    supportingData: { sessions: provider.totalSessions },
+    evidence: [
+      ...observations
+        .slice(0, 2)
+        .map((observation) =>
+          fieldObservationEvidence(
+            observation,
+            `${observation.fidelityPercent}% fidelity across ${observation.applicableItemCount} applicable criteria`
+          )
+        ),
+      ...measurementEvidence,
+    ].slice(0, 8),
+  };
+}
+
+type InsightFieldObservation = InsightContext["fieldObservations"][number];
+
+const FIELD_OBSERVATION_QUESTION =
+  /\b(field\s+observations?|fidelity|rubric|coaching (?:need|needs|focus)|strengths?)\b/i;
+
+function fieldObservationsForQuestion(
+  context: InsightContext,
+  question: string
+) {
+  const observations = [...(context.fieldObservations ?? [])].sort(
+    (left, right) =>
+      new Date(right.observedAt).getTime() - new Date(left.observedAt).getTime()
+  );
+  if (!observations.length) return observations;
+
+  const normalizedQuestion = question.toLowerCase();
+  const providerMatches = observations.filter((observation) => {
+    const providerName = observation.observedProvider.name.toLowerCase();
+    const firstName = providerName.split(/\s+/)[0];
+    const roleMatch = roleAliases.some(
+      ([pattern, role]) =>
+        role === observation.observedProvider.role && pattern.test(question)
+    );
+    return (
+      normalizedQuestion.includes(providerName) ||
+      Boolean(firstName && normalizedQuestion.includes(firstName)) ||
+      roleMatch
+    );
+  });
+
+  return providerMatches.length ? providerMatches : observations;
+}
+
+function fieldObservationEvidence(
+  observation: InsightFieldObservation,
+  value: string
+): NonNullable<InsightResult["evidence"]>[number] {
+  return {
+    label: `${observation.observedProvider.name} Field Observation`,
+    value,
+    date: observation.observedAt,
+    sourceId: observation.id,
+  };
+}
+
+function fieldObservationSummaryValue(observation: InsightFieldObservation) {
+  const parts = [
+    `${observation.fidelityPercent}% fidelity across ${observation.applicableItemCount} applicable criteria`,
+    observation.strengths ? `Strengths: ${observation.strengths}` : null,
+    observation.coachingFocus
+      ? `Coaching focus: ${observation.coachingFocus}`
+      : null,
+    observation.followUp ? `Follow-up: ${observation.followUp}` : null,
+  ];
+  return parts.filter((part): part is string => Boolean(part)).join("; ");
+}
+
+function buildFieldObservationInsight(
+  context: InsightContext,
+  question: string,
+  category: "overview" | "providers" | "documentation"
+): InsightResult | null {
+  if (!FIELD_OBSERVATION_QUESTION.test(question)) return null;
+
+  const observations = fieldObservationsForQuestion(context, question);
+  const limitations = [
+    "Field Observations document specific observed sessions and should be reviewed by a supervisor; they do not independently establish employment, disciplinary, competency, or personnel conclusions.",
+  ];
+
+  if (observations.length === 0) {
+    return {
+      category,
+      headline: "Field Observations",
+      summary:
+        "No Field Observations are available for this client. Provider performance cannot be inferred from unrelated notes or documentation.",
+      supportingData: { sessions: 0 },
+      evidence: [],
+      limitations,
+    };
+  }
+
+  const asksStrengths = /\bstrengths?\b/i.test(question);
+  if (asksStrengths) {
+    const withStrengths = observations.filter((observation) =>
+      Boolean(observation.strengths?.trim())
+    );
+    return {
+      category,
+      headline: "Documented Field Observation strengths",
+      summary: withStrengths.length
+        ? `${withStrengths.length} Field Observation${withStrengths.length === 1 ? " includes" : "s include"} documented strengths. ${withStrengths
+            .slice(0, 3)
+            .map(
+              (observation) =>
+                `${observation.observedProvider.name}: ${observation.strengths}`
+            )
+            .join(" ")}`
+        : "Field Observations exist for this client, but no strengths were documented in the matching records.",
+      supportingData: { sessions: observations.length },
+      evidence: withStrengths.slice(0, 6).map((observation) =>
+        fieldObservationEvidence(
+          observation,
+          observation.strengths ?? "No strengths documented"
+        )
+      ),
+      limitations,
+    };
+  }
+
+  const asksCoachingCriteria =
+    /\b(rubric|criteria|criterion|recurr|coaching (?:need|needs|focus))\b/i.test(
+      question
+    );
+  if (asksCoachingCriteria) {
+    const coachingRatings = new Set([
+      "PARTIALLY_IMPLEMENTED",
+      "NOT_IMPLEMENTED",
+    ]);
+    const criterionCounts = new Map<
+      string,
+      { label: string; count: number; notes: string[] }
+    >();
+
+    for (const observation of observations) {
+      for (const item of observation.items) {
+        if (!coachingRatings.has(item.rating)) continue;
+        const current = criterionCounts.get(item.criterionKey) ?? {
+          label: item.criterionLabel,
+          count: 0,
+          notes: [],
+        };
+        current.count += 1;
+        if (item.note?.trim()) current.notes.push(item.note.trim());
+        criterionCounts.set(item.criterionKey, current);
+      }
+    }
+
+    const coachingCriteria = [...criterionCounts.values()].sort(
+      (left, right) => right.count - left.count || left.label.localeCompare(right.label)
+    );
+    const recurring = coachingCriteria.filter((criterion) => criterion.count > 1);
+    const reported = recurring.length ? recurring : coachingCriteria;
+    const reportedLabels = new Set(reported.map((criterion) => criterion.label));
+
+    return {
+      category,
+      headline: recurring.length
+        ? "Recurring Field Observation coaching criteria"
+        : "Field Observation coaching criteria",
+      summary: reported.length
+        ? `${recurring.length ? "Recurring" : "Documented"} coaching needs appear in ${reported
+            .slice(0, 6)
+            .map(
+              (criterion) =>
+                `${criterion.label} (${criterion.count} observation${criterion.count === 1 ? "" : "s"})`
+            )
+            .join(", ")}.`
+        : "No partially implemented or not implemented rubric criteria were found in the matching Field Observations.",
+      supportingData: { sessions: observations.length },
+      evidence: observations
+        .filter((observation) =>
+          observation.items.some((item) =>
+            reportedLabels.has(item.criterionLabel)
+          )
+        )
+        .slice(0, 6)
+        .map((observation) =>
+          fieldObservationEvidence(
+            observation,
+            observation.items
+              .filter((item) => reportedLabels.has(item.criterionLabel))
+              .map(
+                (item) =>
+                  `${item.criterionLabel}: ${humanizeValue(item.rating.toLowerCase())}${item.note ? ` — ${item.note}` : ""}`
+              )
+              .join("; ")
+          )
+        ),
+      limitations,
+    };
+  }
+
+  const asksFidelityChange =
+    /\b(fidelity|trend|changed?|increase|decrease|improv|declin)\b/i.test(question);
+  if (asksFidelityChange) {
+    const byProvider = new Map<string, InsightFieldObservation[]>();
+    for (const observation of observations) {
+      const existing = byProvider.get(observation.observedProvider.id) ?? [];
+      existing.push(observation);
+      byProvider.set(observation.observedProvider.id, existing);
+    }
+    const comparisons = [...byProvider.values()]
+      .filter((records) => records.length >= 2)
+      .map((records) => {
+        const newest = records[0];
+        const oldest = records[records.length - 1];
+        const change = newest.fidelityPercent - oldest.fidelityPercent;
+        const direction = change > 0 ? "increased" : change < 0 ? "decreased" : "was unchanged";
+        return { newest, oldest, change, direction };
+      });
+
+    return {
+      category,
+      headline: "Field Observation fidelity",
+      summary: comparisons.length
+        ? comparisons
+            .map(
+              ({ newest, oldest, change, direction }) =>
+                `${newest.observedProvider.name}'s documented fidelity ${direction} from ${oldest.fidelityPercent}% to ${newest.fidelityPercent}%${change === 0 ? "" : ` (${change > 0 ? "+" : ""}${change} points)`}.`
+            )
+            .join(" ")
+        : "At least two Field Observations for the same provider are required to describe a fidelity change.",
+      trend:
+        comparisons.length === 1
+          ? comparisons[0].change > 0
+            ? "up"
+            : comparisons[0].change < 0
+              ? "down"
+              : "flat"
+          : undefined,
+      supportingData: { sessions: observations.length },
+      evidence: (comparisons.length
+        ? comparisons.flatMap(({ newest, oldest }) => [newest, oldest])
+        : observations.slice(0, 1)
+      )
+        .filter(
+          (observation, index, records) =>
+            records.findIndex((candidate) => candidate.id === observation.id) === index
+        )
+        .slice(0, 8)
+        .map((observation) =>
+          fieldObservationEvidence(
+            observation,
+            `${observation.fidelityPercent}% fidelity across ${observation.applicableItemCount} applicable criteria`
+          )
+        ),
+      limitations,
+    };
+  }
+
+  const newest = observations[0];
+  return {
+    category,
+    headline:
+      observations.length === 1
+        ? "Recent Field Observation"
+        : "Recent Field Observations",
+    summary: `${observations.length} matching Field Observation${observations.length === 1 ? " is" : "s are"} available. The most recent observed ${newest.observedProvider.name} at ${newest.fidelityPercent}% fidelity on ${formatClinicalDateTime(newest.observedAt)}.`,
+    supportingData: { sessions: observations.length },
+    evidence: observations
+      .slice(0, 6)
+      .map((observation) =>
+        fieldObservationEvidence(
+          observation,
+          fieldObservationSummaryValue(observation)
+        )
+      ),
+    limitations,
   };
 }
 

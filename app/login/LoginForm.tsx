@@ -8,9 +8,10 @@ import { useActionState } from "react";
 type Props = {
   googleEnabled: boolean;
   oauthError: string | null;
+  inviteToken?: string;
 };
 
-export default function LoginForm({ googleEnabled, oauthError }: Props) {
+export default function LoginForm({ googleEnabled, oauthError, inviteToken }: Props) {
   const [state, formAction, isPending] = useActionState(loginProvider, {
     error: null,
   });
@@ -21,6 +22,9 @@ export default function LoginForm({ googleEnabled, oauthError }: Props) {
         {oauthError && <p className="auth-error">{oauthError}</p>}
 
         <form action={formAction} className="auth-form">
+          {inviteToken ? (
+            <input type="hidden" name="inviteToken" value={inviteToken} />
+          ) : null}
           {state.error && <p className="auth-error">{state.error}</p>}
 
           <div className="auth-field">
@@ -52,10 +56,18 @@ export default function LoginForm({ googleEnabled, oauthError }: Props) {
 
         {googleEnabled && <div className="auth-separator">or</div>}
 
-        <OAuthButtons mode="login" googleEnabled={googleEnabled} />
+        <OAuthButtons
+          mode="login"
+          googleEnabled={googleEnabled}
+          inviteToken={inviteToken}
+        />
 
         <div className="auth-link-row">
-          Need an account? <Link href="/create-account">Create Account</Link>
+          Need an account?{
+            " "
+          }<Link href={inviteToken ? `/create-account?invite=${encodeURIComponent(inviteToken)}` : "/create-account"}>
+            Create Account
+          </Link>
         </div>
       </div>
     </section>

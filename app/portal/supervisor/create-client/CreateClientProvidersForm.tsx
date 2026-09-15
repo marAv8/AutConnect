@@ -2,34 +2,48 @@
 
 import { ContextualHelp } from "@/components/ContextualHelp";
 import { formatAssignmentRole } from "@/app/libs/roles";
+import { formatProviderDisplayName } from "@/app/libs/providerDisplayName";
 import { useMemo, useRef, useState } from "react";
+import AdministrativeCarousel from "@/app/components/administrative/AdministrativeCarousel";
+import AdministrativeSubmitButton from "@/app/components/administrative/AdministrativeSubmitButton";
 
 type ProviderRow = {
   id: string;
   firstName: string;
   lastName: string;
   role: string;
+  organizationIds: string[];
+};
+
+type OrganizationRow = {
+  id: string;
+  name: string;
+  type: "AGENCY" | "SCHOOL" | "DISTRICT" | "INDEPENDENT";
 };
 
 type Props = {
   onSubmit: (formData: FormData) => void | Promise<void>;
   providers: ProviderRow[];
+  organizations: OrganizationRow[];
   roleOrder: string[];
 };
 
 export default function CreateClientProvidersForm({
   onSubmit,
   providers,
+  organizations,
   roleOrder,
 }: Props) {
   const [fullName, setFullName] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [receivesPrescribedMedication, setReceivesPrescribedMedication] =
     useState(false);
-  const [agencyName, setAgencyName] = useState("");
+  const [organizationId, setOrganizationId] = useState(
+    organizations.length === 1 ? organizations[0].id : ""
+  );
   const [agencyIds, setAgencyIds] = useState<string[]>([]);
   const [agencyWarning, setAgencyWarning] = useState("");
-  const agencyInputRef = useRef<HTMLInputElement>(null);
+  const organizationSelectRef = useRef<HTMLSelectElement>(null);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
@@ -39,11 +53,19 @@ export default function CreateClientProvidersForm({
       map.set(role, []);
     }
     for (const provider of providers) {
+      if (!organizationId || !provider.organizationIds.includes(organizationId)) {
+        continue;
+      }
       if (!map.has(provider.role)) continue;
       map.get(provider.role)?.push(provider);
     }
     return map;
-  }, [providers, roleOrder]);
+  }, [organizationId, providers, roleOrder]);
+
+  const organizationTypeLabel = (type: OrganizationRow["type"]) => {
+    if (type === "INDEPENDENT") return "Independent practice";
+    return `${type[0]}${type.slice(1).toLowerCase()}`;
+  };
 
   const toggleProvider = (providerId: string, checked: boolean) => {
     if (!checked) {
@@ -60,23 +82,23 @@ export default function CreateClientProvidersForm({
     });
   };
 
+  const selectedOrganization = organizations.find(({ id }) => id === organizationId);
+  const selectedProviders = providers.filter(({ id }) => selectedSet.has(id));
+
   return (
     <form
       action={onSubmit}
       className="provider-assignment-form"
-      style={{ height: "100%" }}
       onSubmit={(event) => {
-        if (agencyIds.length > 0 && !agencyName.trim()) {
+        if (!organizationId) {
           event.preventDefault();
           setAgencyWarning(
-            "Enter the responsible agency name before creating this client."
+            "Select the responsible organization before creating this client."
           );
-          agencyInputRef.current?.focus();
+          organizationSelectRef.current?.focus();
         }
       }}
     >
-      <input type="hidden" name="fullName" value={fullName} />
-      <input type="hidden" name="agencyName" value={agencyName} />
       <input
         type="hidden"
         name="receivesPrescribedMedication"
@@ -99,24 +121,18 @@ export default function CreateClientProvidersForm({
         />
       ))}
 
-      <div
-        className="provider-assignment-layout"
-        style={{
-          height: "100%",
-          overflowY: "auto",
-          paddingRight: 10,
-          boxSizing: "border-box",
-          display: "grid",
-          gridTemplateColumns: "300px 1fr",
-          gap: 28,
-          alignItems: "start",
-        }}
-      >
-        <section className="client-info-zone" style={{ display: "grid", gap: 10 }}>
-          <div className="client-details-zone" style={{ display: "grid", gap: 10 }}>
+      <AdministrativeCarousel
+        ariaLabel="Add Client"
+        cards={[
+          {
+            id: "client-details",
+            label: "Client Details",
+            content: (
+              <div className="client-details-zone" style={{ display: "grid", gap: 16 }}>
             <label style={{ display: "grid", gap: 8, marginBottom: 4 }}>
               <span className="provider-assignment-heading">Client full name</span>
               <input
+                name="fullName"
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
                 required
@@ -162,32 +178,53 @@ export default function CreateClientProvidersForm({
                 </label>
               </fieldset>
             </section>
-
+              </div>
+            ),
+          },
+          {
+            id: "responsible-organization",
+            label: "Responsible Organization",
+            content: (
             <section style={{ display: "grid", gap: 8, marginBottom: 8 }}>
               <ContextualHelp
                 label={
                   <span className="provider-assignment-heading">
-                    Responsible agency
+                    Responsible organization
                   </span>
                 }
-                title="Responsible agency"
-                explanation="Case Support is available only between providers marked as belonging to this agency for this client."
+                title="Responsible organization"
+                explanation="Choose the approved agency, school, district, or independent practice responsible for this client. Only that organization's active providers can be assigned."
               />
-              <input
-                ref={agencyInputRef}
-                aria-label="Responsible agency"
+              <select
+                ref={organizationSelectRef}
+                name="organizationId"
+                aria-label="Responsible organization"
                 aria-invalid={agencyWarning ? "true" : undefined}
                 aria-describedby={
                   agencyWarning ? "create-client-agency-warning" : undefined
                 }
-                value={agencyName}
+                value={organizationId}
                 onChange={(event) => {
-                  setAgencyName(event.target.value);
-                  if (event.target.value.trim()) setAgencyWarning("");
+                  setOrganizationId(event.target.value);
+                  setSelectedIds([]);
+                  setAgencyIds([]);
+                  if (event.target.value) setAgencyWarning("");
                 }}
-                placeholder="Agency name"
+                required
                 style={{ padding: "10px 12px" }}
-              />
+              >
+                <option value="">Select organization</option>
+                {organizations.map((organization) => (
+                  <option key={organization.id} value={organization.id}>
+                    {organization.name} — {organizationTypeLabel(organization.type)}
+                  </option>
+                ))}
+              </select>
+              {organizations.length === 0 ? (
+                <div style={{ color: "var(--muted-foreground)", fontSize: 13 }}>
+                  No approved organization is available for this account.
+                </div>
+              ) : null}
               {agencyWarning ? (
                 <div
                   id="create-client-agency-warning"
@@ -203,33 +240,14 @@ export default function CreateClientProvidersForm({
                 </div>
               ) : null}
             </section>
-          </div>
-
-          <div className="provider-form-actions" style={{ marginTop: 22 }}>
-            <button
-              type="submit"
-              className="material-control action-positive"
-              style={{
-                borderRadius: 13,
-                minHeight: 42,
-                padding: "10px 16px",
-                cursor: "pointer",
-                fontWeight: 600,
-              }}
-            >
-              Create Client
-            </button>
-          </div>
-        </section>
-
-        <section
-          className="provider-selection-zone"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(260px, 1fr))",
-            gap: 24,
-          }}
-        >
+            ),
+          },
+          {
+            id: "initial-providers",
+            label: "Initial Providers",
+            content: (
+        <section className="provider-selection-zone" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 24 }}>
+          {!organizationId ? <p className="form-helper-text">Select the responsible organization before choosing Providers.</p> : null}
           {roleOrder.map((role) => {
             const roleProviders = grouped.get(role) ?? [];
             if (roleProviders.length === 0) return null;
@@ -264,7 +282,10 @@ export default function CreateClientProvidersForm({
                             }
                           />
                           <span>
-                            {provider.firstName} {provider.lastName}
+                            {formatProviderDisplayName(
+                              provider.firstName,
+                              provider.lastName
+                            )}
                           </span>
                         </label>
 
@@ -300,7 +321,23 @@ export default function CreateClientProvidersForm({
             );
           })}
         </section>
-      </div>
+            ),
+          },
+          {
+            id: "review-create",
+            label: "Review and Create",
+            content: (
+              <div style={{ display: "grid", gap: 16 }}>
+                <p><strong>Client:</strong> {fullName || "Not entered"}</p>
+                <p><strong>Prescribed medication:</strong> {receivesPrescribedMedication ? "Yes" : "No"}</p>
+                <p><strong>Responsible organization:</strong> {selectedOrganization?.name ?? "Not selected"}</p>
+                <div><strong>Initial Providers:</strong>{selectedProviders.length ? <ul>{selectedProviders.map((provider) => <li key={provider.id}>{formatProviderDisplayName(provider.firstName, provider.lastName)} — {formatAssignmentRole(provider.role)}</li>)}</ul> : <p className="form-helper-text">No initial Providers selected.</p>}</div>
+                <AdministrativeSubmitButton pendingLabel="Creating…" disabled={organizations.length === 0 || !organizationId || !fullName.trim()}>Create Client</AdministrativeSubmitButton>
+              </div>
+            ),
+          },
+        ]}
+      />
     </form>
   );
 }

@@ -9,6 +9,7 @@ import type {
   SignalEntry,
   SignalSemanticEvidence,
 } from "./types";
+import { redactMedicationNote } from "@/app/libs/caregiverMedicationPrivacy";
 
 const HISTORY_DAYS = 365;
 
@@ -23,7 +24,7 @@ export async function buildDashboardClientSignals(input: {
   const historyStart = new Date(currentSessionStart);
   historyStart.setDate(historyStart.getDate() - HISTORY_DAYS);
 
-  const [records, requests, teamFocusRecords] = await Promise.all([
+  const [records, teamFocusRecords] = await Promise.all([
     db.entry.findMany({
       where: {
         clientId: { in: input.clientIds },
@@ -36,6 +37,7 @@ export async function buildDashboardClientSignals(input: {
         id: true,
         clientId: true,
         providerId: true,
+        kind: true,
         date: true,
         note: true,
         client: { select: { firstName: true, lastName: true } },
@@ -61,22 +63,6 @@ export async function buildDashboardClientSignals(input: {
         abcObservations: {
           select: { antecedent: true, behavior: true, consequence: true },
         },
-      },
-    }),
-    db.caseSupportRequest.findMany({
-      where: {
-        clientId: { in: input.clientIds },
-        createdAt: { lt: currentSessionStart },
-      },
-      select: {
-        id: true,
-        clientId: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        concern: true,
-        requestedSupport: true,
-        linkedCase: { select: { status: true } },
       },
     }),
     db.teamFocus.findMany({
@@ -105,7 +91,10 @@ export async function buildDashboardClientSignals(input: {
       providerId: record.providerId,
       providerRole: record.provider.role,
       date: record.date,
-      note: record.note,
+      note:
+        record.kind === "MorningContext" || record.kind === "EveningContext"
+          ? redactMedicationNote(record.note)
+          : record.note,
       items: record.items.map((item) => ({
         goalId: item.goalId,
         target: item.target,
@@ -186,12 +175,6 @@ export async function buildDashboardClientSignals(input: {
       const signal = evaluateClientSignalGateway({
         targetSessionDate,
         entries: entriesByClient.get(clientId) ?? [],
-        caseRequests: requests
-          .filter((request) => request.clientId === clientId)
-          .map((request) => ({
-            ...request,
-            linkedCaseStatus: request.linkedCase?.status ?? null,
-          })),
         teamFocus: latestTeamFocus.get(clientId) ?? null,
         semanticEvidence: semanticsByClient.get(clientId) ?? [],
       });

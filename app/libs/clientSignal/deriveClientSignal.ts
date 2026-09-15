@@ -1,7 +1,6 @@
 import type {
   ClientSignalEvidence,
   ClientSignalSnapshot,
-  SignalCaseRequest,
   SignalEntry,
 } from "./types";
 
@@ -11,7 +10,6 @@ const HISTORY_LOOKBACK_DAYS = 42;
 
 export function deriveClientSignal(input: {
   entries: SignalEntry[];
-  caseRequests?: SignalCaseRequest[];
   now?: Date;
   signalWindow?: { start: Date; end: Date };
 }): ClientSignalSnapshot {
@@ -37,27 +35,6 @@ export function deriveClientSignal(input: {
         evidenceForEntry(entry, "Sustained serious pattern documented")
       ),
       ttlDays: 1,
-    });
-  }
-
-  const activeRequest = (input.caseRequests ?? [])
-    .filter((request) => ["REQUESTED", "ACKNOWLEDGED"].includes(request.status))
-    .filter((request) =>
-      toDate(request.updatedAt) >= signalStart && toDate(request.updatedAt) < signalEnd
-    )
-    .sort((first, second) => toDate(second.updatedAt).getTime() - toDate(first.updatedAt).getTime())[0];
-  if (activeRequest) {
-    return snapshot({
-      color: "amber",
-      reason: "active_support_review",
-      explanation:
-        "A recent support request is awaiting a documented response or coordinated plan.",
-      confidence: "high",
-      evidence: [{
-        observedAt: toDate(activeRequest.updatedAt).toISOString(),
-        label: "Active Case Support request",
-      }],
-      ttlDays: 3,
     });
   }
 

@@ -27,10 +27,13 @@ function item(overrides = {}) {
     goalId: overrides.goalId ?? "goal-1",
     target: overrides.target ?? "Transitions",
     goal: overrides.goal ?? "Move between scheduled activities",
-    score: overrides.score ?? 2,
+    score: Object.prototype.hasOwnProperty.call(overrides, "score")
+      ? overrides.score
+      : 2,
     rawValue: overrides.rawValue ?? null,
     metricType: overrides.metricType ?? "Subjective",
     measurementProfile: overrides.measurementProfile ?? "PromptLevel",
+    comparison: overrides.comparison ?? null,
     observation: overrides.observation ?? null,
   };
 }
@@ -51,7 +54,6 @@ function evaluate(entries, overrides = {}) {
   return evaluateClientSignalGateway({
     entries,
     targetSessionDate: overrides.targetSessionDate ?? "2026-08-03",
-    caseRequests: overrides.caseRequests ?? [],
     teamFocus: overrides.teamFocus ?? null,
     semanticEvidence: overrides.semanticEvidence ?? [],
   });
@@ -99,6 +101,31 @@ test("an unusually positive session with reproducible context is blue", () => {
       date: "2026-08-03T12:00:00",
       note: "A visual schedule and preferred puzzle helped the client engage independently.",
       items: [item({ score: 4 })],
+    }),
+  ]);
+  assert.equal(result.color, "blue");
+  assert.equal(result.reason, "unusually_positive_session");
+});
+
+test("an increasing higher-is-better strength can become a positive outlier", () => {
+  const strength = (rawValue) => item({
+    goalId: "goal-self-advocacy",
+    target: "Self-Advocacy",
+    goal: "Communicates a need or boundary when it arises.",
+    score: null,
+    rawValue,
+    metricType: "Frequency",
+    measurementProfile: "Frequency",
+    comparison: "GreaterThan",
+  });
+  const result = evaluate([
+    entry({ id: "strength-1", date: "2026-07-20T12:00:00", items: [strength(1)] }),
+    entry({ id: "strength-2", date: "2026-07-27T12:00:00", items: [strength(1)] }),
+    entry({
+      id: "strength-outlier",
+      date: "2026-08-03T12:00:00",
+      note: "The client independently communicated a need during the activity.",
+      items: [strength(3)],
     }),
   ]);
   assert.equal(result.color, "blue");
@@ -158,41 +185,49 @@ test("corroborated destructive or aggressive behavior across providers is red", 
   assert.equal(result.reason, "corroborated_serious_behavior_pattern");
 });
 
-test("an active Case Support request is amber without serious behavior", () => {
-  const result = evaluate(
-    [entry({ id: "routine-with-case", date: "2026-08-03T12:00:00" })],
-    {
-      caseRequests: [{
-        id: "request-1",
-        status: "CASE_OPENED",
-        createdAt: "2026-08-03T08:00:00",
-        updatedAt: "2026-08-03T08:00:00",
-        concern: "Classroom integration needs review.",
-        requestedSupport: "Coordinate a classroom schedule.",
-        linkedCaseStatus: "OPEN",
-      }],
-    }
-  );
-  assert.equal(result.color, "amber");
-  assert.equal(result.reason, "active_support_review");
+test("an active Case Support request does not affect a routine client signal", () => {
+  const result = evaluateClientSignalGateway({
+    entries: [entry({ id: "routine-with-case", date: "2026-08-03T12:00:00" })],
+    targetSessionDate: "2026-08-03",
+    caseRequests: [{
+      id: "request-1",
+      status: "CASE_OPENED",
+      createdAt: "2026-08-03T08:00:00",
+      updatedAt: "2026-08-03T08:00:00",
+      concern: "Classroom integration needs review.",
+      requestedSupport: "Coordinate a classroom schedule.",
+      linkedCaseStatus: "OPEN",
+    }],
+  });
+  assert.equal(result.color, "neutral");
+  assert.equal(result.reason, "routine_session_baseline");
 });
 
-test("a resolved linked case no longer keeps the badge amber", () => {
-  const result = evaluate(
-    [entry({ id: "routine-after-resolution", date: "2026-08-03T12:00:00" })],
-    {
-      caseRequests: [{
-        id: "resolved-request",
-        status: "CASE_OPENED",
-        createdAt: "2026-07-20T08:00:00",
-        updatedAt: "2026-08-02T08:00:00",
-        concern: "Classroom integration needed review.",
-        requestedSupport: "Coordinate a classroom schedule.",
-        linkedCaseStatus: "RESOLVED",
-      }],
-    }
-  );
-  assert.equal(result.color, "neutral");
+test("an active Case Support request cannot override a blue client signal", () => {
+  const result = evaluateClientSignalGateway({
+    entries: [
+      entry({ id: "prior-1", date: "2026-07-20T12:00:00", items: [item({ score: 1 })] }),
+      entry({ id: "prior-2", date: "2026-07-27T12:00:00", items: [item({ score: 1 })] }),
+      entry({
+        id: "positive-with-case",
+        date: "2026-08-03T12:00:00",
+        note: "A visual schedule helped the client participate independently.",
+        items: [item({ score: 4 })],
+      }),
+    ],
+    targetSessionDate: "2026-08-03",
+    caseRequests: [{
+      id: "request-1",
+      status: "CASE_OPENED",
+      createdAt: "2026-08-03T08:00:00",
+      updatedAt: "2026-08-03T08:00:00",
+      concern: "Classroom integration needs review.",
+      requestedSupport: "Coordinate a classroom schedule.",
+      linkedCaseStatus: "OPEN",
+    }],
+  });
+  assert.equal(result.color, "blue");
+  assert.equal(result.reason, "unusually_positive_session");
 });
 
 test("new independent functional communication is blue", () => {

@@ -7,74 +7,36 @@
  */
 
 import Link from "next/link";
-import type { CSSProperties, RefObject } from "react";
+import { useEffect, useState, type CSSProperties, type RefObject } from "react";
 import ThemeToggle from "@/app/components/ThemeToggle";
+import DashboardActionSurface from "./DashboardActionSurface";
+import TeamFocusSignalControl from "./TeamFocusSignalControl";
+import DashboardInboxControl from "./DashboardInboxControl";
+import type { DashboardTeamFocus } from "./dashboardClientTypes";
+import type { AdministrativePresentationCapabilities } from "./administrativeCapabilities";
+import { runCareTeamLinkNavigation } from "./dashboardNavigation";
+import {
+  traceDashboardInteractionHandled,
+  traceDashboardInteractionState,
+} from "./dashboardInteractionTraceClient";
 
 type Props = {
-  mode: "grid" | "orbit";
+  mode: "grid" | "orbit" | "add" | "remove";
   menuOpen: boolean;
+  administrativeCapabilities: AdministrativePresentationCapabilities;
+  newCaseSupportRequestCount: number;
+  pendingOrganizationInvitationCount: number;
   activeClientId?: string;
   menuRef: RefObject<HTMLDivElement | null>;
+  triggerRef: RefObject<HTMLButtonElement | null>;
   onToggle: () => void;
   onClose: () => void;
-  onOpenLinkClient: () => void;
+  onOpenCareTeam: (clientId: string) => void;
   onOpenRemoveClient: () => void;
   onOpenInsights: () => void;
   onOpenGuide: () => void;
-};
-
-const menuStackStyle: CSSProperties = {
-  position: "relative",
-  display: "flex",
-  alignItems: "center",
-  gap: 12,
-  width: "auto",
-  height: 52,
-};
-
-const menuPanelStyle: CSSProperties = {
-  position: "absolute",
-  left: 0,
-  bottom: "calc(100% + 16px)",
-  display: "grid",
-  gap: 12,
-  minWidth: 154,
-  padding: 0,
-  justifyItems: "center",
-  background: "transparent",
-  border: "none",
-  boxShadow: "none",
-};
-
-const menuActionStyle: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: "100%",
-  minHeight: 44,
-  textAlign: "center",
-  textDecoration: "none",
-  padding: "0 16px",
-  cursor: "pointer",
-  fontSize: 13,
-  fontWeight: 650,
-};
-
-const menuButtonStyle: CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: 52,
-  height: 52,
-  borderRadius: "50%",
-  border: "1px solid rgb(35 45 55 / 14%)",
-  background: "var(--note-neo-surface)",
-  color: "var(--foreground)",
-  fontSize: 24,
-  lineHeight: 1,
-  cursor: "pointer",
-  boxShadow:
-    "0 1px 2px rgb(35 45 55 / 9%), 0 6px 14px rgb(35 45 55 / 11%), inset 0 1px 0 rgb(255 255 255 / 92%)",
+  currentProviderId: string;
+  activeTeamFocus?: DashboardTeamFocus;
 };
 
 const menuDotRowStyle: CSSProperties = {
@@ -96,88 +58,201 @@ const menuDotStyle: CSSProperties = {
 export default function SupervisorDashboardMenu({
   mode,
   menuOpen,
+  administrativeCapabilities,
+  newCaseSupportRequestCount,
+  pendingOrganizationInvitationCount,
   activeClientId,
   menuRef,
+  triggerRef,
   onToggle,
   onClose,
-  onOpenLinkClient,
+  onOpenCareTeam,
   onOpenRemoveClient,
   onOpenInsights,
   onOpenGuide,
+  currentProviderId,
+  activeTeamFocus,
 }: Props) {
+  const [clientAdministrationOpen, setClientAdministrationOpen] =
+    useState(false);
+  const hasClientAdministration =
+    administrativeCapabilities.canAddClient ||
+    administrativeCapabilities.canAttachExistingClient ||
+    administrativeCapabilities.removableClientIds.length > 0;
+
+  const closeMenu = () => {
+    setClientAdministrationOpen(false);
+    onClose();
+  };
+  const toggleMenu = () => {
+    traceDashboardInteractionHandled("more");
+    setClientAdministrationOpen(false);
+    onToggle();
+  };
+
+  useEffect(() => {
+    traceDashboardInteractionState(menuOpen ? "menu-open" : "menu-closed");
+  }, [menuOpen]);
+
   return (
-    <div ref={menuRef} style={menuStackStyle}>
+    <div className="dashboard-utility-controls">
       {menuOpen ? (
-        <div className="dashboard-more-menu" style={menuPanelStyle}>
-          {mode === "grid" ? (
+        <DashboardActionSurface
+          id="supervisor-dashboard-more-menu"
+          label="Dashboard actions"
+          menuRef={menuRef}
+          onDismiss={closeMenu}
+        >
+          {mode !== "orbit" ? (
             <>
-              <Link
-                href="/portal/supervisor/create-client"
-                className="soft-link dashboard-menu-action action-positive"
-                style={menuActionStyle}
-              >
-                Add Client
-              </Link>
+              {hasClientAdministration ? (
+                <button
+                  type="button"
+                  className="dashboard-action-row dashboard-menu-disclosure-trigger"
+                  aria-expanded={clientAdministrationOpen}
+                  aria-controls="supervisor-client-administration-menu"
+                  onClick={() =>
+                    setClientAdministrationOpen((isOpen) => !isOpen)
+                  }
+                >
+                  Client Administration
+                </button>
+              ) : null}
+              {clientAdministrationOpen ? (
+                <div
+                  id="supervisor-client-administration-menu"
+                  className="dashboard-menu-disclosure"
+                >
+                  {administrativeCapabilities.canAddClient ? (
+                    <Link
+                      href="/portal/supervisor/create-client"
+                      onClick={closeMenu}
+                      className="soft-link dashboard-action-row dashboard-action-row--child"
+                    >
+                      Add Client
+                    </Link>
+                  ) : null}
+                  {administrativeCapabilities.canAttachExistingClient ? (
+                    <Link
+                      href="/portal/organization/attach-client"
+                      onClick={closeMenu}
+                      className="soft-link dashboard-action-row dashboard-action-row--child"
+                    >
+                      Attach Existing Client
+                    </Link>
+                  ) : null}
+                  {mode !== "remove" &&
+                  administrativeCapabilities.removableClientIds.length > 0 ? (
+                    <button
+                      type="button"
+                      className="dashboard-action-row dashboard-action-row--child dashboard-action-row--destructive"
+                      onClick={() => {
+                        setClientAdministrationOpen(false);
+                        onOpenRemoveClient();
+                      }}
+                    >
+                      Remove Client
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+              {administrativeCapabilities.canInviteTeam ? (
+                <Link
+                  href="/portal/supervisor/invitations"
+                  onClick={closeMenu}
+                  className="soft-link dashboard-action-row"
+                >
+                  Invite Team
+                </Link>
+              ) : null}
+              {administrativeCapabilities.canAccessPlatformAdministration ? (
+                <Link
+                  href="/platform"
+                  onClick={closeMenu}
+                  className="soft-link dashboard-action-row"
+                >
+                  Administration
+                </Link>
+              ) : null}
               <button
                 type="button"
-                className="dashboard-menu-action action-secondary"
-                onClick={onOpenLinkClient}
-                style={menuActionStyle}
-              >
-                Link Client
-              </button>
-              <button
-                type="button"
-                className="dashboard-menu-action dashboard-menu-action--destructive"
-                onClick={onOpenRemoveClient}
-                style={menuActionStyle}
-              >
-                Remove Client
-              </button>
-              <button
-                type="button"
-                className="dashboard-menu-action action-secondary"
+                className="dashboard-action-row"
                 onClick={onOpenGuide}
-                style={menuActionStyle}
               >
                 How AutConnect Works
               </button>
             </>
           ) : (
             <>
-              {activeClientId ? (
+              {administrativeCapabilities.canAccessPlatformAdministration ? (
+                <Link
+                  href="/platform"
+                  onClick={closeMenu}
+                  className="soft-link dashboard-action-row"
+                >
+                  Administration
+                </Link>
+              ) : null}
+              {activeClientId &&
+              administrativeCapabilities.careTeamClientIds.includes(
+                activeClientId
+              ) ? (
                 <Link
                   href={`/portal/supervisor/edit-providers/${activeClientId}`}
-                  onClick={onClose}
-                  className="soft-link dashboard-menu-action action-secondary"
-                  style={menuActionStyle}
+                  onClick={(event) => {
+                    runCareTeamLinkNavigation({
+                      event,
+                      clientId: activeClientId,
+                      closeMenu,
+                      navigate: () => onOpenCareTeam(activeClientId),
+                    });
+                  }}
+                  className="soft-link dashboard-action-row"
                 >
                   Care Team
                 </Link>
               ) : null}
               <button
                 type="button"
-                className="dashboard-menu-action action-secondary"
+                className="dashboard-action-row"
                 onClick={onOpenInsights}
-                style={menuActionStyle}
               >
                 Insights
               </button>
             </>
           )}
-        </div>
+        </DashboardActionSurface>
       ) : null}
       <button
+        ref={triggerRef}
         type="button"
         className="material-control more-icon-control dashboard-round-icon-control"
-        onClick={onToggle}
+        data-dashboard-trace-control="more"
+        onClick={toggleMenu}
         aria-expanded={menuOpen}
+        aria-controls="supervisor-dashboard-more-menu"
         aria-label="More"
-        style={menuButtonStyle}
       >
         <MenuDots />
       </button>
+      <DashboardInboxControl
+        canAccessCaseSupport
+        canReviewOrganizationInvitations={
+          administrativeCapabilities.canReviewOrganizationInvitations
+        }
+        caseSupportCount={newCaseSupportRequestCount}
+        organizationInvitationCount={pendingOrganizationInvitationCount}
+        onNavigate={closeMenu}
+      />
       <ThemeToggle />
+      {mode === "orbit" ? (
+        <TeamFocusSignalControl
+          clientId={activeClientId}
+          teamFocus={activeTeamFocus}
+          viewerProviderId={currentProviderId}
+          canEdit
+        />
+      ) : null}
     </div>
   );
 }

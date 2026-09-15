@@ -4,7 +4,13 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { AssessmentDomain, MetricType, Role } from "@prisma/client";
+import {
+  AssessmentDomain,
+  ComparisonType,
+  MetricType,
+  Role,
+} from "@prisma/client";
+import { getProfessionTemplate } from "@/app/libs/professionTemplates";
 
 const educatorMeasurementProfiles = [
   "Participation",
@@ -45,6 +51,24 @@ const schema = z.object({
   measurementProfile: z.enum(educatorMeasurementProfiles),
 });
 
+function targetSemantics(role: Role, target: string) {
+  const definition = getProfessionTemplate(role)?.targets.find(
+    (option) => option.value.toLowerCase() === target.toLowerCase()
+  );
+
+  return {
+    domain: definition?.defaultDomain
+      ? AssessmentDomain[definition.defaultDomain]
+      : AssessmentDomain.Other,
+    comparison:
+      definition?.direction === "higherIsBetter"
+        ? ComparisonType.GreaterThan
+        : definition?.direction === "lowerIsBetter"
+          ? ComparisonType.LessThan
+          : null,
+  };
+}
+
 const targetRoles: Role[] = [
   Role.BehaviorTherapist,
   Role.Educator,
@@ -73,6 +97,7 @@ export async function createEducatorTarget(formData: FormData) {
     where: {
       clientId: parsed.data.clientId,
       providerId: session.providerId,
+      revokedAt: null,
       role: { in: targetRoles },
     },
     select: {
@@ -84,6 +109,8 @@ export async function createEducatorTarget(formData: FormData) {
   if (!assignment || !targetRoles.includes(assignment.role)) {
     return { ok: false, reason: "forbidden" as const };
   }
+
+  const semantics = targetSemantics(assignment.role, parsed.data.target);
 
   const duplicate = await db.goalDefinition.findFirst({
     where: {
@@ -116,14 +143,8 @@ export async function createEducatorTarget(formData: FormData) {
       metricType: metricTypeForProfile(
         parsed.data.measurementProfile
       ),
-      domain:
-        assignment.role === "SpeechPathologist"
-          ? AssessmentDomain.Communication
-          : assignment.role === "OccupationalTherapist"
-          ? AssessmentDomain.Adaptive
-          : assignment.role === "BehaviorTherapist"
-          ? AssessmentDomain.Behavior
-          : AssessmentDomain.SkillAcquisition,
+      domain: semantics.domain,
+      comparison: semantics.comparison,
       measurementProfile: parsed.data.measurementProfile,
     },
     select: { id: true },
@@ -159,6 +180,7 @@ export async function updateEducatorTarget(formData: FormData) {
       clientId: parsed.data.clientId,
       providerId: session.providerId,
       role: { in: targetRoles },
+      revokedAt: null,
     },
     select: {
       id: true,
@@ -169,6 +191,8 @@ export async function updateEducatorTarget(formData: FormData) {
   if (!assignment || !targetRoles.includes(assignment.role)) {
     return { ok: false, reason: "forbidden" as const };
   }
+
+  const semantics = targetSemantics(assignment.role, parsed.data.target);
 
   const result = await db.goalDefinition.updateMany({
     where: {
@@ -184,14 +208,8 @@ export async function updateEducatorTarget(formData: FormData) {
       metricType: metricTypeForProfile(
         parsed.data.measurementProfile
       ),
-      domain:
-        assignment.role === "SpeechPathologist"
-          ? AssessmentDomain.Communication
-          : assignment.role === "OccupationalTherapist"
-          ? AssessmentDomain.Adaptive
-          : assignment.role === "BehaviorTherapist"
-          ? AssessmentDomain.Behavior
-          : AssessmentDomain.SkillAcquisition,
+      domain: semantics.domain,
+      ...(semantics.comparison ? { comparison: semantics.comparison } : {}),
       measurementProfile: parsed.data.measurementProfile,
     },
   });

@@ -1,10 +1,19 @@
-//app/portal/supervisor/edit-providers/[clientId]/page.tsx
 import { redirect } from "next/navigation";
+import { updateClientDetailsFromCareTeam } from "@/app/actions/manageSupervisorClients";
+import {
+  searchEligibleClientProviders,
+} from "@/app/actions/manageClientTeam";
+import AdministrativeCarousel from "@/app/components/administrative/AdministrativeCarousel";
+import { getManagedOrganizationIds, requireCurrentSupervisor } from "@/lib/authorization";
+import { hasActiveClientTeamManagerAuthority } from "@/lib/clientTeamAuthorization";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
-import { updateClientAssignments } from "@/app/actions/manageSupervisorClients";
+import ClientTeamPanel from "./ClientTeamPanel";
+import ClientAttachRequestPanel from "./ClientAttachRequestPanel";
+import CareTeamInfo from "./CareTeamInfo";
+import CareTeamBackControl from "./CareTeamBackControl";
 import EditClientProvidersForm from "./EditClientProvidersForm";
-import Link from "next/link";
+import styles from "./CareTeamPage.module.css";
 
 export default async function EditClientProvidersPage({
   params,
@@ -12,147 +21,172 @@ export default async function EditClientProvidersPage({
   params: Promise<{ clientId: string }>;
 }) {
   const session = await getSession();
-  if (!session || session.role !== "Supervisor") {
-    redirect("/login");
-  }
+  if (!session) redirect("/login");
+  await requireCurrentSupervisor();
 
   const { clientId } = await params;
-
-  const access = await db.providerClient.findFirst({
-    where: {
-      clientId,
-      providerId: session.providerId,
-    },
-    select: { id: true },
-  });
-
-  if (!access) {
-    redirect("/portal/supervisor/edit-providers");
+  if (!(await hasActiveClientTeamManagerAuthority(session.providerId, clientId))) {
+    redirect("/dashboard");
   }
 
   const client = await db.client.findUnique({
     where: { id: clientId },
     select: {
+      caseCode: true,
       firstName: true,
       lastName: true,
       receivesPrescribedMedication: true,
-    },
-  });
-  if (!client) {
-    redirect("/portal/supervisor/edit-providers");
-  }
-
-  const providers = await db.provider.findMany({
-    where: {
-      role: {
-        in: [
-          "Caregiver",
-          "OccupationalTherapist",
-          "SpeechPathologist",
-          "BehaviorTherapist",
-          "Educator",
-        ],
-      },
-    },
-    orderBy: { lastName: "asc" },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      role: true,
-    },
-  });
-
-  const assignments = await db.providerClient.findMany({
-    where: { clientId },
-    select: {
-      providerId: true,
-      role: true,
-      organizationId: true,
-      organization: {
+      clientOrganizations: {
+        orderBy: [{ role: "asc" }, { requestedAt: "asc" }],
         select: {
-          name: true,
-          type: true,
+          id: true,
+          role: true,
+          status: true,
+          requestedAt: true,
+          revokedAt: true,
+          revocationReason: true,
+          organization: { select: { id: true, name: true, type: true } },
+        },
+      },
+      attachRequests: {
+        orderBy: { requestedAt: "desc" },
+        take: 50,
+        select: {
+          id: true,
+          status: true,
+          requestedAt: true,
+          decidedAt: true,
+          organization: { select: { name: true, type: true } },
+          requestedBy: { select: { firstName: true, lastName: true } },
         },
       },
     },
   });
+  if (!client) redirect("/dashboard");
 
-  const roleOrder = [
-    "Caregiver",
-    "BehaviorTherapist",
-    "Educator",
-    "SpeechPathologist",
-    "OccupationalTherapist",
-  ];
+  const activeOrganizations = client.clientOrganizations.filter(
+    (relationship) =>
+      relationship.status === "ACTIVE" && relationship.revokedAt === null
+  );
+  const [providerGroups, assignments] = await Promise.all([
+    Promise.all(
+      activeOrganizations.map(async (relationship) => ({
+        organization: relationship.organization,
+        providers: await searchEligibleClientProviders(
+          clientId,
+          relationship.organization.id,
+          ""
+        ),
+      }))
+    ),
+    db.providerClient.findMany({
+      where: { clientId, revokedAt: null, role: { not: "Supervisor" } },
+      orderBy: [{ role: "asc" }, { assignedAt: "asc" }],
+      take: 100,
+      select: {
+        id: true,
+        role: true,
+        provider: { select: { firstName: true, lastName: true } },
+        organization: { select: { id: true, name: true, type: true } },
+      },
+    }),
+  ]);
 
-  const assignedProviderIds = assignments
-    .filter((row) => row.role !== "Supervisor")
-    .map((row) => row.providerId);
-  const supervisorAgency = assignments.find(
-    (row) =>
-      row.providerId === session.providerId &&
-      row.role === "Supervisor" &&
-      row.organization?.type === "AGENCY"
-  )?.organization;
-  const agencyProviderIds = assignments
-    .filter(
-      (row) =>
-        row.role !== "Supervisor" &&
-        row.organizationId &&
-        row.organizationId ===
-          assignments.find(
-            (candidate) =>
-              candidate.providerId === session.providerId &&
-              candidate.role === "Supervisor"
-          )?.organizationId
+  const providerOptions = providerGroups
+    .flatMap(({ organization, providers }) =>
+      providers.map((provider) => ({ ...provider, organization }))
     )
-    .map((row) => row.providerId);
-  const HEADER_TO_LINK_GAP = 10;
-  const LINK_TO_CONTENT_GAP = 24;
+    .slice(0, 50);
+
+  const managedOrganizationIds = await getManagedOrganizationIds(session.providerId);
+  const pendingStaffInvitations = await db.organizationInvitation.findMany({
+    where: { organizationId: { in: activeOrganizations.map(({ organization }) => organization.id).filter(id => managedOrganizationIds.includes(id)) }, acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, email: true, providerRole: true, organization: { select: { name: true } } },
+  });
 
   return (
-    <main
-      className="provider-assignment-page"
-      style={{
-        padding: "0 32px 24px",
-        height: "calc(100vh - 110px)",
-        boxSizing: "border-box",
-      }}
-    >
-      <div style={{ marginTop: HEADER_TO_LINK_GAP, marginBottom: LINK_TO_CONTENT_GAP }}>
-        <Link href="/dashboard" className="back-link">
-          Client List
-        </Link>
-      </div>
-      <div
-        className="provider-assignment-page-content"
-        style={{ display: "flex", justifyContent: "center", height: "calc(100% - 58px)" }}
-      >
-        <div style={{ width: "100%", maxWidth: 1100, minHeight: 0 }}>
-          <div
-            className="paper-surface provider-assignment-panel"
-            style={{
-              width: "100%",
-              height: "100%",
-              padding: 28,
-              boxSizing: "border-box",
-              overflow: "hidden",
-            }}
-          >
-            <EditClientProvidersForm
-              clientId={clientId}
-              onSubmit={updateClientAssignments}
-              initialFullName={`${client.firstName} ${client.lastName}`}
-              initialReceivesPrescribedMedication={client.receivesPrescribedMedication}
-              providers={providers}
-              initiallyAssignedProviderIds={assignedProviderIds}
-              initialAgencyName={supervisorAgency?.name ?? ""}
-              initialAgencyProviderIds={agencyProviderIds}
-              roleOrder={roleOrder}
-            />
+    <main className={`provider-assignment-page ${styles.page}`}>
+      <div className={styles.container}>
+        <CareTeamBackControl clientId={clientId} />
+        <header className={styles.pageHeader}>
+          <div>
+            <p className={styles.eyebrow}>Client administration</p>
+            <h1>Care Team</h1>
+            <p className={styles.clientIdentity}>
+              {client.firstName} {client.lastName}
+              <span aria-hidden="true"> · </span>
+              <span className={styles.caseCode}>Case {client.caseCode}</span>
+              <CareTeamInfo label="About Client case codes">
+                Case codes identify a Client but do not grant access.
+              </CareTeamInfo>
+            </p>
           </div>
-        </div>
+        </header>
+
+        <AdministrativeCarousel
+          ariaLabel="Care Team administration"
+          navigationMode="sections"
+          cards={[
+            {
+              id: "client-details",
+              label: "Client Details",
+              content: (
+                <EditClientProvidersForm
+                  clientId={clientId}
+                  onSubmit={updateClientDetailsFromCareTeam}
+                  initialFullName={`${client.firstName} ${client.lastName}`}
+                  initialReceivesPrescribedMedication={client.receivesPrescribedMedication}
+                />
+              ),
+            },
+            {
+              id: "attach-requests",
+              label: "Attach Requests",
+              content: <ClientAttachRequestPanel requests={client.attachRequests} />,
+            },
+            {
+              id: "client-organizations",
+              label: "Client Organizations",
+              content: (
+                <ClientTeamPanel
+                  mode="organizations"
+                  clientId={clientId}
+                  caseCode={client.caseCode}
+                  relationships={client.clientOrganizations}
+                  organizationQuery=""
+                  organizationSearchSubmitted={false}
+                  organizationSearchTooShort={false}
+                  organizationResults={[]}
+                  providerQuery=""
+                  providerOptions={providerOptions}
+                  assignments={assignments}
+                  pendingStaffInvitations={pendingStaffInvitations}
+                />
+              ),
+            },
+            {
+              id: "care-team-providers",
+              label: "Care Team Providers",
+              content: (
+                <ClientTeamPanel
+                  mode="providers"
+                  clientId={clientId}
+                  caseCode={client.caseCode}
+                  relationships={client.clientOrganizations}
+                  organizationQuery=""
+                  organizationSearchSubmitted={false}
+                  organizationSearchTooShort={false}
+                  organizationResults={[]}
+                  providerQuery=""
+                  providerOptions={providerOptions}
+                  assignments={assignments}
+                  pendingStaffInvitations={pendingStaffInvitations}
+                />
+              ),
+            },
+          ]}
+        />
       </div>
     </main>
   );

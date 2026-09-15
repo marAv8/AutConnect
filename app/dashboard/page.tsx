@@ -6,11 +6,14 @@ import {
 } from "@/app/libs/documentationDay";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { clientDisplayText } from "@/app/libs/clientIdentity";
-import { isTeamFocusVisible } from "@/app/libs/teamFocusLifecycle";
 import { buildDashboardClientSignals } from "@/app/libs/clientSignal/server";
 import SupervisorDashboard from "./SupervisorDashboard";
 import ProviderDashboard from "./ProviderDashboard";
+import { isPlatformAdminEmail } from "@/lib/platformAdminPolicy";
+import { caseSupportNotificationAccessWhere } from "@/app/libs/caseSupportNotifications";
+import { hasActiveClientTeamManagerAuthority } from "@/lib/clientTeamAuthorization";
+import { deriveAdministrativePresentationCapabilities } from "./administrativeCapabilities";
+import { prepareDashboardClients } from "./dashboardPageModel";
 
 export default async function DashboardPage({
   searchParams,
@@ -38,21 +41,37 @@ export default async function DashboardPage({
     initialClients,
     caseSupportRequests,
     caseSupportProviderUpdates,
+    caseSupportNotificationCount,
   ] = await Promise.all([
     db.provider.findUnique({
       where: { id: session.providerId },
-      select: { firstName: true, lastName: true, role: true },
+      select: {
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        status: true,
+        organizationMemberships: {
+          where: {
+            active: true,
+            role: { in: ["OWNER", "ADMIN"] },
+          },
+          select: { organizationId: true },
+        },
+      },
     }),
     db.client.findMany({
       where: {
         providerClients: {
           some: {
             providerId: session.providerId,
+            revokedAt: null,
           },
         },
       },
       include: {
         providerClients: {
+          where: { revokedAt: null },
           select: {
             role: true,
             organizationId: true,
@@ -101,18 +120,17 @@ export default async function DashboardPage({
           },
         },
         teamFocusItems: {
-          where: {
-            isActive: true,
-          },
           orderBy: {
             updatedAt: "desc",
           },
-          take: 1,
+          take: 20,
           select: {
             id: true,
             title: true,
             content: true,
+            isActive: true,
             displayStartedAt: true,
+            createdAt: true,
             updatedAt: true,
             author: {
               select: {
@@ -125,6 +143,7 @@ export default async function DashboardPage({
         },
         caseSupportCases: {
           where: {
+            status: "OPEN",
             OR: [
               {
                 ownerSupervisorId: session.providerId,
@@ -202,6 +221,14 @@ export default async function DashboardPage({
           },
         })
       : Promise.resolve([]),
+    session.role === "Supervisor"
+      ? db.caseSupportNotification.count({
+          where: {
+            ...caseSupportNotificationAccessWhere(session.providerId),
+            readAt: null,
+          },
+        })
+      : Promise.resolve(0),
   ]);
 
   if (!provider) {
@@ -220,23 +247,48 @@ export default async function DashboardPage({
     redirect("/portal/supervisor/create-first-client");
   }
 
-  const availableClients = isSupervisor
-    ? await db.client.findMany({
-        where: {
-          providerClients: {
-            none: {
-              providerId: session.providerId,
-            },
-          },
-        },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-        orderBy: { createdAt: "desc" },
-      })
+  const careTeamClientIds = isSupervisor
+    ? (
+        await Promise.all(
+          clients.map(async (client) =>
+            (await hasActiveClientTeamManagerAuthority(
+              session.providerId,
+              client.id
+            ))
+              ? client.id
+              : null
+          )
+        )
+      ).filter((managedClientId): managedClientId is string =>
+        Boolean(managedClientId)
+      )
     : [];
+  const administrativeCapabilities =
+    deriveAdministrativePresentationCapabilities({
+      providerRole: provider.role,
+      sessionRole: session.role,
+      providerStatus: provider.status,
+      isPlatformAdministrator: isPlatformAdminEmail(provider.email),
+      administeredOrganizationIds: provider.organizationMemberships.map(
+        ({ organizationId }) => organizationId
+      ),
+      assignedClientIds: clients.map(({ id }) => id),
+      teamManagedClientIds: careTeamClientIds,
+    });
+  const administeredOrganizationIds = provider.organizationMemberships.map(
+    ({ organizationId }) => organizationId
+  );
+  const pendingOrganizationInvitationCount =
+    administrativeCapabilities.canReviewOrganizationInvitations
+      ? await db.clientOrganization.count({
+          where: {
+            organizationId: { in: administeredOrganizationIds },
+            role: "PARTICIPATING",
+            status: "PENDING",
+            revokedAt: null,
+          },
+        })
+      : 0;
 
   const recentEntries = clients.length
     ? await db.entry.findMany({
@@ -293,103 +345,52 @@ export default async function DashboardPage({
     now,
   });
 
-  const recentEntriesByClientId = new Map<
-    string,
-    Array<{ id: string; providerId: string; status?: string }>
-  >();
-  for (const entry of recentEntries) {
-    const existing = recentEntriesByClientId.get(entry.clientId);
-    const recentEntry = {
-      id: entry.id,
-      providerId: entry.providerId,
-      status: entry.status,
-    };
-
-    if (existing) {
-      existing.push(recentEntry);
-    } else {
-      recentEntriesByClientId.set(entry.clientId, [recentEntry]);
-    }
-  }
-
-  const clientsWithRecentEntries = clients.map((client) => {
-    const { caseSupportCases, ...dashboardClient } = client;
-    const viewerAssignment = client.providerClients.find(
-      ({ provider }) => provider.id === session.providerId
-    );
-    const canRequestCaseSupport =
-      session.role !== "Supervisor" &&
-      session.role !== "Caregiver" &&
-      viewerAssignment?.organization?.type === "AGENCY" &&
-      Boolean(viewerAssignment.organizationId) &&
-      client.providerClients.some(
-        (assignment) =>
-          assignment.role === "Supervisor" &&
-          assignment.organizationId === viewerAssignment.organizationId &&
-          assignment.organization?.type === "AGENCY"
-      );
-    return {
-      ...dashboardClient,
-      hasCaseSupportAccess: caseSupportCases.length > 0,
-      canRequestCaseSupport,
-      signal: clientSignals.get(client.id),
-      recentEntries: recentEntriesByClientId.get(client.id) ?? [],
-      teamFocusItems: client.teamFocusItems
-        .filter((teamFocus) =>
-          isTeamFocusVisible(teamFocus.displayStartedAt, now)
-        )
-        .map((teamFocus) => ({
-          ...teamFocus,
-          title: teamFocus.title
-            ? clientDisplayText(
-                teamFocus.title,
-                client.firstName,
-                client.lastName
-              )
-            : null,
-          content: clientDisplayText(
-            teamFocus.content,
-            client.firstName,
-            client.lastName
-          ),
-        })),
-    };
+  const dashboardClients = prepareDashboardClients({
+    clients,
+    recentEntries,
+    clientSignals,
+    viewerProviderId: session.providerId,
+    viewerRole: session.role,
+    now,
   });
 
   return (
-    <main
-      className="dashboard-page-shell"
-      style={{
-        padding: "0 32px 24px",
-        position: "relative",
-        height: "auto",
-        boxSizing: "border-box",
-        overflow: "visible",
-      }}
-    >
-      <section
-        style={{
-          minHeight: "inherit",
-        }}
-      >
+    <main className="dashboard-page-shell">
+      <section className="dashboard-page-content">
         {isSupervisor ? (
           <SupervisorDashboard
-            assignedClients={clientsWithRecentEntries}
-            availableClients={availableClients}
+            assignedClients={dashboardClients}
             currentProviderId={session.providerId}
-            caseSupportRequests={caseSupportRequests}
+            administrativeCapabilities={administrativeCapabilities}
+            newCaseSupportRequestCount={
+              caseSupportRequests.filter(
+                (request) => request.status === "REQUESTED"
+              ).length + caseSupportNotificationCount
+            }
+            pendingOrganizationInvitationCount={
+              pendingOrganizationInvitationCount
+            }
             initialClientId={clientId}
             forceOrbitView={view === "orbit"}
           />
         ) : (
           <ProviderDashboard
-            clients={clientsWithRecentEntries}
+            clients={dashboardClients}
             currentProviderId={session.providerId}
             viewerRole={session.role}
             initialClientId={clientId}
             forceOrbitView={view === "orbit"}
             clientListLabel={backToClientListLabel.replace("Back to ", "")}
             caseSupportUpdates={caseSupportProviderUpdates}
+            canReviewOrganizationInvitations={
+              administrativeCapabilities.canReviewOrganizationInvitations
+            }
+            canAttachExistingClient={
+              administrativeCapabilities.canAttachExistingClient
+            }
+            pendingOrganizationInvitationCount={
+              pendingOrganizationInvitationCount
+            }
           />
         )}
       </section>

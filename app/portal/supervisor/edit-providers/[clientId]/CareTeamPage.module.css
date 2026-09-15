@@ -1,0 +1,475 @@
+.page {
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: 12px 24px 48px;
+}
+
+.container {
+  display: grid;
+  width: min(100%, 1040px);
+  margin: 0 auto;
+  gap: 20px;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 8px 2px 2px;
+}
+
+.pageHeader h1,
+.sectionHeading h2,
+.pageHeader p,
+.sectionHeading p {
+  margin: 0;
+}
+
+.pageHeader h1 {
+  margin-top: 4px;
+  font-size: clamp(32px, 6vw, 50px);
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.eyebrow,
+.sectionStep {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.clientIdentity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px !important;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+
+.caseCode {
+  font-variant-numeric: tabular-nums;
+}
+
+.section,
+.panelSection {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  padding: 0;
+}
+
+.panelSection + .panelSection {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sectionHeading h2 {
+  margin-top: 3px;
+  font-size: 23px;
+}
+
+.headingTitleRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.headingTitleRow h2 {
+  margin-top: 0;
+}
+
+.sectionHeading > div > p:last-child:not(.sectionStep) {
+  margin-top: 6px;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+
+.detailsForm {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(150px, 1fr);
+  gap: 16px;
+  align-items: end;
+}
+
+.detailsForm input:not([type="hidden"]):not([type="radio"]),
+.searchForm input:not([type="hidden"]) {
+  appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  line-height: 1.35;
+}
+
+.searchForm input:not([type="hidden"]) {
+  color: var(--foreground);
+}
+
+.searchForm input::placeholder {
+  color: var(--muted-foreground);
+  opacity: 1;
+}
+
+.field,
+.fieldGroup {
+  display: grid;
+  gap: 8px;
+}
+
+.fieldGroup {
+  grid-column: 1 / -1;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.fieldLabel,
+.fieldGroup legend,
+.searchLabel {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.radioRow,
+.searchForm,
+.actionRow,
+.cardTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.radioRow {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.radioChoice {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.radioInput {
+  appearance: auto;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  margin: 0;
+  accent-color: var(--foreground);
+  cursor: pointer;
+}
+
+.radioOption {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.radioInput:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+.detailsSubmit {
+  justify-self: start;
+  min-height: 44px;
+}
+
+.detailsMessage {
+  align-self: center;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.panel {
+  display: grid;
+  gap: 20px;
+}
+
+.relationshipList,
+.teamGroups,
+.providerGroups,
+.resultList {
+  display: grid;
+  gap: 12px;
+}
+
+.row,
+.assignmentRow,
+.resultRow {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.row > div,
+.assignmentRow > div,
+.resultRow > div {
+  min-width: 0;
+}
+
+.row strong,
+.assignmentRow strong,
+.resultRow strong {
+  overflow-wrap: anywhere;
+}
+
+.statusBadge,
+.roleBadge {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--glass);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pending { color: var(--foreground); }
+.active { color: var(--positive); }
+.revoked { color: var(--muted-foreground); }
+
+.subsection {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+
+.subsection h3,
+.groupHeading,
+.emptyState h3 {
+  margin: 0;
+}
+
+.searchBlock {
+  display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
+  align-self: start;
+  width: min(100%, 560px);
+  gap: 8px;
+}
+
+.searchForm input:not([type="hidden"]) {
+  min-width: 0;
+  flex: 1 1 390px;
+  align-self: center;
+}
+
+.searchForm button {
+  flex: 0 0 auto;
+  padding-right: 16px;
+  padding-left: 16px;
+}
+
+.searchForm button,
+.row button,
+.assignmentRow button,
+.resultRow button {
+  min-height: 44px;
+}
+
+.group {
+  display: grid;
+  gap: 8px;
+}
+
+.groupHeading {
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.emptyState {
+  display: grid;
+  gap: 6px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.emptyState p,
+.helper {
+  margin: 0;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+
+.attachRequestList {
+  display: grid;
+  gap: 12px;
+}
+
+.attachRequestCard {
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.attachDecisionForms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.attachDecisionForm {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.attachDecisionForm label {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.attachDecisionForm input:not([type="hidden"]) {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.attachDecisionForm button {
+  justify-self: start;
+  min-height: 44px;
+}
+
+.providerIdentity {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.providerMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.providerMeta span {
+  overflow-wrap: anywhere;
+}
+
+.infoControl {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.infoButton {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.infoButton:hover,
+.infoButton[aria-expanded="true"] {
+  background: var(--glass);
+  color: var(--foreground);
+}
+
+.infoButton:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.infoPopover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(280px, calc(100vw - 40px));
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-tactile);
+  padding: 11px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (min-width: 980px) {
+  .panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .panelSection:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 700px) {
+  .page { padding-right: 14px; padding-left: 14px; }
+  .detailsForm { grid-template-columns: 1fr; }
+  .fieldGroup { grid-column: auto; }
+  .attachDecisionForms { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 520px) {
+  .row, .assignmentRow, .resultRow { align-items: flex-start; flex-direction: column; }
+  .row form, .assignmentRow form, .resultRow form, .row button, .assignmentRow button, .resultRow button { width: 100%; }
+  .searchForm { align-items: stretch; flex-direction: column; }
+  .searchForm button { width: 100%; }
+  .cardTitleRow { align-items: flex-start; justify-content: space-between; }
+  .infoPopover { left: auto; right: 0; }
+}

@@ -208,11 +208,23 @@ export type ClientDailyHandoffItem = {
   level?: AttentionLevel | "routine" | "important" | "critical";
 };
 
+export type ClientDailyHandoffSection = {
+  key:
+    | "home-context"
+    | "session-context"
+    | "provider-observations"
+    | "emerging-priorities";
+  title: string;
+  summary: string;
+  sourceReferenceIds: string[];
+};
+
 export type ClientDailyHandoff = {
   client: GatewayClient;
   date: string;
   status: ClientDayStatus;
   overview: string;
+  sections: ClientDailyHandoffSection[];
   keyEvents: ClientDailyHandoffItem[];
   currentConsiderations: ClientDailyHandoffItem[];
   positiveDevelopments: ClientDailyHandoffItem[];

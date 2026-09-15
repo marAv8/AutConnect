@@ -1,0 +1,11 @@
+.content { min-width: 0; overflow-wrap: anywhere; }
+.content p { margin: 0; }
+.content input:not([type="checkbox"]) { width: 100%; min-width: 0; box-sizing: border-box; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.actions button { flex: 1 1 180px; min-height: 44px; white-space: normal; }
+.confirm { display: flex; align-items: flex-start; gap: 10px; line-height: 1.5; }
+.confirm input { flex: 0 0 auto; margin-top: 5px; }
+.feedback { display: grid; gap: 8px; min-width: 0; scroll-margin-block: 12px; }
+.feedback:empty { display: none; }
+.history summary { min-height: 44px; cursor: pointer; padding-block: 12px; color: var(--foreground); font-weight: 650; }
+.history summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }

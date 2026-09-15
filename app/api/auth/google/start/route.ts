@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
 import { getGoogleOAuthConfig } from "@/lib/googleOAuth";
+import { getAvailableOrganizationInvitation } from "@/lib/organizationInvitations";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const OAUTH_STATE_COOKIE = "autconnect_oauth_state";
+const OAUTH_INVITE_COOKIE = "autconnect_oauth_invite";
 
 export async function GET(request: Request) {
+  const inviteToken = new URL(request.url).searchParams.get("invite")?.trim() ?? "";
+  if (inviteToken && !(await getAvailableOrganizationInvitation(inviteToken))) {
+    return NextResponse.redirect(
+      new URL("/create-account?error=invalid-invite", request.url)
+    );
+  }
+
   const config = getGoogleOAuthConfig();
 
   if (!config) {
@@ -32,6 +41,17 @@ export async function GET(request: Request) {
     path: "/",
     maxAge: 10 * 60,
   });
+  if (inviteToken) {
+    response.cookies.set(OAUTH_INVITE_COOKIE, inviteToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 10 * 60,
+    });
+  } else {
+    response.cookies.delete(OAUTH_INVITE_COOKIE);
+  }
 
   return response;
 }

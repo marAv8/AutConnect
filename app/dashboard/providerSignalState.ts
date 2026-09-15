@@ -34,6 +34,8 @@ export function providerSignalState({
 }
 
 export function isDashboardEntryUnread(entry: DashboardEntryState) {
+  if (entry.visibility === "Private") return false;
+
   return (
     !entry.reads ||
     entry.reads.length === 0 ||

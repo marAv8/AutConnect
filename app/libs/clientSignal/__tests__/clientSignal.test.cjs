@@ -147,7 +147,7 @@ test("a sustained serious pattern across days and providers proposes red", () =>
   assert.equal(signal.confidence, "high");
 });
 
-test("an active Case Support request keeps the signal amber", () => {
+test("an active Case Support request does not affect the derived client signal", () => {
   const signal = deriveClientSignal({
     now,
     entries: [],
@@ -161,8 +161,8 @@ test("an active Case Support request keeps the signal amber", () => {
     }],
   });
 
-  assert.equal(signal.color, "amber");
-  assert.equal(signal.reason, "active_support_review");
+  assert.equal(signal.color, "neutral");
+  assert.equal(signal.reason, "insufficient_recent_evidence");
 });
 
 test("the completed previous session is isolated from current-session activity", () => {

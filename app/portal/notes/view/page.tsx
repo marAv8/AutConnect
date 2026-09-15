@@ -4,6 +4,13 @@ import { db } from "@/lib/db";
 import NoteHistoryViewer from "./NoteHistoryViewer";
 import { formatRole } from "@/app/libs/roles";
 import { clientDisplayText } from "@/app/libs/clientIdentity";
+import { formatProviderDisplayName } from "@/app/libs/providerDisplayName";
+import {
+  redactMedicationContextData,
+  redactMedicationNote,
+  redactMedicationRevisionValue,
+  shouldRedactCaregiverMedication,
+} from "@/app/libs/caregiverMedicationPrivacy";
 
 export default async function ViewNotePage({
   searchParams,
@@ -20,13 +27,28 @@ export default async function ViewNotePage({
   const noteAuthorProviderId = authorProviderId ?? session.providerId;
   const sevenDaysAgo = sevenDayWindowStart();
 
-  const client = await db.client.findUnique({
-    where: { id: clientId },
-    select: { firstName: true, lastName: true },
-  });
-  if (!client) {
+  const [client, authenticatedProvider] = await Promise.all([
+    db.client.findFirst({
+      where: {
+        id: clientId,
+        providerClients: {
+          some: { providerId: session.providerId, revokedAt: null },
+        },
+      },
+      select: { firstName: true, lastName: true },
+    }),
+    db.provider.findUnique({
+      where: { id: session.providerId },
+      select: { firstName: true, lastName: true, role: true },
+    }),
+  ]);
+  if (!client || !authenticatedProvider) {
     redirect("/dashboard");
   }
+  const authenticatedDisplayName = formatProviderDisplayName(
+    authenticatedProvider.firstName,
+    authenticatedProvider.lastName
+  );
 
   const entries = await db.entry.findMany({
     where: {
@@ -185,45 +207,80 @@ export default async function ViewNotePage({
     <NoteHistoryViewer
       clientId={clientId}
       clientInitials={`${client.firstName.slice(0, 2)}${client.lastName.slice(0, 2)}`}
-      entries={entries.map((entry) => ({
-        id: entry.id,
-        kind: entry.kind,
-        status: entry.status,
-        note: entry.note ?? "",
-        clinicalReflection: entry.clinicalReflection,
-        contextData: entry.contextData,
-        date: entry.date.toISOString(),
-        completedAt: (entry.completedAt ?? entry.updatedAt).toISOString(),
-        finalScore: entry.finalScore,
-        providerName: `${entry.provider.firstName} ${entry.provider.lastName}`,
-        providerRole: formatRole(entry.provider.role),
-        items: entry.items,
-        abcObservations: entry.abcObservations,
-        revisions: entry.revisions.map((revision) => ({
-          id: revision.id,
-          revisionNumber: revision.revisionNumber,
-          createdAt: revision.createdAt.toISOString(),
-          createdByName: `${revision.createdBy.firstName} ${revision.createdBy.lastName}`,
-          createdByRole: formatRole(revision.createdBy.role),
-          changes: sanitizeRevisionChanges(
-            revision.changes,
-            client.firstName,
-            client.lastName
+      entries={entries.map((entry) => {
+        const redactMedication = shouldRedactCaregiverMedication({
+          kind: entry.kind,
+          viewerProviderId: session.providerId,
+          viewerRole: authenticatedProvider.role,
+          authorProviderId: entry.providerId,
+        });
+        const contextData = redactMedication
+          ? redactMedicationContextData(entry.contextData)
+          : entry.contextData;
+        const note = redactMedication
+          ? redactMedicationNote(entry.note)
+          : entry.note;
+        return {
+          id: entry.id,
+          kind: entry.kind,
+          status: entry.status,
+          note: note ?? "",
+          clinicalReflection: entry.clinicalReflection,
+          contextData,
+          date: entry.date.toISOString(),
+          completedAt: (entry.completedAt ?? entry.updatedAt).toISOString(),
+          finalScore: entry.finalScore,
+          providerName: formatProviderDisplayName(
+            entry.provider.firstName,
+            entry.provider.lastName
           ),
-        })),
-        sensoryObservations: extractObservations(
-          entry.kind === "SensoryObservation" ? entry.contextData : null,
-          entry.createdAt,
-          `${entry.provider.firstName} ${entry.provider.lastName}`
-        ),
-        communicationObservations: extractObservations(
-          entry.kind === "CommunicationObservation" ? entry.contextData : null,
-          entry.createdAt,
-          `${entry.provider.firstName} ${entry.provider.lastName}`
-        ),
-      }))}
+          providerRole: formatRole(entry.provider.role),
+          items: entry.items,
+          abcObservations: entry.abcObservations,
+          revisions: entry.revisions.map((revision) => ({
+            id: revision.id,
+            revisionNumber: revision.revisionNumber,
+            createdAt: revision.createdAt.toISOString(),
+            createdByName: formatProviderDisplayName(
+              revision.createdBy.firstName,
+              revision.createdBy.lastName
+            ),
+            createdByRole: formatRole(revision.createdBy.role),
+            changes: redactMedication
+              ? redactMedicationRevisionValue(
+                  sanitizeRevisionChanges(
+                    revision.changes,
+                    client.firstName,
+                    client.lastName
+                  )
+                )
+              : sanitizeRevisionChanges(
+                  revision.changes,
+                  client.firstName,
+                  client.lastName
+                ),
+          })),
+          sensoryObservations: extractObservations(
+            entry.kind === "SensoryObservation" ? contextData : null,
+            entry.createdAt,
+            formatProviderDisplayName(
+              entry.provider.firstName,
+              entry.provider.lastName
+            )
+          ),
+          communicationObservations: extractObservations(
+            entry.kind === "CommunicationObservation" ? contextData : null,
+            entry.createdAt,
+            formatProviderDisplayName(
+              entry.provider.firstName,
+              entry.provider.lastName
+            )
+          ),
+        };
+      })}
       variant="overlay"
-      backLabel={session.role === "Caregiver" ? "Back to Children" : "Back to Client"}
+      authenticatedDisplayName={authenticatedDisplayName}
+      authenticatedRole={authenticatedProvider.role}
     />
   );
 }

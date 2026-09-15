@@ -2,6 +2,10 @@
 
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
+import {
+  caseSupportNotificationAccessWhere,
+  createCaseSupportNotifications,
+} from "@/app/libs/caseSupportNotifications";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -16,6 +20,9 @@ const createCaseSchema = z.object({
 
 const caseRequestSchema = z.object({
   clientId: z.string().uuid(),
+  recipientSupervisorId: z.string().uuid(),
+  title: z.string().trim().min(3).max(120),
+  occurredAt: z.coerce.date(),
   concern: z.string().trim().min(10).max(2000),
   requestedSupport: z.string().trim().min(5).max(1500),
 });
@@ -26,6 +33,17 @@ const caseRequestDecisionSchema = z.object({
 
 const caseRequestUpdateViewSchema = z.object({
   requestId: z.string().uuid(),
+});
+
+const caseSupportNotificationOpenSchema = z.object({
+  notificationId: z.string().uuid(),
+});
+
+const resolveCaseSchema = z.object({
+  caseId: z.string().uuid(),
+  clientId: z.string().uuid(),
+  resolutionConfidence: z.enum(["CONFIDENT", "UNSURE"]),
+  resolutionSummary: z.string().trim().min(5).max(2000),
 });
 
 const caseEntryReviewSchema = z.object({
@@ -64,6 +82,22 @@ const caseEntrySchema = z.object({
   observableOutcome: z.string().trim().min(2).max(4000),
   communication: z.string().trim().max(4000).optional(),
   followUp: z.string().trim().max(4000).optional(),
+});
+
+const simplifiedCaseEntrySchema = z.object({
+  caseId: z.string().uuid(),
+  clientId: z.string().uuid(),
+  occurredAt: z.coerce.date(),
+  requestSource: z.enum([
+    "SELF_INITIATED",
+    "CLASSROOM_STAFF",
+    "SCHOOL_ADMINISTRATION",
+    "AGENCY_SUPERVISOR",
+  ]),
+  durationMinutes: z.number().int().min(1).max(720).optional(),
+  whatOccurred: z.string().trim().min(10).max(4000),
+  supportProvided: z.string().trim().min(2).max(4000),
+  observableOutcome: z.string().trim().min(2).max(4000),
 });
 
 const caseClarificationSchema = z.object({
@@ -116,6 +150,64 @@ const allowedScheduleImpacts = new Set([
   "UNCLEAR",
 ]);
 
+function parseNewCaseSupportEntry(
+  formData: FormData,
+  simplified: boolean,
+  durationValue: string | undefined
+) {
+  const sharedInput = {
+    caseId: formData.get("caseId"),
+    clientId: formData.get("clientId"),
+    occurredAt: formData.get("occurredAt"),
+    requestSource: formData.get("requestSource"),
+    durationMinutes: durationValue ? Number(durationValue) : undefined,
+    whatOccurred: formData.get("whatOccurred"),
+    supportProvided: formData.get("supportProvided"),
+    observableOutcome: formData.get("observableOutcome"),
+  };
+
+  if (simplified) {
+    const parsed = simplifiedCaseEntrySchema.safeParse(sharedInput);
+    return parsed.success
+      ? {
+          data: {
+            ...parsed.data,
+            requestedBy: undefined,
+            coverageStatus: "UNCLEAR" as const,
+            communication: undefined,
+            followUp: undefined,
+          },
+          scheduleImpacts: [] as string[],
+        }
+      : null;
+  }
+
+  const parsed = caseEntrySchema.safeParse({
+    ...sharedInput,
+    requestedBy: formData.get("requestedBy")?.toString() || undefined,
+    coverageStatus: formData.get("coverageStatus"),
+    communication: formData.get("communication")?.toString() || undefined,
+    followUp: formData.get("followUp")?.toString() || undefined,
+  });
+  if (!parsed.success) {
+    return null;
+  }
+
+  return {
+    data: parsed.data,
+    scheduleImpacts: [
+      ...new Set(
+        formData
+          .getAll("scheduleImpacts")
+          .filter(
+            (value): value is string =>
+              typeof value === "string" && allowedScheduleImpacts.has(value)
+          )
+      ),
+    ],
+  };
+}
+
 async function requireSupervisorForClient(clientId: string) {
   const session = await getSession();
   if (!session || session.role !== "Supervisor") {
@@ -127,6 +219,7 @@ async function requireSupervisorForClient(clientId: string) {
       clientId,
       providerId: session.providerId,
       role: "Supervisor",
+      revokedAt: null,
     },
     select: { id: true },
   });
@@ -148,6 +241,11 @@ async function requireRequestRecipient(requestId: string) {
     where: {
       id: requestId,
       recipientSupervisorId: session.providerId,
+      client: {
+        providerClients: {
+          some: { providerId: session.providerId, revokedAt: null },
+        },
+      },
     },
     include: {
       requester: {
@@ -189,6 +287,7 @@ async function requireActiveRequestAgency(
     where: {
       clientId,
       organizationId,
+      revokedAt: null,
       organization: { type: "AGENCY" },
       OR: [
         { providerId: requesterId },
@@ -221,12 +320,15 @@ async function requireActiveRequestAgency(
 export async function submitCaseSupportRequest(formData: FormData) {
   const parsed = caseRequestSchema.safeParse({
     clientId: formData.get("clientId"),
+    recipientSupervisorId: formData.get("recipientSupervisorId"),
+    title: formData.get("title"),
+    occurredAt: formData.get("occurredAt"),
     concern: formData.get("concern"),
     requestedSupport: formData.get("requestedSupport"),
   });
 
   if (!parsed.success) {
-    throw new Error("Describe the concern and the support you are requesting.");
+    throw new Error("Complete the request details and support needed.");
   }
 
   const session = await getSession();
@@ -242,6 +344,7 @@ export async function submitCaseSupportRequest(formData: FormData) {
     where: {
       clientId: parsed.data.clientId,
       providerId: session.providerId,
+      revokedAt: null,
       organizationId: { not: null },
       organization: { type: "AGENCY" },
     },
@@ -260,13 +363,14 @@ export async function submitCaseSupportRequest(formData: FormData) {
         clientId: parsed.data.clientId,
         organizationId: assignment.organizationId,
         role: "Supervisor",
-        providerId: { not: session.providerId },
+        providerId: parsed.data.recipientSupervisorId,
+        revokedAt: null,
+        NOT: { providerId: session.providerId },
         provider: {
           role: "Supervisor",
         },
         organization: { type: "AGENCY" },
       },
-      orderBy: { id: "asc" },
       select: { providerId: true },
     }),
     db.caseSupportRequest.findFirst({
@@ -298,8 +402,12 @@ export async function submitCaseSupportRequest(formData: FormData) {
       requesterId: session.providerId,
       recipientSupervisorId: recipient.providerId,
       organizationId: assignment.organizationId,
+      linkedCaseId: null,
+      title: parsed.data.title,
+      occurredAt: parsed.data.occurredAt,
       concern: parsed.data.concern,
       requestedSupport: parsed.data.requestedSupport,
+      status: "REQUESTED",
     },
   });
 
@@ -407,7 +515,7 @@ export async function convertCaseSupportRequest(formData: FormData) {
           clientId: request.clientId,
           ownerSupervisorId: session.providerId,
           organizationId,
-          title: requestTitle(request.concern),
+          title: request.title?.trim() || requestTitle(request.concern),
           concern: request.concern,
           desiredOutcome: request.requestedSupport,
         },
@@ -459,6 +567,8 @@ export async function convertCaseSupportRequest(formData: FormData) {
           requesterName:
             `${request.requester.firstName} ${request.requester.lastName}`.trim(),
           requesterRole: request.requester.role,
+          requestTitle: request.title,
+          occurredAt: request.occurredAt?.toISOString() ?? null,
           concern: request.concern,
           requestedSupport: request.requestedSupport,
         } as Prisma.InputJsonValue,
@@ -477,6 +587,12 @@ export async function convertCaseSupportRequest(formData: FormData) {
     ];
 
     await tx.caseSupportAuditEvent.createMany({ data: auditEvents });
+    await createCaseSupportNotifications(tx, {
+      caseId: supportCase.id,
+      actorId: session.providerId,
+      eventType: "CASE_OPENED",
+      eventKey: `CASE_OPENED:${request.id}`,
+    });
     return supportCase.id;
   });
 
@@ -519,9 +635,23 @@ export async function viewCaseSupportRequestUpdate(formData: FormData) {
     throw new Error("Case Support request update not found.");
   }
 
-  await db.caseSupportRequest.update({
-    where: { id: request.id },
-    data: { requesterViewedAt: new Date() },
+  await db.$transaction(async (tx) => {
+    await tx.caseSupportRequest.update({
+      where: { id: request.id },
+      data: { requesterViewedAt: new Date() },
+    });
+
+    if (request.status === "CASE_OPENED" && request.linkedCaseId) {
+      await tx.caseSupportNotification.updateMany({
+        where: {
+          caseId: request.linkedCaseId,
+          eventKey: `CASE_OPENED:${request.id}`,
+          readAt: null,
+          ...caseSupportNotificationAccessWhere(session.providerId),
+        },
+        data: { readAt: new Date() },
+      });
+    }
   });
 
   revalidatePath("/dashboard");
@@ -532,6 +662,47 @@ export async function viewCaseSupportRequestUpdate(formData: FormData) {
     redirect(`/portal/case-support/${request.clientId}`);
   }
   redirect(`/portal/case-support/request/${request.clientId}`);
+}
+
+export async function openCaseSupportNotification(formData: FormData) {
+  const parsed = caseSupportNotificationOpenSchema.safeParse({
+    notificationId: formData.get("notificationId"),
+  });
+  if (!parsed.success) {
+    throw new Error("Missing Case Support notification.");
+  }
+
+  const session = await getSession();
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
+
+  const notification = await db.caseSupportNotification.findFirst({
+    where: {
+      id: parsed.data.notificationId,
+      ...caseSupportNotificationAccessWhere(session.providerId),
+    },
+    select: {
+      id: true,
+      case: { select: { clientId: true } },
+    },
+  });
+  if (!notification) {
+    throw new Error("Case Support notification not found.");
+  }
+
+  await db.caseSupportNotification.updateMany({
+    where: {
+      id: notification.id,
+      recipientId: session.providerId,
+      readAt: null,
+    },
+    data: { readAt: new Date() },
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/portal/case-support/requests");
+  redirect(`/portal/case-support/${notification.case.clientId}`);
 }
 
 export async function createCaseSupportCase(formData: FormData) {
@@ -552,6 +723,7 @@ export async function createCaseSupportCase(formData: FormData) {
       clientId: parsed.data.clientId,
       providerId: session.providerId,
       role: "Supervisor",
+      revokedAt: null,
       organizationId: { not: null },
       organization: { type: "AGENCY" },
     },
@@ -567,6 +739,7 @@ export async function createCaseSupportCase(formData: FormData) {
     where: {
       clientId: parsed.data.clientId,
       organizationId: supervisorAssignment.organizationId,
+      revokedAt: null,
       providerId: {
         in: selectedProviderIds,
         not: session.providerId,
@@ -608,17 +781,20 @@ export async function createCaseSupportCase(formData: FormData) {
       });
     }
 
-    await tx.caseSupportAuditEvent.createMany({
-      data: [
-        {
-          caseId: supportCase.id,
-          actorId: session.providerId,
-          action: "CASE_CREATED",
-          details: {
-            title: parsed.data.title,
-          } as Prisma.InputJsonValue,
-        },
-        ...assignedProviders.map(({ providerId, provider }) => ({
+    await tx.caseSupportAuditEvent.create({
+      data: {
+        caseId: supportCase.id,
+        actorId: session.providerId,
+        action: "CASE_CREATED",
+        details: {
+          title: parsed.data.title,
+        } as Prisma.InputJsonValue,
+      },
+    });
+
+    for (const { providerId, provider } of assignedProviders) {
+      const accessEvent = await tx.caseSupportAuditEvent.create({
+        data: {
           caseId: supportCase.id,
           actorId: session.providerId,
           action: "ACCESS_GRANTED",
@@ -627,14 +803,84 @@ export async function createCaseSupportCase(formData: FormData) {
             providerName: `${provider.firstName} ${provider.lastName}`.trim(),
             providerRole: provider.role,
           } as Prisma.InputJsonValue,
-        })),
-      ],
-    });
+        },
+        select: { id: true },
+      });
+      await createCaseSupportNotifications(tx, {
+        caseId: supportCase.id,
+        actorId: session.providerId,
+        eventType: "ACCESS_GRANTED",
+        eventKey: `ACCESS_GRANTED:${accessEvent.id}:${providerId}`,
+      });
+    }
   });
 
   revalidatePath("/dashboard");
   revalidatePath(`/portal/case-support/${parsed.data.clientId}`);
   redirect(`/portal/case-support/${parsed.data.clientId}?created=1`);
+}
+
+export async function resolveCaseSupportCase(formData: FormData) {
+  const parsed = resolveCaseSchema.safeParse({
+    caseId: formData.get("caseId"),
+    clientId: formData.get("clientId"),
+    resolutionConfidence: formData.get("resolutionConfidence"),
+    resolutionSummary: formData.get("resolutionSummary"),
+  });
+  if (!parsed.success) {
+    throw new Error(
+      "Choose a confidence level and add a short resolution summary before closing the case."
+    );
+  }
+
+  const session = await requireSupervisorForClient(parsed.data.clientId);
+  const supportCase = await db.caseSupportCase.findFirst({
+    where: {
+      id: parsed.data.caseId,
+      clientId: parsed.data.clientId,
+      ownerSupervisorId: session.providerId,
+      status: "OPEN",
+    },
+    select: { id: true },
+  });
+  if (!supportCase) {
+    throw new Error("Only the case owner can resolve this open case.");
+  }
+
+  const resolvedAt = new Date();
+  await db.$transaction(async (tx) => {
+    await tx.caseSupportCase.update({
+      where: { id: supportCase.id },
+      data: {
+        status: "RESOLVED",
+        resolvedAt,
+      },
+    });
+    const resolvedEvent = await tx.caseSupportAuditEvent.create({
+      data: {
+        caseId: supportCase.id,
+        actorId: session.providerId,
+        action: "CASE_RESOLVED",
+        details: {
+          resolutionSummary: parsed.data.resolutionSummary,
+          resolutionConfidence: parsed.data.resolutionConfidence,
+          resolvedAt: resolvedAt.toISOString(),
+        } as Prisma.InputJsonValue,
+      },
+      select: { id: true },
+    });
+    await createCaseSupportNotifications(tx, {
+      caseId: supportCase.id,
+      actorId: session.providerId,
+      eventType: "CASE_RESOLVED",
+      eventKey: `CASE_RESOLVED:${resolvedEvent.id}`,
+    });
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/portal/case-support/${parsed.data.clientId}`);
+  revalidatePath(`/portal/case-support/request/${parsed.data.clientId}`);
+  redirect(`/portal/case-support/${parsed.data.clientId}?resolved=1`);
 }
 
 export async function updateCaseSupportAccess(formData: FormData) {
@@ -687,6 +933,7 @@ export async function updateCaseSupportAccess(formData: FormData) {
       providerId: session.providerId,
       role: "Supervisor",
       organizationId: supportCase.organizationId,
+      revokedAt: null,
       organization: { type: "AGENCY" },
     },
     select: { id: true },
@@ -703,6 +950,7 @@ export async function updateCaseSupportAccess(formData: FormData) {
       clientId,
       organizationId: supportCase.organizationId,
       providerId: { in: selectedProviderIds },
+      revokedAt: null,
     },
     select: {
       providerId: true,
@@ -764,31 +1012,41 @@ export async function updateCaseSupportAccess(formData: FormData) {
       });
     }
 
-    const auditEvents = [
-      ...grantedProviders.map(({ providerId, provider }) => ({
+    for (const { providerId, provider } of grantedProviders) {
+      const accessEvent = await tx.caseSupportAuditEvent.create({
+        data: {
+          caseId,
+          actorId: session.providerId,
+          action: "ACCESS_GRANTED",
+          details: {
+            providerId,
+            providerName: `${provider.firstName} ${provider.lastName}`.trim(),
+            providerRole: provider.role,
+          } as Prisma.InputJsonValue,
+        },
+        select: { id: true },
+      });
+      await createCaseSupportNotifications(tx, {
         caseId,
         actorId: session.providerId,
-        action: "ACCESS_GRANTED",
-        details: {
-          providerId,
-          providerName: `${provider.firstName} ${provider.lastName}`.trim(),
-          providerRole: provider.role,
-        } as Prisma.InputJsonValue,
-      })),
-      ...revokedMembers.map(({ providerId, provider }) => ({
-        caseId,
-        actorId: session.providerId,
-        action: "ACCESS_REVOKED",
-        details: {
-          providerId,
-          providerName: `${provider.firstName} ${provider.lastName}`.trim(),
-          providerRole: provider.role,
-        } as Prisma.InputJsonValue,
-      })),
-    ];
+        eventType: "ACCESS_GRANTED",
+        eventKey: `ACCESS_GRANTED:${accessEvent.id}:${providerId}`,
+      });
+    }
 
-    if (auditEvents.length > 0) {
-      await tx.caseSupportAuditEvent.createMany({ data: auditEvents });
+    const revokeEvents = revokedMembers.map(({ providerId, provider }) => ({
+      caseId,
+      actorId: session.providerId,
+      action: "ACCESS_REVOKED",
+      details: {
+        providerId,
+        providerName: `${provider.firstName} ${provider.lastName}`.trim(),
+        providerRole: provider.role,
+      } as Prisma.InputJsonValue,
+    }));
+
+    if (revokeEvents.length > 0) {
+      await tx.caseSupportAuditEvent.createMany({ data: revokeEvents });
     }
   });
 
@@ -907,6 +1165,11 @@ export async function createCaseSupportEntry(formData: FormData) {
       id: identity.data.caseId,
       clientId: identity.data.clientId,
       status: "OPEN",
+      client: {
+        providerClients: {
+          some: { providerId: session.providerId, revokedAt: null },
+        },
+      },
       OR: [
         { ownerSupervisorId: session.providerId },
         {
@@ -987,41 +1250,30 @@ export async function createCaseSupportEntry(formData: FormData) {
           } as Prisma.InputJsonValue,
         },
       });
+      await createCaseSupportNotifications(tx, {
+        caseId: supportCase.id,
+        actorId: session.providerId,
+        eventType: "CLARIFICATION",
+        eventKey: `CLARIFICATION:${entry.id}`,
+      });
     });
 
     revalidatePath(`/portal/case-support/${identity.data.clientId}`);
     redirect(`/portal/case-support/${identity.data.clientId}?saved=1`);
   }
 
-  const parsed = caseEntrySchema.safeParse({
-    caseId: formData.get("caseId"),
-    clientId: formData.get("clientId"),
-    occurredAt: formData.get("occurredAt"),
-    requestSource: formData.get("requestSource"),
-    requestedBy: formData.get("requestedBy")?.toString() || undefined,
-    coverageStatus: formData.get("coverageStatus"),
-    durationMinutes: durationValue ? Number(durationValue) : undefined,
-    whatOccurred: formData.get("whatOccurred"),
-    supportProvided: formData.get("supportProvided"),
-    observableOutcome: formData.get("observableOutcome"),
-    communication: formData.get("communication")?.toString() || undefined,
-    followUp: formData.get("followUp")?.toString() || undefined,
-  });
+  const usesSimplifiedDocumentation =
+    session.role === "Supervisor" ||
+    formData.get("documentationMode") === "SIMPLIFIED";
+  const parsed = parseNewCaseSupportEntry(
+    formData,
+    usesSimplifiedDocumentation,
+    durationValue
+  );
 
-  if (!parsed.success) {
+  if (!parsed) {
     throw new Error("Complete every required documentation field.");
   }
-
-  const scheduleImpacts = [
-    ...new Set(
-      formData
-        .getAll("scheduleImpacts")
-        .filter(
-          (value): value is string =>
-            typeof value === "string" && allowedScheduleImpacts.has(value)
-        )
-    ),
-  ];
   const entryType =
     supportCase.ownerSupervisorId === session.providerId
       ? ("SUPERVISOR_COORDINATION" as const)
@@ -1038,7 +1290,7 @@ export async function createCaseSupportEntry(formData: FormData) {
         requestedBy: parsed.data.requestedBy || null,
         coverageStatus: parsed.data.coverageStatus,
         durationMinutes: parsed.data.durationMinutes ?? null,
-        scheduleImpacts,
+        scheduleImpacts: parsed.scheduleImpacts,
         whatOccurred: parsed.data.whatOccurred,
         supportProvided: parsed.data.supportProvided,
         observableOutcome: parsed.data.observableOutcome,
@@ -1057,8 +1309,17 @@ export async function createCaseSupportEntry(formData: FormData) {
           entryId: entry.id,
           entryType,
           amendsEntryId: null,
+          ...(usesSimplifiedDocumentation
+            ? { documentationMode: "SIMPLIFIED" }
+            : {}),
         } as Prisma.InputJsonValue,
       },
+    });
+    await createCaseSupportNotifications(tx, {
+      caseId: supportCase.id,
+      actorId: session.providerId,
+      eventType: "CASE_UPDATE",
+      eventKey: `CASE_UPDATE:${entry.id}`,
     });
   });
 
@@ -1186,6 +1447,12 @@ export async function createCaseSupportCoordination(formData: FormData) {
           status: parsed.data.status,
         } as Prisma.InputJsonValue,
       },
+    });
+    await createCaseSupportNotifications(tx, {
+      caseId: supportCase.id,
+      actorId: session.providerId,
+      eventType: "CASE_UPDATE",
+      eventKey: `CASE_UPDATE:COORDINATION:${coordination.id}`,
     });
   });
 

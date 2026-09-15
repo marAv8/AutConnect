@@ -1,5 +1,6 @@
 import { clientDisplayCode } from "@/app/libs/clientIdentity";
 import { formatBadgeRole } from "@/app/libs/roles";
+import { formatProviderDisplayName } from "@/app/libs/providerDisplayName";
 import Link from "next/link";
 
 type RequestNotice = {
@@ -23,8 +24,10 @@ export default function CaseSupportRequestNotice({
   requests: RequestNotice[];
 }) {
   const first = requests[0];
-  const requesterName =
-    `${first.requester.firstName} ${first.requester.lastName}`.trim();
+  const requesterName = formatProviderDisplayName(
+    first.requester.firstName,
+    first.requester.lastName
+  );
   const remaining = requests.length - 1;
 
   return (

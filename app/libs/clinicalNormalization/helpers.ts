@@ -5,9 +5,10 @@ import type {
   NormalizableEntry,
   NormalizableProvider,
 } from "./types";
+import { formatProviderDisplayName } from "../providerDisplayName";
 
 export function providerName(provider: NormalizableProvider) {
-  return `${provider.firstName} ${provider.lastName}`.trim();
+  return formatProviderDisplayName(provider.firstName, provider.lastName);
 }
 
 export function isoDate(value: Date | string) {

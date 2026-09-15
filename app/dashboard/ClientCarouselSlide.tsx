@@ -16,13 +16,16 @@ type Props = {
 export function ClientCarouselSlide({ dragOffset, children }: Props) {
   return (
     <motion.div
+      data-dashboard-carousel-slide="true"
       initial={false}
       animate={{ x: dragOffset }}
       transition={{ duration: 0.12, ease: "easeOut" }}
       style={{
         width: "100%",
-        display: "grid",
-        justifyItems: "center",
+        minWidth: 0,
+        maxWidth: "100%",
+        display: "flex",
+        justifyContent: "center",
         willChange: dragOffset === 0 ? "auto" : "transform",
       }}
     >

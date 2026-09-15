@@ -22,6 +22,7 @@ import {
 import { removeGoalDefinition } from "@/app/actions/removeGoalDefinition";
 import { updateEntryVisibility } from "@/app/actions/updateEntryVisibility";
 import {
+  CUSTOM_OBSERVABLE_SKILL_TARGET,
   getProfessionTemplate,
   type ProfessionMeasurementOption,
 } from "@/app/libs/professionTemplates";
@@ -34,6 +35,10 @@ import { Label } from "@/components/ui/label";
 import { MaterialSelect } from "@/components/ui/MaterialSelect";
 import { Textarea } from "@/components/ui/textarea";
 import { useGuardedSwipe } from "@/components/useGuardedSwipe";
+import {
+  traceDashboardInteractionHandled,
+  traceDashboardInteractionState,
+} from "@/app/dashboard/dashboardInteractionTraceClient";
 import {
   createEmptyItem,
   formatDurationForEntryInput,
@@ -116,7 +121,6 @@ type Props = {
   contextCards?: CaretakerContextCard[];
   educatorMode?: "classroomProgress" | "addTarget";
   onSubmitted?: () => void;
-  onCancel?: () => void;
   onSaved?: (
     entryId: string,
     visibility?: "Private" | "Shared",
@@ -136,6 +140,9 @@ type TargetOption = {
     | "Adaptive"
     | "Regulation"
     | "Other";
+  group?: string;
+  recommendedMeasurementProfile?: string;
+  direction?: "higherIsBetter" | "lowerIsBetter" | "goalDependent";
   description?: string;
   tags?: string[];
 };
@@ -162,7 +169,6 @@ export default function EntryForm({
   draft,
   draftWorkflowKey: draftWorkflowKeyProp,
   onSubmitted,
-  onCancel,
   onSaved,
   onCancelToProgress,
 }: Props) {
@@ -285,11 +291,19 @@ export default function EntryForm({
   const [draftObservationNote, setDraftObservationNote] = useState(
     restoredDraft?.draftObservationNote ?? ""
   );
-  const [activeIndex, setActiveIndex] = useState(restoredDraft?.activeIndex ?? 0);
+  const [activeIndex, setActiveIndex] = useState(
+    noteKind === "ClinicalNote" ? 0 : restoredDraft?.activeIndex ?? 0
+  );
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [visibility, setVisibility] = useState<"Private" | "Shared">(
     restoredDraft?.visibility ?? initialValues?.visibility ?? "Private"
   );
+  useEffect(() => {
+    if (!isSupervisorVisibilityMode) return;
+    traceDashboardInteractionState(
+      visibility === "Private" ? "visibility-private" : "visibility-team"
+    );
+  }, [isSupervisorVisibilityMode, visibility]);
   const [educatorView, setEducatorView] = useState<
     "list" | "target" | "observation" | "reflection"
   >("list");
@@ -348,6 +362,13 @@ export default function EntryForm({
   const draftSaveTimeoutRef = useRef<number | null>(null);
   const lastDraftPayloadRef = useRef("");
   const didHydrateDraftRef = useRef(false);
+  const contextValuesRef = useRef(contextValues);
+  const sharedContextCommentRef = useRef(initialValues?.contextComment ?? "");
+  const caregiverPublishChainRef = useRef<Promise<void>>(Promise.resolve());
+  const didRestoreCaregiverContextRef = useRef(false);
+  const caregiverContextPublisherRef = useRef<
+    (values: Record<string, string>) => void
+  >(() => undefined);
   const targetListId = useId();
   const professionTemplate = getProfessionTemplate(role);
   const measurementOptions =
@@ -430,23 +451,6 @@ export default function EntryForm({
     }
 
     return false;
-  };
-
-  const closeTargetProgressDraft = async () => {
-    setSaveStatus("saving");
-    const didSaveDraft = await saveCurrentDocumentationDraftNow();
-    if (!didSaveDraft) {
-      setSaveStatus("error");
-      return;
-    }
-
-    setSaveStatus("idle");
-    if (onCancel) {
-      onCancel();
-      return;
-    }
-
-    router.push(`/dashboard?clientId=${clientId}&view=orbit`);
   };
 
   useEffect(() => {
@@ -554,7 +558,7 @@ export default function EntryForm({
   ]);
 
   const hasItems = items.length > 0;
-  const supervisorCardCount = noteKind === "SupervisorObservation" ? 2 : 2;
+  const supervisorCardCount = noteKind === "ClinicalNote" ? 1 : 2;
   const activeItem = useMemo(
     () => (hasItems ? items[Math.min(activeIndex, items.length - 1)] : null),
     [activeIndex, hasItems, items]
@@ -627,9 +631,17 @@ export default function EntryForm({
             type="button"
             variant="ghost"
             className="clinical-selection-control visibility-selection-control"
+            data-dashboard-trace-control={
+              option === "Private" ? "visibility-private" : "visibility-team"
+            }
             aria-pressed={selected}
             disabled={saveStatus === "saving"}
-            onClick={() => void requestVisibilityChange(option)}
+            onClick={() => {
+              traceDashboardInteractionHandled(
+                option === "Private" ? "visibility-private" : "visibility-team"
+              );
+              void requestVisibilityChange(option);
+            }}
             style={{
               width: "100%",
               minWidth: 0,
@@ -657,9 +669,11 @@ export default function EntryForm({
         const mappedTargets = targetOptions.map((option) => ({
           value: option.value,
           label: option.label,
+          group: option.group,
+          recommendedMeasurementProfile: option.recommendedMeasurementProfile,
+          defaultDomain: option.defaultDomain,
         }));
-        const hasOther = mappedTargets.some((option) => option.value === "Other");
-        return hasOther ? mappedTargets : [...mappedTargets, { value: "Other", label: "Other" }];
+        return mappedTargets;
       }
 
       return (isBehaviorTherapist
@@ -672,6 +686,9 @@ export default function EntryForm({
           ).map((option) => ({
             value: option,
             label: option,
+            group: undefined,
+            recommendedMeasurementProfile: undefined,
+            defaultDomain: undefined,
           }));
     },
     [isBehaviorTherapist, isOccupationalTherapist, isSpeechPathologist, targetOptions]
@@ -897,7 +914,11 @@ export default function EntryForm({
 
   const saveItems = async (
     draftItems: EntryItemDraft[],
-    redirectOnSuccess = false
+    redirectOnSuccess = false,
+    contextSnapshot?: {
+      values: Record<string, string>;
+      comment: string;
+    }
   ) => {
     const supervisorData = isSupervisorNoteMode
       ? buildSupervisorNoteData(noteKind, contextValues)
@@ -911,7 +932,12 @@ export default function EntryForm({
     }
 
     const contextData = contextKind
-      ? buildContextData(contextKind, contextCards, contextValues, contextComment)
+      ? buildContextData(
+          contextKind,
+          contextCards,
+          contextSnapshot?.values ?? contextValues,
+          contextSnapshot?.comment ?? contextComment
+        )
       : undefined;
 
     return submitEntry({
@@ -938,6 +964,52 @@ export default function EntryForm({
       redirectOnSuccess,
     });
   };
+
+  useEffect(() => {
+    caregiverContextPublisherRef.current = (values) => {
+      setSaveStatus("saving");
+      caregiverPublishChainRef.current = caregiverPublishChainRef.current.then(
+        async () => {
+          try {
+            const result = await saveItems(items, false, {
+              values,
+              // A partially typed optional comment remains only in the draft.
+              comment: sharedContextCommentRef.current,
+            });
+            if (!result.ok) {
+              setSaveStatus("error");
+              return;
+            }
+
+            setNote(result.noteForSave);
+            setSaveStatus("saved");
+            router.refresh();
+            if (result.entryId) {
+              onSaved?.(result.entryId, result.visibility, result.status);
+            }
+          } catch {
+            setSaveStatus("error");
+          }
+        }
+      );
+    };
+  });
+
+  useEffect(() => {
+    if (
+      didRestoreCaregiverContextRef.current ||
+      !contextKind ||
+      role !== "Caregiver"
+    ) {
+      return;
+    }
+    didRestoreCaregiverContextRef.current = true;
+
+    const restoredValues = contextValuesRef.current;
+    if (Object.values(restoredValues).some((value) => value.trim().length > 0)) {
+      caregiverContextPublisherRef.current(restoredValues);
+    }
+  }, [contextKind, role]);
 
   const clearCurrentDraft = async () => {
     if (draftSaveTimeoutRef.current !== null) {
@@ -1029,6 +1101,9 @@ export default function EntryForm({
       newDraftReturnIndexRef.current !== null;
     const result = await saveItems(itemsForSave, false);
     if (result.ok) {
+      if (contextKind && role === "Caregiver") {
+        sharedContextCommentRef.current = contextComment;
+      }
       setNote(result.noteForSave);
       setItems((previous) =>
         previous.map((item) => ({ ...item, isNewDraft: false }))
@@ -1050,10 +1125,19 @@ export default function EntryForm({
   };
 
   const updateContextValue = (key: string, value: string) => {
-    setContextValues((previous) => ({
+    const previous = contextValuesRef.current;
+    const next = {
       ...previous,
       [key]: previous[key] === value ? "" : value,
-    }));
+    };
+    contextValuesRef.current = next;
+    setContextValues(next);
+
+    if (!contextKind || role !== "Caregiver") {
+      return;
+    }
+
+    caregiverContextPublisherRef.current(next);
   };
 
   const setContextValue = (key: string, value: string) => {
@@ -1254,7 +1338,7 @@ export default function EntryForm({
     );
 
     return {
-      target: matchedTarget?.value ?? "Other",
+      target: matchedTarget?.value ?? CUSTOM_OBSERVABLE_SKILL_TARGET,
       customTarget: matchedTarget ? "" : item.target,
       goal: item.goal,
       measurementProfile: normalizeMeasurementProfileForRole(item.measurementProfile, item.target),
@@ -1274,7 +1358,7 @@ export default function EntryForm({
     if (!selected) return;
 
     const target =
-      targetEditDraft.target === "Other"
+      targetEditDraft.target === CUSTOM_OBSERVABLE_SKILL_TARGET
         ? targetEditDraft.customTarget.trim()
         : targetEditDraft.target.trim();
     const goal = targetEditDraft.goal.trim();
@@ -1295,7 +1379,6 @@ export default function EntryForm({
     formData.append("target", target);
     formData.append("goal", goal);
     formData.append("measurementProfile", targetEditDraft.measurementProfile);
-
     setSaveStatus("saving");
     const result = await updateEducatorTarget(formData);
 
@@ -1495,7 +1578,7 @@ export default function EntryForm({
   const submitEducatorTarget = async (event: React.FormEvent) => {
     event.preventDefault();
     const target =
-      targetDraft.target === "Other"
+      targetDraft.target === CUSTOM_OBSERVABLE_SKILL_TARGET
         ? targetDraft.customTarget.trim()
         : targetDraft.target.trim();
 
@@ -1504,6 +1587,9 @@ export default function EntryForm({
     formData.append("target", target);
     formData.append("goal", targetDraft.goal.trim());
     formData.append("measurementProfile", targetDraft.measurementProfile);
+    const targetDefinition = availableEducatorTargets.find(
+      (option) => option.value === targetDraft.target
+    );
 
     setSaveStatus("saving");
     setTargetSaveError("");
@@ -1525,13 +1611,7 @@ export default function EntryForm({
             goal: targetDraft.goal.trim(),
             score: "",
             metricType: response.metricType,
-            domain: isSpeechPathologist
-              ? "Communication"
-              : isOccupationalTherapist
-                ? "Adaptive"
-                : isBehaviorTherapist
-                  ? "Behavior"
-                  : "SkillAcquisition",
+            domain: targetDefinition?.defaultDomain ?? "Other",
             rawValue: "",
             supportLevel: "",
             observation: "",
@@ -1554,7 +1634,9 @@ export default function EntryForm({
 
   if (isEducatorAddTargetMode) {
     const targetCardCount = 3;
-    const target = targetDraft.target === "Other" ? targetDraft.customTarget.trim() : targetDraft.target;
+    const target = targetDraft.target === CUSTOM_OBSERVABLE_SKILL_TARGET
+      ? targetDraft.customTarget.trim()
+      : targetDraft.target;
     const targetReminder = target || "Selected target";
 
     return (
@@ -1580,7 +1662,7 @@ export default function EntryForm({
         </div>
 
         <div
-          className="paper-surface"
+          className="paper-surface add-target-card"
           style={{
             padding: "18px 22px 20px",
             maxWidth: noteCardMaxWidth,
@@ -1594,6 +1676,7 @@ export default function EntryForm({
           {...targetSwipe.swipeHandlers}
         >
           <div
+            className="add-target-navigation"
             style={{
               display: "flex",
               justifyContent: "center",
@@ -1622,6 +1705,7 @@ export default function EntryForm({
           </div>
 
           <div
+            className="add-target-card-content"
             style={{
               display: "grid",
               alignContent: "center",
@@ -1633,32 +1717,42 @@ export default function EntryForm({
           >
             {activeIndex === 0 ? (
               <>
-                <div style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}>
+                <div
+                  className="add-target-card-title"
+                  style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}
+                >
                   {targetSelectTitle}
                 </div>
                 <MaterialSelect
                   ariaLabel={targetSelectTitle}
                   value={targetDraft.target}
                   onValueChange={(value) =>
-                    setTargetDraft((current) => ({
-                      ...current,
-                      target: value,
-                      measurementProfile: normalizeMeasurementProfileForRole(
-                        educatorDefaultProfileForTarget(value),
-                        value
-                      ),
-                    }))
+                    setTargetDraft((current) => {
+                      const selected = availableEducatorTargets.find(
+                        (option) => option.value === value
+                      );
+                      return {
+                        ...current,
+                        target: value,
+                        measurementProfile: normalizeMeasurementProfileForRole(
+                          selected?.recommendedMeasurementProfile ??
+                            educatorDefaultProfileForTarget(value),
+                          value
+                        ),
+                      };
+                    })
                   }
                   options={availableEducatorTargets.map((option) => ({
                     value: option.value,
                     label: option.label,
+                    group: option.group,
                   }))}
                   style={{
                     width: "100%",
                     minHeight: 44,
                   }}
                 />
-                {targetDraft.target === "Other" ? (
+                {targetDraft.target === CUSTOM_OBSERVABLE_SKILL_TARGET ? (
                   <Input
                     value={targetDraft.customTarget}
                     onChange={(event) =>
@@ -1710,10 +1804,14 @@ export default function EntryForm({
 
             {activeIndex === 2 ? (
               <>
-                <div style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}>
+                <div
+                  className="add-target-card-title"
+                  style={{ textAlign: "center", fontSize: 24, fontWeight: 650 }}
+                >
                   How will this be measured?
                 </div>
                 <div
+                  className="add-target-measurement-options"
                   style={{
                     display: "flex",
                     flexWrap: "wrap",
@@ -1756,6 +1854,7 @@ export default function EntryForm({
         </div>
 
         <div
+          className="add-target-actions"
           style={{
             display: "flex",
             justifyContent: "center",
@@ -1978,18 +2077,25 @@ export default function EntryForm({
                       ariaLabel="Edit target"
                       value={targetEditDraft.target}
                       onValueChange={(value) =>
-                        setTargetEditDraft((current) => ({
-                          ...current,
+                        setTargetEditDraft((current) => {
+                          const selected = availableEducatorTargets.find(
+                            (option) => option.value === value
+                          );
+                          return {
+                            ...current,
                             target: value,
                             measurementProfile: normalizeMeasurementProfileForRole(
-                              educatorDefaultProfileForTarget(value),
+                              selected?.recommendedMeasurementProfile ??
+                                educatorDefaultProfileForTarget(value),
                               value
                             ),
-                        }))
+                          };
+                        })
                       }
                       options={availableEducatorTargets.map((option) => ({
                         value: option.value,
                         label: option.label,
+                        group: option.group,
                       }))}
                       style={{
                         width: "100%",
@@ -1997,7 +2103,7 @@ export default function EntryForm({
                       }}
                     />
 
-                    {targetEditDraft.target === "Other" ? (
+                    {targetEditDraft.target === CUSTOM_OBSERVABLE_SKILL_TARGET ? (
                       <Input
                         value={targetEditDraft.customTarget}
                         onChange={(event) =>

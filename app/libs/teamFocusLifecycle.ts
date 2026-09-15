@@ -31,6 +31,26 @@ function utcCalendarDate({ year, month, day }: CalendarDate) {
   return new Date(Date.UTC(year, month - 1, day));
 }
 
+function teamFocusLastVisibleDate(
+  displayStartedAt: Date | string | number
+) {
+  const cursor = utcCalendarDate(clinicalCalendarDate(displayStartedAt));
+  let visibleBusinessDays = 0;
+
+  while (visibleBusinessDays < TEAM_FOCUS_BUSINESS_DAY_LIMIT) {
+    const dayOfWeek = cursor.getUTCDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      visibleBusinessDays += 1;
+    }
+
+    if (visibleBusinessDays < TEAM_FOCUS_BUSINESS_DAY_LIMIT) {
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+  }
+
+  return cursor;
+}
+
 /**
  * Counts working days inclusively in the application's clinical timezone.
  * Weekends remain visible but do not consume one of the five display days.
@@ -71,8 +91,5 @@ export function isTeamFocusVisible(
     return false;
   }
 
-  return (
-    teamFocusBusinessDaysElapsed(displayStartedAt, now) <=
-    TEAM_FOCUS_BUSINESS_DAY_LIMIT
-  );
+  return current <= teamFocusLastVisibleDate(displayStartedAt);
 }

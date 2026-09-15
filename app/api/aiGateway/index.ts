@@ -6,6 +6,7 @@ export type {
   ClientDaySourceReference,
   ClientDailyHandoff,
   ClientDailyHandoffItem,
+  ClientDailyHandoffSection,
   GatewayAttentionPattern,
   GatewayClient,
   GatewayContext,

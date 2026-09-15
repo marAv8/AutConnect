@@ -15,12 +15,16 @@ export function generateClientDailyHandoff(context: ClientDayContext): ClientDai
   const keyEvents = buildKeyEvents(context);
   const currentConsiderations = buildCurrentConsiderations(context);
   const positiveDevelopments = buildPositiveDevelopments(context, keyEvents);
+  const sections = buildDailySummarySections(context);
   const hasVisibleMeaningfulEvents =
     keyEvents.length > 0 || currentConsiderations.length > 0 || positiveDevelopments.length > 0;
   const supportingReferenceIds = new Set(
-    [...keyEvents, ...currentConsiderations, ...positiveDevelopments].flatMap(
-      (item) => item.sourceReferenceIds
-    )
+    [
+      ...keyEvents,
+      ...currentConsiderations,
+      ...positiveDevelopments,
+      ...sections,
+    ].flatMap((item) => item.sourceReferenceIds)
   );
   const referenceById = new Map(
     context.sourceReferences.map((reference) => [reference.id, reference])
@@ -42,6 +46,7 @@ export function generateClientDailyHandoff(context: ClientDayContext): ClientDai
       currentConsiderations,
       positiveDevelopments,
     }),
+    sections,
     keyEvents,
     currentConsiderations,
     positiveDevelopments,
@@ -54,6 +59,84 @@ export function generateClientDailyHandoff(context: ClientDayContext): ClientDai
     generatedAt: context.generatedAt,
     lastUpdatedAt: context.lastUpdatedAt,
   };
+}
+
+function buildDailySummarySections(
+  context: ClientDayContext
+): ClientDailyHandoff["sections"] {
+  const sections: ClientDailyHandoff["sections"] = [];
+  const caregiverSummary = buildCaregiverContextSentence(context);
+  const caregiverReferenceIds = context.sourceReferences
+    .filter(
+      (reference) =>
+        reference.sourceCategory === "caregiver_context" &&
+        !isMedicationReference(reference)
+    )
+    .map((reference) => reference.id);
+  if (caregiverSummary) {
+    sections.push({
+      key: "home-context",
+      title: "Home context",
+      summary: caregiverSummary,
+      sourceReferenceIds: caregiverReferenceIds,
+    });
+  }
+
+  const abcEvent = primaryAbcEvent(context);
+  const supportEvents = fullSupportEvents(context);
+  const sessionSummary = buildGentleSessionContextSentence(
+    abcEvent,
+    supportEvents
+  );
+  if (sessionSummary) {
+    sections.push({
+      key: "session-context",
+      title: "Day and session context",
+      summary: sessionSummary,
+      sourceReferenceIds: referenceIdsForEvents(context, [
+        ...(abcEvent ? [abcEvent.id] : []),
+        ...supportEvents.map((event) => event.id),
+      ]),
+    });
+  }
+
+  const providerSummary = buildGentleProviderObservationSentence(
+    context,
+    abcEvent
+  );
+  const providerObservationEventIds = context.clinicalEvents
+    .filter((event) => event.category === "provider_observation")
+    .map((event) => event.id);
+  if (providerSummary) {
+    sections.push({
+      key: "provider-observations",
+      title: "Provider observations",
+      summary: providerSummary,
+      sourceReferenceIds: referenceIdsForEvents(context, [
+        ...(abcEvent ? [abcEvent.id] : []),
+        ...providerObservationEventIds,
+      ]),
+    });
+  }
+
+  const prioritiesSummary = buildAlliedHealthSentence(context);
+  const priorityEventIds = context.clinicalEvents
+    .filter((event) =>
+      ["communication_observation", "sensory_observation"].includes(
+        event.category
+      )
+    )
+    .map((event) => event.id);
+  if (prioritiesSummary) {
+    sections.push({
+      key: "emerging-priorities",
+      title: "Emerging priorities",
+      summary: prioritiesSummary,
+      sourceReferenceIds: referenceIdsForEvents(context, priorityEventIds),
+    });
+  }
+
+  return sections;
 }
 
 function buildKeyEvents(context: ClientDayContext): ClientDailyHandoffItem[] {
@@ -185,13 +268,15 @@ function buildOverview(
     positiveDevelopments: ClientDailyHandoffItem[];
   }
 ) {
-  const inProgressEntryCount = context.inProgressEntryCount ?? 0;
-
   if (
     context.completedEntryCount === 0 &&
-    inProgressEntryCount === 0
+    context.status === "FINALIZED"
   ) {
     return `${dayLabel(context)} has no completed provider documentation yet. The client handoff will update after providers complete session notes.`;
+  }
+
+  if (context.completedEntryCount === 0) {
+    return "No current session summary is available yet.";
   }
 
   const hasVisibleMeaningfulEvents =
@@ -200,10 +285,6 @@ function buildOverview(
     parts.positiveDevelopments.length > 0;
 
   if (!hasVisibleMeaningfulEvents) {
-    if (inProgressEntryCount > 0) {
-      return `${dayLabel(context)} provider documentation is still in progress. The handoff will refine as providers complete their notes.`;
-    }
-
     const noteLabel =
       context.completedEntryCount === 1
         ? "1 completed provider note"
@@ -212,9 +293,6 @@ function buildOverview(
   }
 
   const sentences = uniqueSentences([
-    inProgressEntryCount > 0
-      ? "Live documentation is still in progress"
-      : "",
     buildCaregiverContextSentence(context),
     buildBehaviorAndSupportSentence(context),
     buildAlliedHealthSentence(context),
@@ -226,9 +304,21 @@ function buildOverview(
     ...parts.currentConsiderations,
     ...parts.positiveDevelopments,
   ]);
+  const summarizedReferenceIds = new Set(
+    buildDailySummarySections(context).flatMap(
+      (section) => section.sourceReferenceIds
+    )
+  );
 
   for (const item of topItems) {
     if (sentences.length >= MAX_OVERVIEW_SENTENCES) break;
+    if (
+      item.sourceReferenceIds.some((referenceId) =>
+        summarizedReferenceIds.has(referenceId)
+      )
+    ) {
+      continue;
+    }
     const sentence = toNaturalHandoffSentence(item);
     if (!isRepeatedSentence(sentence, sentences)) {
       sentences.push(sentence);
@@ -280,7 +370,7 @@ function formatCaregiverPhrases(phrases: string[]) {
 
 function caregiverContextPriority(event: ClientDayContext["clinicalEvents"][number]) {
   const key = typeof event.details?.key === "string" ? event.details.key : "";
-  return ["sleep", "breakfast", "schoolTransition"].indexOf(key) + 1 || 5;
+  return ["breakfast", "sleep", "schoolTransition"].indexOf(key) + 1 || 5;
 }
 
 function caregiverContextPhrase(event: ClientDayContext["clinicalEvents"][number]) {
@@ -300,7 +390,7 @@ function caregiverContextPhrase(event: ClientDayContext["clinicalEvents"][number
   }
 
   if (key === "breakfast") {
-    if (normalized === "ate well") return "the client ate breakfast well";
+    if (normalized === "ate well") return "the client ate well";
     if (normalized === "ate some") return "the client ate some breakfast";
     if (normalized === "skipped") return "the client skipped breakfast";
     if (normalized === "not sure") return "breakfast intake was uncertain";
@@ -321,61 +411,153 @@ function caregiverContextPhrase(event: ClientDayContext["clinicalEvents"][number
   return "";
 }
 
-function buildBehaviorAndSupportSentence(context: ClientDayContext) {
-  const abcEvent = context.clinicalEvents
+function primaryAbcEvent(context: ClientDayContext) {
+  return context.clinicalEvents
     .filter((event) => event.category === "abc_observation")
     .sort(
       (first, second) =>
-        significanceWeight(second.significance) - significanceWeight(first.significance)
+        significanceWeight(second.significance) -
+        significanceWeight(first.significance)
     )[0];
-  const fullSupportTargets = uniqueValues(
-    context.clinicalEvents
-      .filter((event) => {
-        const profile = event.target?.measurementProfile;
-        return (
-          event.category === "target_progress" &&
-          typeof event.measurement?.score === "number" &&
-          event.measurement.score <= 1 &&
-          ["PromptLevel", "SupportLevel", "Independence", "AssistanceLevel"].includes(
-            profile ?? ""
-          )
-        );
-      })
+}
+
+function fullSupportEvents(context: ClientDayContext) {
+  return context.clinicalEvents.filter((event) => {
+    const profile = event.target?.measurementProfile;
+    return (
+      event.category === "target_progress" &&
+      typeof event.measurement?.score === "number" &&
+      event.measurement.score <= 1 &&
+      ["PromptLevel", "SupportLevel", "Independence", "AssistanceLevel"].includes(
+        profile ?? ""
+      )
+    );
+  });
+}
+
+function buildGentleSessionContextSentence(
+  abcEvent: ClientDayContext["clinicalEvents"][number] | undefined,
+  supportEvents: ClientDayContext["clinicalEvents"]
+) {
+  const supportTargets = uniqueValues(
+    supportEvents
       .map((event) => event.target?.target?.trim() ?? "")
       .filter(Boolean)
   ).slice(0, 2);
+  const supportPhrase =
+    supportTargets.length > 0
+      ? `needed full support for ${formatNaturalList(
+          supportTargets.map((target) => target.toLowerCase())
+        )}`
+      : "";
+  const contextPhrase = abcEvent
+    ? abcContextPhrase(
+        typeof abcEvent.details?.antecedent === "string"
+          ? abcEvent.details.antecedent.trim()
+          : ""
+      )
+    : "";
+
+  if (abcEvent && supportPhrase) {
+    return ensureSentence(
+      `The client experienced difficulty${contextPhrase} and ${supportPhrase}`
+    );
+  }
+  if (abcEvent) {
+    return ensureSentence(`The client experienced difficulty${contextPhrase}`);
+  }
+  return supportPhrase ? ensureSentence(`The client ${supportPhrase}`) : "";
+}
+
+function buildGentleProviderObservationSentence(
+  context: ClientDayContext,
+  abcEvent: ClientDayContext["clinicalEvents"][number] | undefined
+) {
   const positiveResponse = context.clinicalEvents.find(
     (event) =>
       event.category === "provider_observation" &&
       event.eventType === "positive_response_observed"
   );
-
-  if (!abcEvent && fullSupportTargets.length === 0 && !positiveResponse) return "";
-
-  const abcClause = abcEvent ? abcOverviewClause(abcEvent) : "";
-  const positiveClause = positiveResponse
-    ? positiveResponseOverviewClause(positiveResponse)
-    : "";
-  const supportTargets =
-    fullSupportTargets.length > 0
-      ? formatNaturalList(
-          fullSupportTargets.map((target) => target.toLowerCase())
-        )
+  const positiveSummary = positiveResponse
+    ? positiveResponseOverviewClause(positiveResponse).replace(
+        /^Behavior therapy (?:later )?observed\s+/i,
+        ""
+      )
+    : abcEvent && /\b(happ(?:y|ily)|positive engagement|engaged)\b/i.test(abcEvent.summary)
+      ? "positive engagement"
       : "";
-
-  if (abcClause && positiveClause) {
-    return ensureSentence(`${abcClause}, and ${lowercaseFirst(positiveClause)}`);
+  if (!abcEvent) {
+    return positiveSummary
+      ? ensureSentence(`Behavior therapy observed ${positiveSummary}`)
+      : "";
   }
+  const antecedent =
+    typeof abcEvent.details?.antecedent === "string"
+      ? abcEvent.details.antecedent.trim()
+      : "";
+  const contextPhrase = abcContextPhrase(antecedent);
+  const isSafetyRelated =
+    context.attentionEvents.some(
+      (event) =>
+        event.attentionType === "safety_concern" &&
+        event.clinicalEventIds.includes(abcEvent.id)
+    ) ||
+    /\b(hit|slap|kick|bite|scratch|pinch|push|elop|attempt(?:ed)? to leave|ran? (?:away|toward)|self[-\s]?injur|head[-\s]?bang)\b/i.test(
+      typeof abcEvent.details?.behavior === "string"
+        ? abcEvent.details.behavior
+        : ""
+    );
 
-  if (abcClause && supportTargets) {
-    return ensureSentence(`${abcClause} and full support required for ${supportTargets}`);
-  }
-
+  const concern =
+    isSafetyRelated
+      ? `Behavior therapy documented a safety-related behavior${contextPhrase}`
+      : `Behavior therapy documented difficulty${contextPhrase}`;
   return ensureSentence(
-    abcClause ||
-      positiveClause ||
-      (supportTargets ? `Full support was required for ${supportTargets}` : "")
+    positiveSummary
+      ? `${concern}, and later observed ${lowercaseFirst(positiveSummary)}`
+      : concern
   );
+}
+
+function referenceIdsForEvents(context: ClientDayContext, eventIds: string[]) {
+  const selectedEventIds = new Set(eventIds);
+  return uniqueValues(
+    context.sourceReferences
+      .filter(
+        (reference) =>
+          reference.sourceCategory !== "attention_event" &&
+          reference.clinicalEventIds.some((eventId) =>
+            selectedEventIds.has(eventId)
+          )
+      )
+      .map((reference) => reference.id)
+  );
+}
+
+function buildBehaviorAndSupportSentence(context: ClientDayContext) {
+  const abcEvent = primaryAbcEvent(context);
+  const supportEvents = fullSupportEvents(context);
+
+  if (!abcEvent && supportEvents.length === 0) {
+    return buildGentleProviderObservationSentence(context, abcEvent);
+  }
+
+  const sessionClause = buildGentleSessionContextSentence(
+    abcEvent,
+    supportEvents
+  ).replace(/[.!?]+$/, "");
+  const providerClause = buildGentleProviderObservationSentence(
+    context,
+    abcEvent
+  )
+    .replace(/[.!?]+$/, "")
+    .replace(/^Behavior therapy documented/i, "behavior therapy documenting");
+  const gentleContext =
+    sessionClause && providerClause
+      ? `${sessionClause}, with ${providerClause}`
+      : sessionClause || providerClause;
+
+  return ensureSentence(gentleContext);
 }
 
 function positiveResponseOverviewClause(
@@ -394,38 +576,6 @@ function positiveResponseOverviewClause(
   return `Behavior therapy later observed ${response}${
     transitionContext ? " following the documented support" : ""
   }`;
-}
-
-function abcOverviewClause(event: ClientDayContext["clinicalEvents"][number]) {
-  const antecedent =
-    typeof event.details?.antecedent === "string" ? event.details.antecedent.trim() : "";
-  const behavior =
-    typeof event.details?.behavior === "string" ? event.details.behavior.trim() : "";
-  const consequence =
-    typeof event.details?.consequence === "string" ? event.details.consequence.trim() : "";
-  const behaviorPhrase =
-    /\b(?:dropped|fell|lowered)\b[^.!?]{0,80}\bfloor\b[^.!?]{0,80}\bresist(?:ed|ance|ing)?\b/i.test(
-      behavior
-    ) && /\btransition\b/i.test(behavior)
-      ? "the client resisted the transition"
-      : compactPhrase(
-          behavior
-            .replace(/^client\s+/i, "the client ")
-            .replace(/,\s+and\b/gi, " and"),
-          96
-        );
-  const contextPhrase = abcContextPhrase(antecedent);
-  const reinforcementPhrase = /\b(mand|request|communicat).*\b(reinforc|prompt)|\b(reinforc|prompt).*\b(mand|request|communicat)/i.test(
-    consequence
-  )
-    ? "functional communication prompted and reinforced in response"
-    : "";
-
-  const observation = behaviorPhrase
-    ? `Behavior therapy observed that ${lowercaseFirst(behaviorPhrase)}${contextPhrase}`
-    : "Behavior therapy recorded an A-B-C observation";
-
-  return reinforcementPhrase ? `${observation}, with ${reinforcementPhrase}` : observation;
 }
 
 function abcContextPhrase(antecedent: string) {
