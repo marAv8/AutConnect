@@ -16,6 +16,7 @@ const FOCUSED_DATA_ENTRY_OVERLAYS = new Set<DashboardOverlayType>([
   "update",
   "abc",
   "teamFocus",
+  "teamFocusView",
   "educatorTarget",
 ]);
 

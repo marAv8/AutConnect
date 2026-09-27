@@ -195,6 +195,7 @@ export async function updateOwnEntry(formData: FormData) {
       authorProviderId: session.providerId,
       assignedProviderIds: providerIds,
       visibility,
+      reactivateForTeammates: isCompletedUpdate,
     });
 
     revalidatePath("/dashboard");
@@ -321,6 +322,7 @@ export async function updateOwnEntry(formData: FormData) {
     authorProviderId: session.providerId,
     assignedProviderIds: providerIds,
     visibility,
+    reactivateForTeammates: isCompletedUpdate,
   });
 
   revalidatePath("/dashboard");

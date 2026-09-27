@@ -76,7 +76,9 @@ test("Dashboard integration allows only the central touch target", () => {
     "utf8"
   );
 
-  assert.match(orbit, /className="glass-client-badge"[\s\S]*data-swipe-allow="true"/);
+  assert.match(orbit, /<button\s[\s\S]*?className="client-orbit-center-hit-target"[^>]*data-swipe-allow="true"/);
+  assert.equal((orbit.match(/data-swipe-allow="true"/g) || []).length, 1);
+  assert.match(orbit, /className="glass-client-badge dashboard-arrival-client-visual"/);
   assert.match(orbit, /className=\{`provider-orbit-node[\s\S]*data-swipe-ignore="true"/);
   assert.match(carousel, /edgeGuard: DASHBOARD_BROWSER_EDGE_GUARD_PX/);
   assert.match(carousel, /blockingSelector: DASHBOARD_SWIPE_BLOCKING_SELECTOR/);

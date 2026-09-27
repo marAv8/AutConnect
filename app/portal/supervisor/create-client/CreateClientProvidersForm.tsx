@@ -6,6 +6,7 @@ import { formatProviderDisplayName } from "@/app/libs/providerDisplayName";
 import { useMemo, useRef, useState } from "react";
 import AdministrativeCarousel from "@/app/components/administrative/AdministrativeCarousel";
 import AdministrativeSubmitButton from "@/app/components/administrative/AdministrativeSubmitButton";
+import styles from "./CreateClientProvidersForm.module.css";
 
 type ProviderRow = {
   id: string;
@@ -83,6 +84,9 @@ export default function CreateClientProvidersForm({
   };
 
   const selectedOrganization = organizations.find(({ id }) => id === organizationId);
+  const selectedOrganizationLabel = selectedOrganization
+    ? `${selectedOrganization.name} — ${organizationTypeLabel(selectedOrganization.type)}`
+    : "Select organization";
   const selectedProviders = providers.filter(({ id }) => selectedSet.has(id));
 
   return (
@@ -195,31 +199,39 @@ export default function CreateClientProvidersForm({
                 title="Responsible organization"
                 explanation="Choose the approved agency, school, district, or independent practice responsible for this client. Only that organization's active providers can be assigned."
               />
-              <select
-                ref={organizationSelectRef}
-                name="organizationId"
-                aria-label="Responsible organization"
-                aria-invalid={agencyWarning ? "true" : undefined}
-                aria-describedby={
-                  agencyWarning ? "create-client-agency-warning" : undefined
-                }
-                value={organizationId}
-                onChange={(event) => {
-                  setOrganizationId(event.target.value);
-                  setSelectedIds([]);
-                  setAgencyIds([]);
-                  if (event.target.value) setAgencyWarning("");
-                }}
-                required
-                style={{ padding: "10px 12px" }}
-              >
-                <option value="">Select organization</option>
-                {organizations.map((organization) => (
-                  <option key={organization.id} value={organization.id}>
-                    {organization.name} — {organizationTypeLabel(organization.type)}
-                  </option>
-                ))}
-              </select>
+              <div className={styles.organizationSelectField}>
+                <select
+                  ref={organizationSelectRef}
+                  className={styles.organizationSelect}
+                  name="organizationId"
+                  aria-label="Responsible organization"
+                  aria-invalid={agencyWarning ? "true" : undefined}
+                  aria-describedby={
+                    agencyWarning ? "create-client-agency-warning" : undefined
+                  }
+                  value={organizationId}
+                  onChange={(event) => {
+                    setOrganizationId(event.target.value);
+                    setSelectedIds([]);
+                    setAgencyIds([]);
+                    if (event.target.value) setAgencyWarning("");
+                  }}
+                  required
+                >
+                  <option value="">Select organization</option>
+                  {organizations.map((organization) => (
+                    <option key={organization.id} value={organization.id}>
+                      {organization.name} — {organizationTypeLabel(organization.type)}
+                    </option>
+                  ))}
+                </select>
+                <span
+                  className={styles.organizationSelectDisplay}
+                  aria-hidden="true"
+                >
+                  {selectedOrganizationLabel}
+                </span>
+              </div>
               {organizations.length === 0 ? (
                 <div style={{ color: "var(--muted-foreground)", fontSize: 13 }}>
                   No approved organization is available for this account.

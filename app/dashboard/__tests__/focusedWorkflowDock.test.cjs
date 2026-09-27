@@ -45,11 +45,11 @@ test.after(() => {
 });
 
 test("only focused Dashboard reading and data-entry overlays suppress utilities", () => {
-  for (const overlay of ["view", "add", "update", "abc", "teamFocus", "educatorTarget"]) {
+  for (const overlay of ["view", "add", "update", "abc", "teamFocus", "teamFocusView", "educatorTarget"]) {
     assert.equal(isDashboardFocusedDataEntry(overlay), true, overlay);
   }
 
-  for (const overlay of [null, "teamFocusView", "clientHandoff"]) {
+  for (const overlay of [null, "clientHandoff"]) {
     assert.equal(isDashboardFocusedDataEntry(overlay), false, String(overlay));
   }
 });
@@ -69,14 +69,14 @@ test("focused state removes utility controls from rendered workspace markup", ()
       })
     );
 
-  for (const overlay of ["view", "add", "update", "abc", "teamFocus", "educatorTarget"]) {
+  for (const overlay of ["view", "add", "update", "abc", "teamFocus", "teamFocusView", "educatorTarget"]) {
     const markup = renderWorkspace(overlay);
     assert.doesNotMatch(markup, /data-dashboard-shell-region="utility-dock"/, overlay);
     assert.doesNotMatch(markup, /data-utility-action="true"/, overlay);
     assert.match(markup, /dashboard-workspace-layout--without-utilities/, overlay);
   }
 
-  for (const overlay of [null, "teamFocusView", "clientHandoff"]) {
+  for (const overlay of [null, "clientHandoff"]) {
     const markup = renderWorkspace(overlay);
     assert.match(markup, /data-dashboard-shell-region="utility-dock"/, String(overlay));
     assert.match(markup, /data-utility-action="true"/, String(overlay));
@@ -133,6 +133,33 @@ test("View Notes keeps utilities absent through nested records and restores them
       !step.dockExpected,
       step.screen
     );
+  }
+});
+
+test("Team Focus reading removes utilities and restores them after every reopen", () => {
+  const journey = [null, "teamFocusView", null, "teamFocusView", null];
+
+  for (const overlayType of journey) {
+    const markup = renderToStaticMarkup(
+      React.createElement(DashboardWorkspaceLayout, {
+        topNav: null,
+        content: React.createElement("div", null, overlayType ?? "Client orbit"),
+        floatingMenu: React.createElement(
+          "button",
+          { type: "button", "data-utility-action": "true" },
+          "More"
+        ),
+        utilitiesHidden: isDashboardFocusedDataEntry(overlayType),
+      })
+    );
+    const dockExpected = overlayType === null;
+
+    assert.equal(
+      markup.includes('data-dashboard-shell-region="utility-dock"'),
+      dockExpected,
+      String(overlayType)
+    );
+    assert.equal(markup.includes('data-utility-action="true"'), dockExpected);
   }
 });
 

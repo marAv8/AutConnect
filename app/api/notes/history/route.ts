@@ -159,12 +159,83 @@ export async function GET(request: Request) {
     },
   });
 
-  if (entries.length > 0) {
+  const presentedEntries = consolidateEntries(entries, client, {
+    providerId: session.providerId,
+    role: session.role,
+  });
+  const presentedEntryIds =
+    presentedEntries.length > 0 ? entries.map((entry) => entry.id) : [];
+
+  return NextResponse.json({
+    clientId,
+    clientInitials: `${client.firstName.slice(0, 2)}${client.lastName.slice(0, 2)}`,
+    backLabel: session.role === "Caregiver" ? "Back to Children" : "Back to Client",
+    entries: presentedEntries,
+    presentedEntryIds,
+  });
+}
+
+export async function POST(request: Request) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = (await request.json().catch(() => null)) as {
+    clientId?: unknown;
+    authorProviderId?: unknown;
+    entryIds?: unknown;
+  } | null;
+  const clientId = typeof body?.clientId === "string" ? body.clientId : null;
+  const authorProviderId =
+    typeof body?.authorProviderId === "string" ? body.authorProviderId : null;
+  const entryIds = Array.isArray(body?.entryIds)
+    ? [...new Set(body.entryIds.filter((id): id is string => typeof id === "string"))]
+    : [];
+
+  if (!clientId || !authorProviderId || entryIds.length === 0) {
+    return NextResponse.json({ error: "Invalid acknowledgement" }, { status: 400 });
+  }
+
+  const sevenDaysAgo = sevenDayHistoryStart();
+  const entries = await db.entry.findMany({
+    where: {
+      id: { in: entryIds },
+      clientId,
+      providerId: authorProviderId,
+      date: { gte: sevenDaysAgo },
+      client: {
+        providerClients: {
+          some: {
+            providerId: session.providerId,
+            revokedAt: null,
+          },
+        },
+      },
+      OR: [
+        { visibility: "Shared" },
+        { providerId: session.providerId },
+      ],
+      AND: [
+        {
+          OR: [
+            { note: { not: null } },
+            { items: { some: {} } },
+            { abcObservations: { some: {} } },
+          ],
+        },
+      ],
+    },
+    select: { id: true },
+  });
+  const acknowledgedEntryIds = entries.map((entry) => entry.id);
+
+  if (acknowledgedEntryIds.length > 0) {
     const readAt = new Date();
     await Promise.all([
       db.entryRead.createMany({
-        data: entries.map((entry) => ({
-          entryId: entry.id,
+        data: acknowledgedEntryIds.map((entryId) => ({
+          entryId,
           providerId: session.providerId,
           readAt,
         })),
@@ -173,27 +244,15 @@ export async function GET(request: Request) {
       db.entryRead.updateMany({
         where: {
           providerId: session.providerId,
-          entryId: {
-            in: entries.map((entry) => entry.id),
-          },
+          entryId: { in: acknowledgedEntryIds },
           readAt: null,
         },
-        data: {
-          readAt,
-        },
+        data: { readAt },
       }),
     ]);
   }
 
-  return NextResponse.json({
-    clientId,
-    clientInitials: `${client.firstName.slice(0, 2)}${client.lastName.slice(0, 2)}`,
-    backLabel: session.role === "Caregiver" ? "Back to Children" : "Back to Client",
-    entries: consolidateEntries(entries, client, {
-      providerId: session.providerId,
-      role: session.role,
-    }),
-  });
+  return NextResponse.json({ acknowledgedEntryIds });
 }
 
 function consolidateEntries(entries: Array<{

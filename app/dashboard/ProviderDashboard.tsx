@@ -1,6 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { preserveFirstActivationFlag } from "./firstActivationFlag";
+import {
+  createDashboardArrivalCoordinator,
+  preserveClientListEntrancePreview,
+} from "./clientListEntrance";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import DashboardWorkspaceLayout from "./DashboardWorkspaceLayout";
 import FirstClientEmptyState from "./FirstClientEmptyState";
@@ -22,6 +27,7 @@ import ThemeToggle from "@/app/components/ThemeToggle";
 import TeamFocusSignalControl from "./TeamFocusSignalControl";
 import DashboardInboxControl from "./DashboardInboxControl";
 import ProviderDashboardMoreMenu from "./ProviderDashboardMoreMenu";
+import DashboardArrivalUtilities from "./DashboardArrivalUtilities";
 import {
   traceDashboardInteractionHandled,
   traceDashboardInteractionState,
@@ -37,6 +43,8 @@ import {
   type DashboardNavigationProvenance,
 } from "./dashboardNavigation";
 
+import type { DashboardAttentionCounts } from "./dashboardAttentionTypes";
+
 type Props = {
   clients: DashboardClient[];
   currentProviderId: string;
@@ -47,6 +55,7 @@ type Props = {
   canReviewOrganizationInvitations: boolean;
   canAttachExistingClient: boolean;
   pendingOrganizationInvitationCount: number;
+  attentionCounts?: DashboardAttentionCounts;
   caseSupportUpdates?: Array<{
     id: string;
     status: string;
@@ -67,9 +76,9 @@ type ProviderDashboardLayer = {
 const PROVIDER_DASHBOARD_HISTORY_KEY = "autConnectProviderDashboardLayer";
 
 function providerDashboardUrl(mode: Mode, activeClientId?: string) {
-  return mode === "orbit" && activeClientId
+  return preserveClientListEntrancePreview(preserveFirstActivationFlag(mode === "orbit" && activeClientId
     ? `/dashboard?clientId=${encodeURIComponent(activeClientId)}&view=orbit`
-    : "/dashboard";
+    : "/dashboard"));
 }
 
 export default function ProviderDashboard({
@@ -82,6 +91,7 @@ export default function ProviderDashboard({
   canReviewOrganizationInvitations,
   canAttachExistingClient,
   pendingOrganizationInvitationCount,
+  attentionCounts,
   caseSupportUpdates = [],
 }: Props) {
   const searchParams = useSearchParams();
@@ -96,6 +106,10 @@ export default function ProviderDashboard({
       : singleCaretakerClientId;
   const canOpenOrbit = !!requestedOrbitClientId;
   const [clientState, setClientState] = useState(clients);
+  const arrivalCoordinator = useMemo(
+    () => createDashboardArrivalCoordinator(currentProviderId),
+    [currentProviderId]
+  );
   const [mode, setMode] = useState<Mode>(canOpenOrbit ? "orbit" : "grid");
 
   useEffect(() => {
@@ -184,6 +198,11 @@ export default function ProviderDashboard({
       );
     }
 
+  }, []);
+
+  // History initialization survives effect reactivation; subscriptions do not.
+  // Each activation owns one listener and cleanup removes that exact closure.
+  useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
       const layer = event.state?.[
         PROVIDER_DASHBOARD_HISTORY_KEY
@@ -222,6 +241,7 @@ export default function ProviderDashboard({
   }, [clients, dashboardLocationKey]);
 
   const openClientOrbit = useCallback((clientId: string) => {
+    traceDashboardInteractionHandled("grid-client");
     const current = window.history.state?.[
       PROVIDER_DASHBOARD_HISTORY_KEY
     ] as ProviderDashboardLayer | undefined;
@@ -272,7 +292,7 @@ export default function ProviderDashboard({
     window.history.replaceState(
       { ...window.history.state, [PROVIDER_DASHBOARD_HISTORY_KEY]: gridLayer },
       "",
-      "/dashboard"
+      preserveClientListEntrancePreview(preserveFirstActivationFlag("/dashboard"))
     );
   }, [activeClientId]);
 
@@ -297,12 +317,13 @@ export default function ProviderDashboard({
   }, []);
 
   const handleEntryRead = useCallback(
-    (clientId: string, authorProviderId: string) => {
+    (clientId: string, authorProviderId: string, entryIds: string[]) => {
       setClientState((currentClients) =>
         markDashboardProviderEntriesRead(
           currentClients,
           clientId,
-          authorProviderId
+          authorProviderId,
+          entryIds
         )
       );
     },
@@ -382,12 +403,14 @@ export default function ProviderDashboard({
         onClientSignalRead={handleClientSignalRead}
         onEntrySaved={handleEntrySaved}
         onFocusedDataEntryChange={setFocusedDataEntry}
+        arrivalCoordinator={arrivalCoordinator}
       />
     ) : (
       <GridClientView
         clients={clientState}
         palette={dashboardClientPalette}
         initialsOf={dashboardClientInitials}
+        arrivalCoordinator={arrivalCoordinator}
         onClientClick={openClientOrbit}
       />
     );
@@ -408,7 +431,8 @@ export default function ProviderDashboard({
         content={content}
         utilitiesHidden={focusedDataEntry}
         floatingMenu={
-          <div className="dashboard-utility-controls">
+          <DashboardArrivalUtilities arrivalCoordinator={arrivalCoordinator}>
+            <div className="dashboard-utility-controls">
             {canAttachExistingClient ? (
               <ProviderDashboardMoreMenu
                 canAttachExistingClient
@@ -417,14 +441,17 @@ export default function ProviderDashboard({
             ) : (
               <button
                 type="button"
-                className="material-control dashboard-round-icon-control dashboard-info-control"
+                className="material-control dashboard-round-icon-control dashboard-round-icon-control--arrival dashboard-info-control"
                 aria-label="How AutConnect works"
-                onClick={() => setGuideOpen(true)}
+                onClick={() => { traceDashboardInteractionHandled("guide"); setGuideOpen(true); }}
               >
-                <Info aria-hidden="true" size={22} strokeWidth={1.8} />
+                <span className="dashboard-utility-arrival-visual">
+                  <Info aria-hidden="true" size={22} strokeWidth={1.8} />
+                </span>
               </button>
             )}
             <DashboardInboxControl
+              attentionCounts={attentionCounts}
               canAccessCaseSupport={false}
               canReviewOrganizationInvitations={
                 canReviewOrganizationInvitations
@@ -442,7 +469,8 @@ export default function ProviderDashboard({
               />
             ) : null}
             <ThemeToggle />
-          </div>
+            </div>
+          </DashboardArrivalUtilities>
         }
       />
       {guideOpen ? <DashboardProductGuide onClose={() => setGuideOpen(false)} /> : null}

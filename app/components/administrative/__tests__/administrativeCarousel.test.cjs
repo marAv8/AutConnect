@@ -126,20 +126,20 @@ test("Care Team has the four approved cards without splitting Provider context",
 });
 
 test("Care Team searches stay in their active card with complete local feedback", () => {
-  assert.match(careTeamPanel, /event\.preventDefault\(\)/);
+  const autocomplete = read("components/ui/AuthorizedAutocomplete.tsx");
   assert.match(careTeamPanel, /searchOrganizationsForClient\(clientId, query\)/);
-  assert.match(careTeamPanel, /searchEligibleClientProviders\(clientId, organization\.id, query\)/);
-  for (const status of ["loading", "too-short", "empty", "error", "results"]) {
-    assert.match(careTeamPanel, new RegExp(`"${status}"`));
+  assert.match(careTeamPanel, /searchEligibleClientProviders\(clientId, query\)/);
+  for (const status of ["loading", "prompt", "empty", "error", "results"]) {
+    assert.match(autocomplete, new RegExp(`"${status}"`));
   }
   assert.doesNotMatch(careTeamPanel, /method="get"|history\.|router\.|location\./);
 });
 
 test("searches and mutations suppress duplicate rapid submissions", () => {
-  assert.match(careTeamPanel, /if \(organizationSearchPending\.current\) return/);
-  assert.match(careTeamPanel, /if \(providerSearchPending\.current\) return/);
-  assert.match(careTeamPanel, /disabled=\{organizationState === "loading"\}/);
-  assert.match(careTeamPanel, /disabled=\{providerState === "loading"\}/);
+  const autocomplete = read("components/ui/AuthorizedAutocomplete.tsx");
+  assert.match(autocomplete, /requestSequence/);
+  assert.match(autocomplete, /sequence !== requestSequence\.current/);
+  assert.match(autocomplete, /window\.clearTimeout\(timer\)/);
   assert.match(read("app/portal/supervisor/edit-providers/[clientId]/ClientTeamActionForm.tsx"), /disabled=\{pending\}/);
 });
 

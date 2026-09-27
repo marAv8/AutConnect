@@ -32,6 +32,7 @@ const page = read("app/portal/supervisor/edit-providers/[clientId]/page.tsx");
 const panel = read(
   "app/portal/supervisor/edit-providers/[clientId]/ClientTeamPanel.tsx"
 );
+const autocomplete = read("components/ui/AuthorizedAutocomplete.tsx");
 
 test.after(() => {
   Module._extensions[".ts"] = originalTsLoader;
@@ -61,7 +62,9 @@ test("eligible organizations use bounded partial case-insensitive name matching 
     actions.indexOf("export async function inviteClientOrganization")
   );
   assert.match(searchAction, /name: \{ contains: normalizedQuery, mode: "insensitive" \}/);
-  assert.match(searchAction, /take: ORGANIZATION_RESULT_LIMIT/);
+  assert.match(searchAction, /take: SEARCH_CANDIDATE_LIMIT/);
+  assert.match(searchAction, /organizationMatchRank/);
+  assert.match(searchAction, /rankAndLimit/);
   assert.match(searchAction, /select: \{ id: true, name: true, type: true \}/);
   assert.doesNotMatch(
     searchAction,
@@ -94,21 +97,19 @@ test("organization search requires exact Team Manager authority and performs no 
 
 test("submitted query, validation, results, and no-results feedback stay in Invite Organization context", () => {
   assert.doesNotMatch(page, /searchParams|organizationSearchValidation/);
-  assert.match(panel, /normalizeOrganizationSearchQuery\(organizationInput\)/);
-  assert.match(panel, /value=\{organizationInput\}/);
   assert.match(panel, /id="invite-organization"[\s\S]*tabIndex=\{-1\}/);
-  assert.match(panel, /organizationInputRef\.current\?\.focus\(\)/);
-  assert.match(panel, /Enter at least \{ORGANIZATION_SEARCH_MIN_LENGTH\} characters/);
-  assert.match(panel, /No eligible organizations found/);
+  assert.match(panel, /emptyMessage="No authorized organizations match this search\."/);
+  assert.match(autocomplete, /Type at least.*letters/);
+  assert.match(autocomplete, /Loading suggestions\./);
+  assert.match(autocomplete, /Search unavailable\. Try again\./);
 });
 
 test("searches remain in place and Provider eligibility remains approval-gated", () => {
-  assert.match(panel, /event\.preventDefault\(\)/);
-  assert.match(panel, /organizationSearchPending\.current/);
-  assert.match(panel, /providerSearchPending\.current/);
+  assert.match(panel, /<AuthorizedAutocomplete/);
+  assert.match(autocomplete, /window\.setTimeout/);
+  assert.match(autocomplete, /250/);
   assert.doesNotMatch(panel, /method="get"|window\.location|location\.href/);
   assert.doesNotMatch(panel, /router\.(?:push|replace)|history\.(?:pushState|replaceState)/);
-  assert.match(actions, /activeClientOrganizationWhere\(clientId, organizationId\)/);
-  assert.match(actions, /if \(!participation\) throw new Error\("That organization is not active for this client\."\)/);
+  assert.match(actions, /clientOrganizations:[\s\S]*some: \{ clientId, status: "ACTIVE", revokedAt: null \}/);
   assert.match(actions, /providerClients: \{ none: \{ clientId, revokedAt: null \} \}/);
 });

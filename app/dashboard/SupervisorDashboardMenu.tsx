@@ -20,12 +20,15 @@ import {
   traceDashboardInteractionState,
 } from "./dashboardInteractionTraceClient";
 
+import type { DashboardAttentionCounts } from "./dashboardAttentionTypes";
+
 type Props = {
   mode: "grid" | "orbit" | "add" | "remove";
   menuOpen: boolean;
   administrativeCapabilities: AdministrativePresentationCapabilities;
   newCaseSupportRequestCount: number;
   pendingOrganizationInvitationCount: number;
+  attentionCounts?: DashboardAttentionCounts;
   activeClientId?: string;
   menuRef: RefObject<HTMLDivElement | null>;
   triggerRef: RefObject<HTMLButtonElement | null>;
@@ -61,6 +64,7 @@ export default function SupervisorDashboardMenu({
   administrativeCapabilities,
   newCaseSupportRequestCount,
   pendingOrganizationInvitationCount,
+  attentionCounts,
   activeClientId,
   menuRef,
   triggerRef,
@@ -226,16 +230,19 @@ export default function SupervisorDashboardMenu({
       <button
         ref={triggerRef}
         type="button"
-        className="material-control more-icon-control dashboard-round-icon-control"
+        className="material-control more-icon-control dashboard-round-icon-control dashboard-round-icon-control--arrival"
         data-dashboard-trace-control="more"
         onClick={toggleMenu}
         aria-expanded={menuOpen}
         aria-controls="supervisor-dashboard-more-menu"
         aria-label="More"
       >
-        <MenuDots />
+        <span className="dashboard-utility-arrival-visual">
+          <MenuDots />
+        </span>
       </button>
       <DashboardInboxControl
+        attentionCounts={attentionCounts}
         canAccessCaseSupport
         canReviewOrganizationInvitations={
           administrativeCapabilities.canReviewOrganizationInvitations

@@ -37,9 +37,14 @@ const db = {
     async updateMany({ where, data }) {
       let count = 0;
       reads = reads.map((read) => {
+        const providerMatches =
+          typeof where.providerId === "string"
+            ? read.providerId === where.providerId
+            : (!where.providerId.in || where.providerId.in.includes(read.providerId)) &&
+              (!where.providerId.not || read.providerId !== where.providerId.not);
         if (
           read.entryId !== where.entryId ||
-          read.providerId !== where.providerId
+          !providerMatches
         ) {
           return read;
         }
@@ -90,7 +95,7 @@ test("a shared Entry acknowledges its author and leaves active teammates unread"
   assert.equal(reads.find((read) => read.providerId === "provider-b").readAt, null);
 });
 
-test("same-day updates keep one row per Provider and preserve every teammate timestamp", async () => {
+test("draft saves keep one row per Provider and preserve every teammate timestamp", async () => {
   const teammateReadAt = new Date("2026-08-30T18:00:00.000Z");
   reads = [
     { entryId: "entry-a", providerId: "provider-a", readAt: null },
@@ -108,6 +113,28 @@ test("same-day updates keep one row per Provider and preserve every teammate tim
   assert.ok(reads.find((read) => read.providerId === "provider-a").readAt instanceof Date);
   assert.equal(reads.find((read) => read.providerId === "provider-b").readAt, teammateReadAt);
   assert.equal(reads.find((read) => read.providerId === "provider-c").readAt, null);
+});
+
+test("a published update reactivates only assigned teammates", async () => {
+  const teammateReadAt = new Date("2026-08-30T18:00:00.000Z");
+  reads = [
+    { entryId: "entry-a", providerId: "provider-a", readAt: null },
+    { entryId: "entry-a", providerId: "provider-b", readAt: teammateReadAt },
+    { entryId: "entry-a", providerId: "provider-c", readAt: teammateReadAt },
+    { entryId: "entry-a", providerId: "unassigned", readAt: teammateReadAt },
+  ];
+
+  await syncEntryReadsAfterAuthorSave({
+    entryId: "entry-a",
+    authorProviderId: "provider-a",
+    assignedProviderIds: ["provider-a", "provider-b", "provider-c"],
+    reactivateForTeammates: true,
+  });
+
+  assert.ok(reads.find((read) => read.providerId === "provider-a").readAt instanceof Date);
+  assert.equal(reads.find((read) => read.providerId === "provider-b").readAt, null);
+  assert.equal(reads.find((read) => read.providerId === "provider-c").readAt, null);
+  assert.equal(reads.find((read) => read.providerId === "unassigned").readAt, teammateReadAt);
 });
 
 test("unassigned Providers receive no new read state", async () => {

@@ -84,6 +84,7 @@ export async function updateEntryVisibility(formData: FormData) {
     authorProviderId: session.providerId,
     assignedProviderIds: providerIds,
     visibility,
+    reactivateForTeammates: entry.status === "COMPLETED",
   });
 
   revalidatePath("/dashboard");

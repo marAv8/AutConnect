@@ -9,9 +9,10 @@ type Props = {
   googleEnabled: boolean;
   oauthError: string | null;
   inviteToken?: string;
+  debugFirstActivation?: boolean;
 };
 
-export default function LoginForm({ googleEnabled, oauthError, inviteToken }: Props) {
+export default function LoginForm({ googleEnabled, oauthError, inviteToken, debugFirstActivation = false }: Props) {
   const [state, formAction, isPending] = useActionState(loginProvider, {
     error: null,
   });
@@ -22,6 +23,7 @@ export default function LoginForm({ googleEnabled, oauthError, inviteToken }: Pr
         {oauthError && <p className="auth-error">{oauthError}</p>}
 
         <form action={formAction} className="auth-form">
+          {debugFirstActivation ? <input type="hidden" name="debugFirstActivation" value="1" /> : null}
           {inviteToken ? (
             <input type="hidden" name="inviteToken" value={inviteToken} />
           ) : null}

@@ -6,7 +6,12 @@
  * and the longitudinal Insights overlay without owning provider note forms.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { preserveFirstActivationFlag } from "./firstActivationFlag";
+import {
+  createDashboardArrivalCoordinator,
+  preserveClientListEntrancePreview,
+} from "./clientListEntrance";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { removeSupervisorClient } from "@/app/actions/manageSupervisorClients";
 import DashboardWorkspaceLayout from "./DashboardWorkspaceLayout";
@@ -45,6 +50,9 @@ import {
 } from "./dashboardNavigation";
 import type { AdministrativePresentationCapabilities } from "./administrativeCapabilities";
 import { applySuccessfulClientRemoval } from "./clientRemovalMode";
+import DashboardArrivalUtilities from "./DashboardArrivalUtilities";
+
+import type { DashboardAttentionCounts } from "./dashboardAttentionTypes";
 
 type Props = {
   assignedClients: DashboardClient[];
@@ -52,6 +60,7 @@ type Props = {
   administrativeCapabilities: AdministrativePresentationCapabilities;
   newCaseSupportRequestCount: number;
   pendingOrganizationInvitationCount: number;
+  attentionCounts?: DashboardAttentionCounts;
   initialClientId?: string;
   forceOrbitView?: boolean;
 };
@@ -73,9 +82,9 @@ type PendingClientAction = {
 const DASHBOARD_HISTORY_KEY = SUPERVISOR_DASHBOARD_HISTORY_KEY;
 
 function dashboardLayerUrl(mode: Mode, activeClientId?: string) {
-  return mode === "orbit" && activeClientId
+  return preserveClientListEntrancePreview(preserveFirstActivationFlag(mode === "orbit" && activeClientId
     ? `/dashboard?clientId=${encodeURIComponent(activeClientId)}&view=orbit`
-    : "/dashboard";
+    : "/dashboard"));
 }
 
 export default function SupervisorDashboard({
@@ -84,6 +93,7 @@ export default function SupervisorDashboard({
   administrativeCapabilities,
   newCaseSupportRequestCount,
   pendingOrganizationInvitationCount,
+  attentionCounts,
   initialClientId,
   forceOrbitView = false,
 }: Props) {
@@ -97,6 +107,10 @@ export default function SupervisorDashboard({
 
   const [assignedClientState, setAssignedClientState] =
     useState<DashboardClient[]>(assignedClients);
+  const arrivalCoordinator = useMemo(
+    () => createDashboardArrivalCoordinator(currentProviderId),
+    [currentProviderId]
+  );
   const [mode, setMode] = useState<Mode>(canOpenOrbit ? "orbit" : "grid");
 
   useEffect(() => {
@@ -207,10 +221,15 @@ export default function SupervisorDashboard({
           [DASHBOARD_HISTORY_KEY]: baseLayer,
         },
         "",
-        "/dashboard"
+        preserveClientListEntrancePreview(preserveFirstActivationFlag("/dashboard"))
       );
     }
 
+  }, []);
+
+  // History initialization survives effect reactivation; subscriptions do not.
+  // Each activation owns one listener and cleanup removes that exact closure.
+  useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
       const layer = event.state?.[DASHBOARD_HISTORY_KEY] as
         | DashboardLayer
@@ -338,7 +357,7 @@ export default function SupervisorDashboard({
     window.history.replaceState(
       { ...window.history.state, [DASHBOARD_HISTORY_KEY]: gridLayer },
       "",
-      "/dashboard"
+      preserveClientListEntrancePreview(preserveFirstActivationFlag("/dashboard"))
     );
     closeDashboardMenu();
     setMode("grid");
@@ -374,7 +393,7 @@ export default function SupervisorDashboard({
     window.history.replaceState(
       { ...window.history.state, [DASHBOARD_HISTORY_KEY]: gridLayer },
       "",
-      "/dashboard"
+      preserveClientListEntrancePreview(preserveFirstActivationFlag("/dashboard"))
     );
   }, [activeClientId, closeDashboardMenu]);
 
@@ -477,9 +496,14 @@ export default function SupervisorDashboard({
   }, [router]);
 
   const handleEntryRead = useCallback(
-    (clientId: string, authorProviderId: string) => {
+    (clientId: string, authorProviderId: string, entryIds: string[]) => {
       setAssignedClientState((currentClients) =>
-        markDashboardProviderEntriesRead(currentClients, clientId, authorProviderId)
+        markDashboardProviderEntriesRead(
+          currentClients,
+          clientId,
+          authorProviderId,
+          entryIds
+        )
       );
     },
     []
@@ -576,6 +600,7 @@ export default function SupervisorDashboard({
           onClientSignalRead={handleClientSignalRead}
           onEntrySaved={handleEntrySaved}
           onFocusedDataEntryChange={setFocusedDataEntry}
+          arrivalCoordinator={arrivalCoordinator}
           onTeamFocusSaved={(clientId, teamFocus) => {
             setAssignedClientState((currentClients) =>
               currentClients.map((client) =>
@@ -632,6 +657,7 @@ export default function SupervisorDashboard({
         clients={assignedClientState}
         palette={dashboardClientPalette}
         initialsOf={dashboardClientInitials}
+        arrivalCoordinator={arrivalCoordinator}
         removalMode={mode === "remove"}
         removableClientIds={visibleAdministrativeCapabilities.removableClientIds}
         busyClientId={busyClientId}
@@ -648,12 +674,14 @@ export default function SupervisorDashboard({
     ) : null;
 
   const floatingMenu = (
-    <SupervisorDashboardMenu
+    <DashboardArrivalUtilities arrivalCoordinator={arrivalCoordinator}>
+      <SupervisorDashboardMenu
       mode={mode}
       menuOpen={menuOpen}
       administrativeCapabilities={visibleAdministrativeCapabilities}
       newCaseSupportRequestCount={newCaseSupportRequestCount}
       pendingOrganizationInvitationCount={pendingOrganizationInvitationCount}
+      attentionCounts={attentionCounts}
       activeClientId={activeClientId}
       activeTeamFocus={
         mode === "orbit" ? activeClient?.teamFocusItems?.[0] : undefined
@@ -686,7 +714,8 @@ export default function SupervisorDashboard({
           setGuideOpen(true);
         });
       }}
-    />
+      />
+    </DashboardArrivalUtilities>
   );
 
   return (

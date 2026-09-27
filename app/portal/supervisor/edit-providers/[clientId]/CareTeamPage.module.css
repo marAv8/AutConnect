@@ -280,6 +280,25 @@
   gap: 8px;
 }
 
+.selectedAction {
+  display: flex;
+  width: min(100%, 620px);
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.selectedAction p { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+
+@media (max-width: 520px) {
+  .selectedAction { align-items: stretch; flex-direction: column; }
+  .selectedAction button { width: 100%; min-height: 48px; }
+}
+
 .searchForm input:not([type="hidden"]) {
   min-width: 0;
   flex: 1 1 390px;

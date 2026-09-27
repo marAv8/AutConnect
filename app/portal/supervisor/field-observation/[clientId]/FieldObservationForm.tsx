@@ -233,9 +233,7 @@ export default function FieldObservationForm({
             Back
           </Link>
         </div>
-        <div className={styles.titleRow}>
-          <h1 className={styles.title}>Field Observation</h1>
-        </div>
+        <h1 className={styles.srOnly}>Field Observation</h1>
       </header>
 
       <div className={styles.pager} aria-label="Field Observation steps">

@@ -175,7 +175,7 @@ export default function TeamFocusSignalControl({
   return (
     <button
       type="button"
-      className="material-control dashboard-round-icon-control dashboard-team-focus-control"
+      className="material-control dashboard-round-icon-control dashboard-round-icon-control--arrival dashboard-team-focus-control"
       data-dashboard-trace-control="team-focus"
       aria-label={label}
       title={label}
@@ -195,18 +195,20 @@ export default function TeamFocusSignalControl({
         );
       }}
     >
-      <span
-        aria-hidden="true"
-        className={`dashboard-team-focus-signal${
-          isUnread ? " dashboard-team-focus-signal--unread" : ""
-        }${isPulsing ? " dashboard-team-focus-signal--pulse" : ""}`}
-      >
-        {isPulsing ? (
-          <span
-            key={`${seenStorageKey ?? "inactive"}:${pulseCycle}`}
-            className="dashboard-team-focus-pulse-ring"
-          />
-        ) : null}
+      <span className="dashboard-utility-arrival-visual">
+        <span
+          aria-hidden="true"
+          className={`dashboard-team-focus-signal${
+            isUnread ? " dashboard-team-focus-signal--unread" : ""
+          }${isPulsing ? " dashboard-team-focus-signal--pulse" : ""}`}
+        >
+          {isPulsing ? (
+            <span
+              key={`${seenStorageKey ?? "inactive"}:${pulseCycle}`}
+              className="dashboard-team-focus-pulse-ring"
+            />
+          ) : null}
+        </span>
       </span>
     </button>
   );

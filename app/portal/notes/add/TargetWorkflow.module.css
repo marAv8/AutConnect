@@ -1,0 +1,63 @@
+/* Target-only responsive ownership; desktop/tablet sizing remains unchanged. */
+@media (max-width: 700px) {
+  .editorStage {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .editorFields,
+  .editorFields > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .editorFields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .editorActions {
+    flex-wrap: wrap;
+    min-width: 0;
+    padding-bottom: max(4px, env(safe-area-inset-bottom));
+  }
+
+  .editorStage > button,
+  .addTarget :global(.add-target-actions) > button,
+  .editorActions > button {
+    min-height: 44px;
+  }
+
+  .editorFields button,
+  .addTarget :global(.add-target-measurement-options) > button {
+    min-width: 0;
+    max-width: 100%;
+    min-height: 44px !important;
+    height: auto;
+    white-space: normal;
+  }
+
+  .editorFields :global([data-contextual-help]),
+  .addTarget :global(.add-target-measurement-options [data-contextual-help]) {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .editorFields :global([data-contextual-help] > [role="button"]),
+  .addTarget :global(.add-target-measurement-options [data-contextual-help] > [role="button"]) {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
+  .editorFields input,
+  .editorFields textarea,
+  .editorFields select,
+  .addTarget input,
+  .addTarget textarea,
+  .addTarget select {
+    min-width: 0;
+    font-size: 16px;
+  }
+}

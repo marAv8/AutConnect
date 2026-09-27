@@ -1,3 +1,5 @@
+import FirstActivationDiagnostic from "./FirstActivationDiagnostic";
+import { getDashboardAttentionCounts } from "@/app/dashboard/dashboardAttentionCounts";
 //app/dashboard/page.tsx
 import { getSession } from "@/lib/session";
 import {
@@ -14,6 +16,7 @@ import { caseSupportNotificationAccessWhere } from "@/app/libs/caseSupportNotifi
 import { hasActiveClientTeamManagerAuthority } from "@/lib/clientTeamAuthorization";
 import { deriveAdministrativePresentationCapabilities } from "./administrativeCapabilities";
 import { prepareDashboardClients } from "./dashboardPageModel";
+import { providerNoteSignalDayWindow } from "@/app/libs/providerNoteSignalDay";
 
 export default async function DashboardPage({
   searchParams,
@@ -21,6 +24,7 @@ export default async function DashboardPage({
   searchParams: Promise<{
     clientId?: string;
     view?: string;
+    debugFirstActivation?: string | string[];
   }>;
 }) {
   const [session, resolvedSearchParams] = await Promise.all([
@@ -29,12 +33,13 @@ export default async function DashboardPage({
   ]);
 
   if (!session) {
-    redirect("/login");
+    redirect(resolvedSearchParams.debugFirstActivation === "1" ? "/login?debugFirstActivation=1" : "/login");
   }
 
   const now = new Date();
   const activeDate = activeDocumentationDate(now);
   const sevenDaysAgo = sevenDayHistoryStart(now);
+  const providerNoteSignalDay = providerNoteSignalDayWindow(now);
 
   const [
     provider,
@@ -91,15 +96,25 @@ export default async function DashboardPage({
         },
         entries: {
           where: {
-            ...(activeDate
-              ? { date: activeDate }
-              : { id: { in: [] as string[] } }),
             OR: [
+              // Keep the author's completion and read teammate signals scoped
+              // to the existing active documentation day.
+              ...(activeDate
+                ? [{
+                    date: activeDate,
+                    OR: [{ visibility: "Shared" as const }, { providerId: session.providerId }],
+                  }]
+                : []),
+              // Provider-note signals are scoped to the current Los Angeles
+              // calendar day, whether this viewer has read them or not.
               {
+                providerId: { not: session.providerId },
                 visibility: "Shared",
-              },
-              {
-                providerId: session.providerId,
+                status: "COMPLETED",
+                completedAt: {
+                  gte: providerNoteSignalDay.start,
+                  lt: providerNoteSignalDay.end,
+                },
               },
             ],
           },
@@ -109,6 +124,7 @@ export default async function DashboardPage({
             kind: true,
             visibility: true,
             status: true,
+            completedAt: true,
             reads: {
               where: {
                 providerId: session.providerId,
@@ -232,7 +248,7 @@ export default async function DashboardPage({
   ]);
 
   if (!provider) {
-    redirect("/login");
+    redirect(resolvedSearchParams.debugFirstActivation === "1" ? "/login?debugFirstActivation=1" : "/login");
   }
 
   const clients = initialClients;
@@ -278,6 +294,10 @@ export default async function DashboardPage({
   const administeredOrganizationIds = provider.organizationMemberships.map(
     ({ organizationId }) => organizationId
   );
+  const attentionCounts = await getDashboardAttentionCounts({
+    provider, sessionRole: session.role,
+    authorizedTeamClientIds: administrativeCapabilities.careTeamClientIds,
+  });
   const pendingOrganizationInvitationCount =
     administrativeCapabilities.canReviewOrganizationInvitations
       ? await db.clientOrganization.count({
@@ -355,6 +375,8 @@ export default async function DashboardPage({
   });
 
   return (
+    <>
+      {resolvedSearchParams.debugFirstActivation === "1" ? <FirstActivationDiagnostic /> : null}
     <main className="dashboard-page-shell">
       <section className="dashboard-page-content">
         {isSupervisor ? (
@@ -367,6 +389,7 @@ export default async function DashboardPage({
                 (request) => request.status === "REQUESTED"
               ).length + caseSupportNotificationCount
             }
+            attentionCounts={attentionCounts}
             pendingOrganizationInvitationCount={
               pendingOrganizationInvitationCount
             }
@@ -388,6 +411,7 @@ export default async function DashboardPage({
             canAttachExistingClient={
               administrativeCapabilities.canAttachExistingClient
             }
+            attentionCounts={attentionCounts}
             pendingOrganizationInvitationCount={
               pendingOrganizationInvitationCount
             }
@@ -395,5 +419,6 @@ export default async function DashboardPage({
         )}
       </section>
     </main>
+    </>
   );
 }

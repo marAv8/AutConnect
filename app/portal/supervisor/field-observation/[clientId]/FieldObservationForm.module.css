@@ -429,6 +429,14 @@
 }
 
 @media (max-width: 760px) {
+  /* Keep editable text above iPhone's focus-zoom threshold, including the
+     portaled confirmation summary, while respecting larger root text sizes. */
+  .field input,
+  .field select,
+  .noteField textarea {
+    font-size: max(16px, 1rem);
+  }
+
   .page {
     padding: 14px 16px 36px;
   }

@@ -5,9 +5,9 @@ import { isGoogleOAuthConfigured } from "@/lib/googleOAuth";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ error?: string; invite?: string }>;
+  searchParams?: Promise<{ error?: string; invite?: string; debugFirstActivation?: string | string[] }>;
 }) {
-  const { error, invite } = (await searchParams) ?? {};
+  const { error, invite, debugFirstActivation } = (await searchParams) ?? {};
   const oauthError =
     error === "google-unavailable"
       ? "Google login is temporarily unavailable."
@@ -23,6 +23,7 @@ export default async function LoginPage({
           googleEnabled={isGoogleOAuthConfigured()}
           oauthError={oauthError}
           inviteToken={invite}
+          debugFirstActivation={debugFirstActivation === "1"}
         />
       </div>
     </main>

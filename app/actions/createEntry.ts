@@ -204,6 +204,7 @@ export async function createEntry(formData: FormData) {
           authorProviderId: session.providerId,
           assignedProviderIds: providerIds,
           visibility,
+          reactivateForTeammates: isCompletedUpdate,
         });
 
         if (isCompletedUpdate) {
@@ -382,6 +383,7 @@ export async function createEntry(formData: FormData) {
       authorProviderId: session.providerId,
       assignedProviderIds: providerIds,
       visibility,
+      reactivateForTeammates: isCompletedUpdate,
     });
 
     revalidatePath("/dashboard");

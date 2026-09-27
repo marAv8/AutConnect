@@ -168,7 +168,7 @@ test("Notifications stays centered in the visible viewport above the utility doc
   ]) {
     await page.setViewportSize(viewport);
     const trigger = page.getByRole("button", {
-      name: "Case Support requests and inbox",
+      name: "Inbox, 5 pending actions",
     });
     if ((await trigger.getAttribute("aria-expanded")) !== "true") {
       await trigger.click();

@@ -54,6 +54,7 @@ test("marks only the selected provider's entries as read", () => {
         type: "read",
         clientId: "client-1",
         authorProviderId: "provider-1",
+        entryIds: ["entry-1"],
       },
     ],
     "viewer-1"
@@ -103,7 +104,7 @@ test("does not project unread state for a private saved entry", () => {
   assert.deepEqual(result[0].entries.at(-1).reads, []);
 });
 
-test("a completed save acknowledges the author without showing a teammate-style signal", () => {
+test("a completed save acknowledges the author and retains the note-menu control", () => {
   const clients = projectDashboardEntrySaved(
     [clientFixture()],
     "client-1",
@@ -123,6 +124,7 @@ test("a completed save acknowledges the author without showing a teammate-style 
 
   assert.ok(savedEntry.reads[0].readAt instanceof Date);
   assert.equal(state.showSignal, false);
+  assert.equal(state.hasCompletedNote, true);
   assert.equal(state.showAction, true);
 });
 
@@ -166,7 +168,34 @@ test("one teammate viewing an Entry acknowledges only that viewer and author", (
     },
   ];
 
-  const viewed = markDashboardProviderEntriesRead(clients, "client-1", "author-a");
+  const viewed = markDashboardProviderEntriesRead(
+    clients,
+    "client-1",
+    "author-a",
+    ["entry-a"]
+  );
+
+  assert.ok(viewed[0].entries[0].reads[0].readAt instanceof Date);
+  assert.equal(viewed[0].entries[1].reads[0].readAt, null);
+});
+
+test("local acknowledgement changes only Entry IDs actually presented", () => {
+  const clients = [
+    {
+      ...clientFixture(),
+      entries: [
+        { id: "shown", providerId: "author-a", status: "COMPLETED", reads: [{ readAt: null }] },
+        { id: "not-shown", providerId: "author-a", status: "COMPLETED", reads: [{ readAt: null }] },
+      ],
+    },
+  ];
+
+  const viewed = markDashboardProviderEntriesRead(
+    clients,
+    "client-1",
+    "author-a",
+    ["shown"]
+  );
 
   assert.ok(viewed[0].entries[0].reads[0].readAt instanceof Date);
   assert.equal(viewed[0].entries[1].reads[0].readAt, null);
@@ -205,7 +234,7 @@ test("keeps a completed provider signal visible after it is read", () => {
   assert.equal(read.showAction, true);
 });
 
-test("returns the author's completed read signal to the action control", () => {
+test("retains the author's completed note-menu control instead of a read signal", () => {
   const state = providerSignalState({
     entries: [
       {

@@ -25,6 +25,7 @@ export type DashboardEntryState = {
   kind?: string;
   visibility?: string;
   status?: string;
+  completedAt?: Date | string | null;
   reads?: { readAt: Date | string | null }[];
 };
 
@@ -70,6 +71,7 @@ export type DashboardEntryMutation =
       type: "read";
       clientId: string;
       authorProviderId: string;
+      entryIds: string[];
     }
   | {
       type: "saved";

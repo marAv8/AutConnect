@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import ClientCarousel from "@/app/dashboard/ClientCarousel";
 import type { DashboardClient } from "@/app/dashboard/dashboardClientTypes";
@@ -17,6 +17,7 @@ import DashboardWorkspaceLayout from "@/app/dashboard/DashboardWorkspaceLayout";
 import DashboardInboxControl from "@/app/dashboard/DashboardInboxControl";
 import SupervisorDashboard from "@/app/dashboard/SupervisorDashboard";
 import ProviderDashboard from "@/app/dashboard/ProviderDashboard";
+import { createDashboardArrivalCoordinator } from "@/app/dashboard/clientListEntrance";
 
 const supervisorProviderId = "continuity-supervisor";
 const behaviorProviderId = "continuity-provider-a";
@@ -57,14 +58,18 @@ const clients: DashboardClient[] = [
   },
 ];
 
-export default function DashboardContinuityHarness({ initialOwners = false, initialProvider = false }: { initialOwners?: boolean; initialProvider?: boolean }) {
+export default function DashboardContinuityHarness({ initialOwners = false, initialProvider = false, initialOrbit = false, occupational = false }: { initialOwners?: boolean; initialProvider?: boolean; initialOrbit?: boolean; occupational?: boolean }) {
   const router = useRouter();
   const [isProviderJourney] = useState(initialProvider);
   const [useOwners] = useState(initialOwners);
   const currentProviderId = isProviderJourney
     ? behaviorProviderId
     : supervisorProviderId;
-  const viewerRole = isProviderJourney ? "BehaviorTherapist" : "Supervisor";
+  const viewerRole = isProviderJourney ? (occupational ? "OccupationalTherapist" : "BehaviorTherapist") : "Supervisor";
+  const arrivalCoordinator = useMemo(
+    () => createDashboardArrivalCoordinator(currentProviderId),
+    [currentProviderId]
+  );
   const client = clients[0];
   const prepareReturn = () => {
     const grid = gridNavigationProvenance(
@@ -97,8 +102,10 @@ export default function DashboardContinuityHarness({ initialOwners = false, init
   if (useOwners) {
     const ownerClients = clients.map((item) => ({
       ...item,
+      providerClients: item.providerClients.map(assignment => assignment.provider.id === behaviorProviderId && occupational
+        ? { ...assignment, role: "OccupationalTherapist" as const } : assignment),
       hasCaseSupportAccess: true,
-      entries: isProviderJourney ? [{
+      entries: isProviderJourney && !occupational ? [{
         id: "synthetic-completed-note", providerId: behaviorProviderId,
         kind: "SessionNote", status: "COMPLETED", visibility: "Shared",
         reads: [{ readAt: "2026-09-08T12:00:00Z" }],
@@ -107,10 +114,12 @@ export default function DashboardContinuityHarness({ initialOwners = false, init
     return isProviderJourney ? (
       <ProviderDashboard clients={ownerClients} currentProviderId={currentProviderId}
         viewerRole={viewerRole} clientListLabel="Client List"
-        canReviewOrganizationInvitations canAttachExistingClient={false}
+        initialClientId={initialOrbit ? client.id : undefined} forceOrbitView={initialOrbit}
+        canReviewOrganizationInvitations={!occupational} canAttachExistingClient={false}
         pendingOrganizationInvitationCount={0} />
     ) : (
       <SupervisorDashboard assignedClients={ownerClients} currentProviderId={currentProviderId}
+        initialClientId={initialOrbit ? client.id : undefined} forceOrbitView={initialOrbit}
         newCaseSupportRequestCount={0} pendingOrganizationInvitationCount={0}
         administrativeCapabilities={{
           canAccessPlatformAdministration: false, canInviteTeam: false,
@@ -140,6 +149,7 @@ export default function DashboardContinuityHarness({ initialOwners = false, init
             viewerRole={viewerRole}
             initialClientId={client.id}
             onActiveClientChange={() => {}}
+            arrivalCoordinator={arrivalCoordinator}
           />
         }
         floatingMenu={

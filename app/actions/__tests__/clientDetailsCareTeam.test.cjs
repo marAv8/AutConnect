@@ -16,6 +16,8 @@ const panel = read(
 const styles = read(
   "app/portal/supervisor/edit-providers/[clientId]/CareTeamPage.module.css"
 );
+const autocomplete = read("components/ui/AuthorizedAutocomplete.tsx");
+const autocompleteStyles = read("components/ui/AuthorizedAutocomplete.module.css");
 const actions = read("app/actions/manageSupervisorClients.ts");
 const scopedAction = actions.slice(
   actions.indexOf("export async function updateClientDetailsFromCareTeam")
@@ -48,17 +50,18 @@ test("Care Team update maps submitted Yes and No values and returns without redi
   assert.match(form, /role=\{state\.status === "error" \? "alert" : "status"\}/);
 });
 
-test("organization and provider searches remain compact in-place controls", () => {
-  assert.match(panel, /<input[\s\S]*type="search"[\s\S]*name="organizationQuery"/);
-  assert.match(panel, /<input[\s\S]*type="search"[\s\S]*name="providerQuery"/);
-  assert.doesNotMatch(panel, /<textarea/);
-  assert.match(panel, /value=\{providerInput\}/);
-  assert.match(panel, /value=\{organizationInput\}/);
-  assert.match(panel, /onSubmit=\{runOrganizationSearch\}/);
-  assert.match(panel, /onSubmit=\{runProviderSearch\}/);
+test("organization and provider searches use the shared compact autocomplete", () => {
+  assert.equal((panel.match(/<AuthorizedAutocomplete/g) ?? []).length, 2);
+  assert.match(autocomplete, /type="search"/);
+  assert.match(autocomplete, /role="combobox"/);
+  assert.match(autocomplete, /role="listbox"/);
+  assert.doesNotMatch(panel + autocomplete, /<textarea/);
+  assert.match(panel, /search=\{findOrganizations\}/);
+  assert.match(panel, /search=\{findProviders\}/);
   assert.doesNotMatch(panel, /method="get"|action=\{`\/portal\/supervisor\/edit-providers/);
-  assert.match(styles, /\.searchForm input:not\(\[type="hidden"\]\)[\s\S]*flex: 1 1 390px/);
-  assert.match(styles, /height: 44px;[\s\S]*max-height: 44px/);
-  assert.match(panel, /className=\{styles\.visuallyHidden\}[\s\S]*Organization name/);
-  assert.match(panel, /className=\{styles\.visuallyHidden\}[\s\S]*Provider name/);
+  assert.match(autocompleteStyles, /min-height: 44px/);
+  assert.match(autocompleteStyles, /@media \(max-width: 520px\)/);
+  assert.match(panel, /label="Organization name"/);
+  assert.match(panel, /label="Provider name"/);
+  assert.match(styles, /\.selectedAction/);
 });

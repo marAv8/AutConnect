@@ -1,6 +1,6 @@
 "use server";
 
-import type { Prisma, Role } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireCurrentProvider } from "@/lib/authorization";
@@ -10,16 +10,23 @@ import {
   activeClientTeamManagerWhere,
   boundedClientTeamAuditMetadata,
   eligibleProviderWhere,
-  eligibleProvidersInOrganizationWhere,
   isEligibleClientAssignmentRole,
 } from "@/lib/clientTeamAuthorizationPolicy";
 import {
   normalizeOrganizationSearchQuery,
   ORGANIZATION_SEARCH_MIN_LENGTH,
 } from "@/lib/clientTeamOrganizationSearch";
+import {
+  AUTHORIZED_LOOKUP_MIN_LENGTH,
+  AUTHORIZED_LOOKUP_RESULT_LIMIT,
+  lookupTokens,
+  normalizeAuthorizedLookupQuery,
+  organizationMatchRank,
+  providerMatchRank,
+  rankAndLimit,
+} from "@/lib/authorizedLookupSearch";
 
-const ORGANIZATION_RESULT_LIMIT = 12;
-const PROVIDER_RESULT_LIMIT = 50;
+const SEARCH_CANDIDATE_LIMIT = 64;
 
 type Transaction = Prisma.TransactionClient;
 
@@ -65,23 +72,40 @@ export async function searchOrganizationsForClient(
 
   return db.$transaction(async (tx) => {
     await requireTeamManager(tx, actor.id, clientId);
-    return tx.organization.findMany({
-      where: {
-        name: { contains: normalizedQuery, mode: "insensitive" },
-        clientOrganizations: {
-          none: {
-            clientId,
-            OR: [
-              { status: { not: "REVOKED" } },
-              { revokedAt: null },
-            ],
-          },
+    const eligibleWhere: Prisma.OrganizationWhereInput = {
+      name: { contains: normalizedQuery, mode: "insensitive" },
+      clientOrganizations: {
+        none: {
+          clientId,
+          OR: [
+            { status: { not: "REVOKED" } },
+            { revokedAt: null },
+          ],
         },
       },
-      orderBy: [{ name: "asc" }, { id: "asc" }],
-      take: ORGANIZATION_RESULT_LIMIT,
-      select: { id: true, name: true, type: true },
-    });
+    };
+    const [prefixCandidates, partialCandidates] = await Promise.all([
+      tx.organization.findMany({
+        where: { ...eligibleWhere, name: { startsWith: normalizedQuery, mode: "insensitive" } },
+        orderBy: [{ name: "asc" }, { id: "asc" }],
+        take: AUTHORIZED_LOOKUP_RESULT_LIMIT,
+        select: { id: true, name: true, type: true },
+      }),
+      tx.organization.findMany({
+        where: eligibleWhere,
+        orderBy: [{ name: "asc" }, { id: "asc" }],
+        take: SEARCH_CANDIDATE_LIMIT,
+        select: { id: true, name: true, type: true },
+      }),
+    ]);
+    const candidates = [...new Map(
+      [...prefixCandidates, ...partialCandidates].map((organization) => [organization.id, organization])
+    ).values()];
+    return rankAndLimit(
+      candidates,
+      (organization) => organizationMatchRank(organization.name, normalizedQuery),
+      (organization) => organization.name
+    );
   });
 }
 
@@ -389,35 +413,64 @@ export async function revokeClientOrganization(formData: FormData) {
 
 export async function searchEligibleClientProviders(
   clientId: string,
-  organizationId: string,
-  query = ""
+  query: string
 ) {
   const actor = await requireCurrentProvider();
+  const normalizedQuery = normalizeAuthorizedLookupQuery(query);
+  if (normalizedQuery.length < AUTHORIZED_LOOKUP_MIN_LENGTH) return [];
+  const tokens = lookupTokens(normalizedQuery);
   return db.$transaction(async (tx) => {
     await requireTeamManager(tx, actor.id, clientId);
-    const participation = await tx.clientOrganization.findFirst({
-      where: activeClientOrganizationWhere(clientId, organizationId),
-      select: { id: true },
-    });
-    if (!participation) throw new Error("That organization is not active for this client.");
-    const normalizedQuery = query.trim();
-    return tx.provider.findMany({
-      where: {
-        ...eligibleProvidersInOrganizationWhere(organizationId),
-        ...(normalizedQuery
-          ? {
-              OR: [
-                { firstName: { contains: normalizedQuery, mode: "insensitive" } },
-                { lastName: { contains: normalizedQuery, mode: "insensitive" } },
-              ],
-            }
-          : {}),
-        providerClients: { none: { clientId, revokedAt: null } },
-      },
-      orderBy: [{ role: "asc" }, { lastName: "asc" }, { id: "asc" }],
-      take: PROVIDER_RESULT_LIMIT,
-      select: { id: true, firstName: true, lastName: true, role: true },
-    });
+    const membershipWhere = (mode: "startsWith" | "contains"): Prisma.OrganizationMembershipWhereInput => ({
+        active: true,
+        organization: {
+          clientOrganizations: {
+            some: { clientId, status: "ACTIVE", revokedAt: null },
+          },
+        },
+        provider: {
+          status: "ACTIVE",
+          role: { in: ["Caregiver", "BehaviorTherapist", "Educator", "SpeechPathologist", "OccupationalTherapist"] },
+          AND: tokens.map((token) => ({
+            OR: [
+              { firstName: { [mode]: token, mode: "insensitive" } },
+              { lastName: { [mode]: token, mode: "insensitive" } },
+            ],
+          })),
+          providerClients: { none: { clientId, revokedAt: null } },
+        },
+      });
+    const membershipSelect = {
+        organization: { select: { id: true, name: true, type: true } },
+        provider: { select: { id: true, firstName: true, lastName: true, role: true } },
+      } satisfies Prisma.OrganizationMembershipSelect;
+    const [prefixMemberships, partialMemberships] = await Promise.all([
+      tx.organizationMembership.findMany({
+        where: membershipWhere("startsWith"),
+        orderBy: [{ provider: { lastName: "asc" } }, { providerId: "asc" }, { organizationId: "asc" }],
+        take: AUTHORIZED_LOOKUP_RESULT_LIMIT,
+        select: membershipSelect,
+      }),
+      tx.organizationMembership.findMany({
+        where: membershipWhere("contains"),
+        orderBy: [{ provider: { lastName: "asc" } }, { providerId: "asc" }, { organizationId: "asc" }],
+        take: SEARCH_CANDIDATE_LIMIT,
+        select: membershipSelect,
+      }),
+    ]);
+    const memberships = [...new Map(
+      [...prefixMemberships, ...partialMemberships].map((membership) => [
+        `${membership.organization.id}:${membership.provider.id}`,
+        membership,
+      ])
+    ).values()];
+    const candidates = memberships.map(({ provider, organization }) => ({ ...provider, organization }));
+    return rankAndLimit(
+      candidates,
+      (candidate) => providerMatchRank(candidate, normalizedQuery),
+      (candidate) => `${candidate.firstName} ${candidate.lastName} ${candidate.organization.name}`,
+      AUTHORIZED_LOOKUP_RESULT_LIMIT
+    );
   });
 }
 
@@ -426,11 +479,6 @@ export async function assignClientProvider(formData: FormData) {
   const clientId = requiredId(formData, "clientId");
   const organizationId = requiredId(formData, "organizationId");
   const providerId = requiredId(formData, "providerId");
-  const roleValue = requiredId(formData, "role");
-  if (!isEligibleClientAssignmentRole(roleValue)) {
-    throw new Error("That provider role cannot be assigned.");
-  }
-  const role = roleValue as Role;
 
   await db.$transaction(
     async (tx) => {
@@ -442,7 +490,7 @@ export async function assignClientProvider(formData: FormData) {
         }),
         tx.provider.findFirst({
           where: eligibleProviderWhere(providerId, organizationId),
-          select: { id: true },
+          select: { id: true, role: true },
         }),
         tx.providerClient.findUnique({
           where: { providerId_clientId: { providerId, clientId } },
@@ -450,6 +498,8 @@ export async function assignClientProvider(formData: FormData) {
         }),
       ]);
       if (!participation || !provider) throw new Error("That provider is not eligible.");
+      if (!isEligibleClientAssignmentRole(provider.role)) throw new Error("That provider role cannot be assigned.");
+      const role = provider.role;
       if (existing?.revokedAt === null) throw new Error("That provider is already assigned.");
 
       const assignment = existing

@@ -1,5 +1,6 @@
 "use server";
 
+import { firstActivationLoginDestination } from "@/app/dashboard/firstActivationFlag";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -95,5 +96,5 @@ export async function loginProvider(
     role: sessionRole,
   });
 
-  redirect(inviteToken ? "/portal/organization/invitations?joined=1" : "/dashboard");
+  redirect(inviteToken ? "/portal/organization/invitations?joined=1" : firstActivationLoginDestination(formData));
 }

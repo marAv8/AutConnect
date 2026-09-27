@@ -526,7 +526,9 @@ a {
 }
 
 .more-icon-control:hover::before,
-.dashboard-case-support-control:hover::before {
+.dashboard-case-support-control:hover::before,
+.more-icon-control:hover > .dashboard-utility-arrival-visual::before,
+.dashboard-case-support-control:hover > .dashboard-utility-arrival-visual::before {
   background: #ffffff;
 }
 
@@ -577,6 +579,43 @@ a {
 .dashboard-round-icon-control > * {
   position: relative;
   z-index: 1;
+}
+
+.dashboard-arrival-utilities-root {
+  display: contents;
+}
+
+.dashboard-round-icon-control--arrival::before {
+  content: none;
+}
+
+.dashboard-utility-arrival-visual {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+}
+
+.dashboard-utility-arrival-visual::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: -1;
+  box-sizing: border-box;
+  width: var(--dashboard-dock-visible-size);
+  height: var(--dashboard-dock-visible-size);
+  border: 1px solid rgb(35 45 55 / 14%);
+  border-radius: 50%;
+  background: rgb(250 250 250 / 94%);
+  box-shadow:
+    0 1px 2px rgb(35 45 55 / 9%),
+    0 6px 14px rgb(35 45 55 / 11%),
+    inset 0 1px 0 rgb(255 255 255 / 92%);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
 .dashboard-info-control {
@@ -2674,6 +2713,19 @@ textarea::placeholder {
   min-height: 48px;
 }
 
+/* Size the mobile native temporal control from its existing grid track,
+   avoiding percentage-width arithmetic inside the iOS temporal renderer. */
+@media (max-width: 700px) {
+  .case-support-field input[type="datetime-local"] {
+    inline-size: auto;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    justify-self: stretch;
+    box-sizing: border-box;
+    font-size: 16px;
+  }
+}
+
 .case-support-field textarea {
   resize: vertical;
   line-height: 1.5;
@@ -4318,8 +4370,18 @@ textarea::placeholder {
     inset 0 1px 0 rgb(255 255 255 / 9%);
 }
 
+.dark .dashboard-utility-arrival-visual::before {
+  border-color: rgb(255 255 255 / 24%);
+  background: rgb(76 84 96 / 98%);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 40%),
+    0 6px 14px rgb(0 0 0 / 30%),
+    inset 0 1px 0 rgb(255 255 255 / 9%);
+}
+
 .dark .more-icon-control:hover::before,
-.dark .dashboard-case-support-control:hover::before {
+.dark .dashboard-case-support-control:hover::before,
+.dark .more-icon-control:hover > .dashboard-utility-arrival-visual::before,
+.dark .dashboard-case-support-control:hover > .dashboard-utility-arrival-visual::before {
   background: rgb(88 97 110 / 98%);
 }
 

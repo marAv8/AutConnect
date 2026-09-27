@@ -68,13 +68,29 @@ test("responsive shell contains horizontal sizing at every required viewport cla
   }
 });
 
-test("Client grid scales badges and gaps together without changing the phone floor", () => {
+test("Client grid scales its container without changing shared badge geometry", () => {
   assert.match(styles, /--dashboard-grid-orb-size: clamp\(120px, min\(14vw, 16dvh\), 150px\)/);
   assert.match(styles, /--dashboard-grid-gap: clamp\(48px, min\(5vw, 6dvh\), 64px\)/);
   assert.match(gridStyles, /width: var\(--dashboard-grid-orb-size\)/);
   assert.match(gridStyles, /height: var\(--dashboard-grid-orb-size\)/);
-  assert.match(grid, /gap: "var\(--dashboard-grid-gap\)"/);
-  assert.match(grid, /maxHeight: `calc\(var\(--dashboard-grid-orb-size\)/);
+  assert.match(gridStyles, /gap: var\(--dashboard-grid-gap\)/);
+  assert.match(grid, /Math\.min\(clientCount, 3\)/);
+  assert.match(grid, /Math\.min\(Math\.ceil\(clientCount \/ wideColumnCount\), 3\)/);
+  assert.match(gridStyles, /--client-list-columns: 2/);
+  assert.match(gridStyles, /--client-list-visible-rows: 2/);
+  assert.match(gridStyles, /@media \(min-width: 800px\)/);
+  assert.match(gridStyles, /--client-list-columns: var\(--client-list-wide-columns\)/);
+  assert.match(gridStyles, /--client-list-visible-rows: var\(--client-list-wide-visible-rows\)/);
+});
+
+test("Client grid owns one height-bounded scroller with an external desktop gutter", () => {
+  assert.match(gridStyles, /\.clientListModeFrame \{[\s\S]*height: calc\(100% - var\(--dashboard-mode-content-margin-top, 18px\)\)/);
+  assert.match(gridStyles, /\.clientListScrollFrame \{[\s\S]*max-height: 100%/);
+  assert.match(gridStyles, /\.clientListSurface \{[\s\S]*inset: 0 var\(--client-list-external-scroll-area\) 0 0/);
+  assert.match(gridStyles, /\.clientListScrollRegion \{[\s\S]*overflow-x: hidden;[\s\S]*overflow-y: auto/);
+  assert.equal((gridStyles.match(/overflow-y: auto/g) ?? []).length, 1);
+  assert.match(gridStyles, /@media \(min-width: 521px\) \{[\s\S]*--client-list-external-scroll-area: 22px/);
+  assert.match(gridStyles, /@media \(max-width: 520px\) \{[\s\S]*--client-list-content-inset: 18px/);
 });
 
 test("shell work adds no broad important override and preserves utility children", () => {

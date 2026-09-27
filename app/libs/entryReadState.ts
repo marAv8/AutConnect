@@ -6,18 +6,20 @@ type SyncEntryReadsAfterAuthorSaveInput = {
   authorProviderId: string;
   assignedProviderIds: string[];
   visibility?: EntryVisibility;
+  reactivateForTeammates?: boolean;
 };
 
 /**
- * A save acknowledges the author without changing any teammate's existing
- * read state. Missing rows are added for active assignees, while the compound
- * EntryRead key keeps same-day updates retry-safe.
+ * Every save acknowledges the author and adds missing rows for active
+ * assignees. Only a published completion/update opts into resetting teammate
+ * rows; draft persistence leaves their existing acknowledgements untouched.
  */
 export async function syncEntryReadsAfterAuthorSave({
   entryId,
   authorProviderId,
   assignedProviderIds,
   visibility = EntryVisibility.Shared,
+  reactivateForTeammates = false,
 }: SyncEntryReadsAfterAuthorSaveInput) {
   if (visibility === EntryVisibility.Private) {
     await db.entryRead.deleteMany({ where: { entryId } });
@@ -42,6 +44,16 @@ export async function syncEntryReadsAfterAuthorSave({
       await tx.entryRead.updateMany({
         where: { entryId, providerId: authorProviderId },
         data: { readAt: acknowledgedAt },
+      });
+    }
+
+    if (reactivateForTeammates) {
+      await tx.entryRead.updateMany({
+        where: {
+          entryId,
+          providerId: { in: providerIds, not: authorProviderId },
+        },
+        data: { readAt: null },
       });
     }
   });

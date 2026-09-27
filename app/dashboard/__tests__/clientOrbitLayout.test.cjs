@@ -29,7 +29,7 @@ test("preserves the established client orbit dimensions", () => {
   assert.deepEqual(CLIENT_ORBIT_LAYOUT, {
     orbitSize: 430,
     providerDistance: 144,
-    clientBadgeSize: 150,
+    clientBadgeSize: 120,
     providerBadgeSize: 88,
     actionBadgeSize: 28,
   });

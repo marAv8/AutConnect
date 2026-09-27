@@ -1,0 +1,63 @@
+.organizationSelectField {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.organizationSelect {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.organizationSelectDisplay {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid rgb(0 0 0 / 14%);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 86%);
+  box-shadow: var(--inset-paper);
+  color: var(--foreground);
+  padding: 10px 44px 10px 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.organizationSelectDisplay::after {
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  width: 8px;
+  height: 8px;
+  border-right: 1.6px solid currentColor;
+  border-bottom: 1.6px solid currentColor;
+  content: "";
+  opacity: 0.72;
+  transform: translateY(-70%) rotate(45deg);
+}
+
+.organizationSelect:focus-visible + .organizationSelectDisplay {
+  border-color: rgb(0 0 0 / 28%);
+  box-shadow: var(--inset-paper), 0 0 0 3px rgb(0 0 0 / 10%);
+}
+
+:global(.dark) .organizationSelectDisplay {
+  border-color: rgb(255 255 255 / 24%);
+  background-color: rgb(61 67 76 / 98%);
+}
+
+:global(.dark) .organizationSelect:focus-visible + .organizationSelectDisplay {
+  border-color: rgb(255 255 255 / 38%);
+  box-shadow: var(--inset-paper), 0 0 0 3px rgb(255 255 255 / 10%);
+}

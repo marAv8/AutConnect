@@ -19,7 +19,8 @@ export function applyDashboardEntryMutations(
       return markDashboardProviderEntriesRead(
         currentClients,
         mutation.clientId,
-        mutation.authorProviderId
+        mutation.authorProviderId,
+        mutation.entryIds
       );
     }
 
@@ -39,9 +40,11 @@ export function applyDashboardEntryMutations(
 export function markDashboardProviderEntriesRead(
   clients: DashboardClient[],
   clientId: string,
-  authorProviderId: string
+  authorProviderId: string,
+  entryIds: readonly string[]
 ) {
   const readAt = new Date();
+  const presentedEntryIds = new Set(entryIds);
 
   return clients.map((client) => {
     if (client.id !== clientId) return client;
@@ -49,7 +52,7 @@ export function markDashboardProviderEntriesRead(
     return {
       ...client,
       entries: client.entries?.map((entry) =>
-        entry.providerId === authorProviderId
+        entry.providerId === authorProviderId && presentedEntryIds.has(entry.id)
           ? { ...entry, reads: [{ readAt }] }
           : entry
       ),
@@ -80,6 +83,7 @@ export function projectDashboardEntrySaved(
       kind,
       visibility,
       status,
+      completedAt: status === "COMPLETED" ? new Date() : null,
       reads: visibility === "Private" ? [] : [{ readAt: authorReadAt }],
     };
 
@@ -94,6 +98,8 @@ export function projectDashboardEntrySaved(
                   kind: kind ?? entry.kind,
                   visibility: visibility ?? entry.visibility,
                   status: status ?? entry.status,
+                  completedAt:
+                    status === "COMPLETED" ? new Date() : entry.completedAt,
                   reads:
                     visibility === "Private"
                       ? []

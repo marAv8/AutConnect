@@ -1,3 +1,4 @@
+import { getDashboardAttentionCounts } from "@/app/dashboard/dashboardAttentionCounts";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
@@ -109,6 +110,10 @@ export default async function CreateFirstClientPage() {
   const administeredOrganizationIds = provider.organizationMemberships.map(
     ({ organizationId }) => organizationId
   );
+  const attentionCounts = await getDashboardAttentionCounts({
+    provider, sessionRole: session.role,
+    authorizedTeamClientIds: [],
+  });
   const pendingOrganizationInvitationCount =
     administrativeCapabilities.canReviewOrganizationInvitations
       ? await db.clientOrganization.count({
@@ -130,6 +135,7 @@ export default async function CreateFirstClientPage() {
         newCaseSupportRequestCount={
           pendingCaseSupportRequestCount + unreadCaseSupportNotificationCount
         }
+        attentionCounts={attentionCounts}
         pendingOrganizationInvitationCount={
           pendingOrganizationInvitationCount
         }

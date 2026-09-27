@@ -48,7 +48,7 @@ export default function ThemeToggle() {
   return (
     <button
       type="button"
-      className="material-control dashboard-round-icon-control dashboard-theme-control"
+      className="material-control dashboard-round-icon-control dashboard-round-icon-control--arrival dashboard-theme-control"
       data-dashboard-trace-control="theme"
       aria-label={label}
       title={label}
@@ -60,11 +60,13 @@ export default function ThemeToggle() {
         setTheme(nextTheme);
       }}
     >
-      {isDark ? (
-        <Sun aria-hidden="true" size={23} strokeWidth={1.75} />
-      ) : (
-        <Moon aria-hidden="true" size={22} strokeWidth={1.8} />
-      )}
+      <span className="dashboard-utility-arrival-visual">
+        {isDark ? (
+          <Sun aria-hidden="true" size={23} strokeWidth={1.75} />
+        ) : (
+          <Moon aria-hidden="true" size={22} strokeWidth={1.8} />
+        )}
+      </span>
     </button>
   );
 }

@@ -1,4 +1,7 @@
+import type {} from "@/diagnostics/firstActivationProbeTypes";
 export type DashboardTraceControl =
+  | "guide"
+  | "grid-client"
   | "client-list"
   | "more"
   | "inbox"
@@ -43,7 +46,16 @@ declare global {
   }
 }
 
+const firstActivationHandlers: Partial<Record<DashboardTraceControl, string>> = {
+  guide: "guide-handler", "grid-client": "grid-client-handler", "client-list": "client-list-handler",
+  inbox: "inbox-handler", theme: "theme-handler", "provider-action": "provider-menu-handler",
+};
+
 export function traceDashboardInteractionHandled(control: DashboardTraceControl) {
+  if (typeof window !== "undefined" && window.__autConnectFirstActivationProbe) {
+    const label = firstActivationHandlers[control];
+    if (label) window.__autConnectFirstActivationProbe.mark(label);
+  }
   if (process.env.NODE_ENV === "production") return;
   window.__autConnectDashboardTrace?.record("handler", { target: control });
 }

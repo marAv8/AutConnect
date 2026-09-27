@@ -8,7 +8,7 @@
 export const CLIENT_ORBIT_LAYOUT = {
   orbitSize: 430,
   providerDistance: 144,
-  clientBadgeSize: 150,
+  clientBadgeSize: 120,
   providerBadgeSize: 88,
   actionBadgeSize: 28,
 } as const;

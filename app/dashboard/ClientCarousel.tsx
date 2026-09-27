@@ -15,6 +15,7 @@ import {
   useState,
 } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import { useRouter } from "next/navigation";
 import type { CaretakerContextKind } from "@/app/libs/caretakerContext";
 import type { NoteEntryKind } from "@/app/libs/entryKinds";
 import { formatProviderDisplayName } from "@/app/libs/providerDisplayName";
@@ -46,6 +47,11 @@ import type {
   DashboardEntryMutation,
   DashboardTeamFocus,
 } from "./dashboardClientTypes";
+import {
+  millisecondsUntilNextProviderNoteSignalDay,
+  providerNoteSignalDayKey,
+} from "@/app/libs/providerNoteSignalDay";
+import type { DashboardArrivalCoordinator } from "./clientListEntrance";
 
 type ClientCarouselProps = {
   clients: DashboardClient[];
@@ -53,7 +59,11 @@ type ClientCarouselProps = {
   viewerRole?: string;
   initialClientId?: string;
   onActiveClientChange?: (clientId: string) => void;
-  onEntryRead?: (clientId: string, authorProviderId: string) => void;
+  onEntryRead?: (
+    clientId: string,
+    authorProviderId: string,
+    entryIds: string[]
+  ) => void;
   onClientSignalRead?: (clientId: string) => void;
   onEntrySaved?: (
     clientId: string,
@@ -64,6 +74,7 @@ type ClientCarouselProps = {
   ) => void;
   onTeamFocusSaved?: (clientId: string, teamFocus: DashboardTeamFocus) => void;
   onFocusedDataEntryChange?: (active: boolean) => void;
+  arrivalCoordinator: DashboardArrivalCoordinator;
 };
 
 const DASHBOARD_OVERLAY_HISTORY_KEY = "autConnectDashboardOverlay";
@@ -83,8 +94,14 @@ export default function ClientCarousel({
   onEntrySaved,
   onTeamFocusSaved,
   onFocusedDataEntryChange,
+  arrivalCoordinator,
 }: ClientCarouselProps) {
+  const router = useRouter();
   const [entryMutations, setEntryMutations] = useState<DashboardEntryMutation[]>([]);
+  const [providerSignalDay, setProviderSignalDay] = useState(() =>
+    providerNoteSignalDayKey(new Date())
+  );
+  const providerSignalDayRef = useRef(providerSignalDay);
   const [publicationConfirmationId, setPublicationConfirmationId] = useState<
     number | null
   >(null);
@@ -126,6 +143,43 @@ export default function ClientCarousel({
       focusedDataEntry ? "focused-workflow" : "orbit"
     );
   }, [focusedDataEntry]);
+
+  useEffect(() => {
+    let rolloverTimer: number | null = null;
+
+    const scheduleRollover = () => {
+      if (rolloverTimer !== null) window.clearTimeout(rolloverTimer);
+      rolloverTimer = window.setTimeout(
+        checkForRollover,
+        millisecondsUntilNextProviderNoteSignalDay(new Date()) + 50
+      );
+    };
+    const checkForRollover = () => {
+      const nextSignalDay = providerNoteSignalDayKey(new Date());
+      if (nextSignalDay !== providerSignalDayRef.current) {
+        providerSignalDayRef.current = nextSignalDay;
+        setProviderSignalDay(nextSignalDay);
+        setEntryMutations([]);
+        router.refresh();
+      }
+      scheduleRollover();
+    };
+    const checkVisibleDashboard = () => {
+      if (document.visibilityState === "visible") checkForRollover();
+    };
+
+    scheduleRollover();
+    document.addEventListener("visibilitychange", checkVisibleDashboard);
+    window.addEventListener("focus", checkForRollover);
+    window.addEventListener("pageshow", checkForRollover);
+
+    return () => {
+      if (rolloverTimer !== null) window.clearTimeout(rolloverTimer);
+      document.removeEventListener("visibilitychange", checkVisibleDashboard);
+      window.removeEventListener("focus", checkForRollover);
+      window.removeEventListener("pageshow", checkForRollover);
+    };
+  }, [router]);
 
   const clearOverlay = useCallback(() => {
     setOverlayType(null);
@@ -407,13 +461,16 @@ export default function ClientCarousel({
     setActiveNoteKind(progressKind);
     setOverlayType(sessionEntry ? "update" : "add");
   }, [activeProviderId, client]);
-  const markProviderEntriesRead = useCallback((authorProviderId: string) => {
+  const markProviderEntriesRead = useCallback((
+    authorProviderId: string,
+    entryIds: string[]
+  ) => {
     if (!activeClientId) return;
     setEntryMutations((current) => [
       ...current,
-      { type: "read", clientId: activeClientId, authorProviderId },
+      { type: "read", clientId: activeClientId, authorProviderId, entryIds },
     ]);
-    onEntryRead?.(activeClientId, authorProviderId);
+    onEntryRead?.(activeClientId, authorProviderId, entryIds);
   }, [activeClientId, onEntryRead]);
   const markProviderEntrySaved = useCallback((
     authorProviderId: string,
@@ -558,6 +615,7 @@ export default function ClientCarousel({
             client={client}
             currentProviderId={currentProviderId}
             presentationKey={activePresentationKey}
+            providerSignalDayKey={providerSignalDay}
             viewerRole={viewerRole}
             suspendMenuDismiss={overlayType !== null}
             onOpenNotes={openNotesOverlay}
@@ -566,6 +624,7 @@ export default function ClientCarousel({
             onOpenClientHandoff={openClientHandoffOverlay}
             onOpenEducatorTarget={openEducatorTargetOverlay}
             onSessionCompleted={markProviderSessionCompleted}
+            arrivalCoordinator={arrivalCoordinator}
           />
         </ClientCarouselSlide>
       </div>

@@ -35,12 +35,29 @@ import { providerSignalState } from "./providerSignalState";
 import { transitionToSessionCompletionConfirmation } from "./clientOrbitCompletion";
 import { prepareFieldObservationNavigation } from "./fieldObservationNavigation";
 import { traceDashboardInteractionHandled, traceDashboardInteractionState } from "./dashboardInteractionTraceClient";
-import { readDashboardOrbitReturnMarker } from "./dashboardOrbitRestoration";
+import {
+  ARRIVAL_ACTION_DAMPING,
+  ARRIVAL_ACTION_DURATION_MS,
+  ARRIVAL_ACTION_FOLLOW_DELAY_MS,
+  ARRIVAL_ACTION_START_SCALE,
+  ARRIVAL_CLIENT_DAMPING,
+  ARRIVAL_CLIENT_DURATION_MS,
+  ARRIVAL_CLIENT_START_SCALE,
+  ARRIVAL_FAST_SPRING_OMEGA,
+  ARRIVAL_PROVIDER_DAMPING,
+  ARRIVAL_PROVIDER_DURATION_MS,
+  ARRIVAL_PROVIDER_FIRST_DELAY_MS,
+  ARRIVAL_PROVIDER_STAGGER_MS,
+  ARRIVAL_PROVIDER_START_SCALE,
+  springScaleKeyframes,
+  type DashboardArrivalCoordinator,
+} from "./clientListEntrance";
 
 type ClientOrbitProps = {
   client: DashboardClient;
   currentProviderId: string;
   presentationKey: string;
+  providerSignalDayKey: string;
   viewerRole?: string;
   suspendMenuDismiss?: boolean;
   onOpenNotes: (providerId: string) => void;
@@ -56,6 +73,7 @@ type ClientOrbitProps = {
     providerId: string,
     completedEntryIds: string[]
   ) => void;
+  arrivalCoordinator: DashboardArrivalCoordinator;
 };
 
 const abcDataRoles = new Set([
@@ -64,14 +82,10 @@ const abcDataRoles = new Set([
   "Caregiver",
 ]);
 
-const MIN_CLIENT_BADGE_SIZE = 108;
+const MIN_CLIENT_BADGE_SIZE = 86.4;
 const MIN_PROVIDER_BADGE_SIZE = 78;
 const MIN_ACTION_BADGE_SIZE = 24;
 const ORBIT_EDGE_CLEARANCE = 2;
-const PROVIDER_REVEAL_SPAN_MS = 180;
-const PROVIDER_REVEAL_JITTER_MS = 18;
-const PROVIDER_FADE_MIN_MS = 180;
-const PROVIDER_FADE_MAX_MS = 300;
 
 const readableEntryKinds = new Set<DashboardEntryKind>([
   "SessionNote",
@@ -96,6 +110,7 @@ function ProviderActionControl({
   hasTodayEntry,
   isPublished,
   signalEventKey,
+  arrivalProviderIndex,
   style,
   onActivate,
 }: {
@@ -106,6 +121,7 @@ function ProviderActionControl({
   hasTodayEntry: boolean;
   isPublished: boolean;
   signalEventKey: string | null;
+  arrivalProviderIndex: number;
   style: CSSProperties;
   onActivate: (anchor: HTMLButtonElement) => void;
 }) {
@@ -135,11 +151,7 @@ function ProviderActionControl({
 
   return (
     <button
-      className={`glass-badge-action${
-        isSignal ? " glass-badge-action--signal" : ""
-      }${isDimmed ? " glass-badge-action--signal-dimmed" : ""}${
-        isPulsing ? " glass-badge-action--signal-pulse" : ""
-      }`}
+      className="provider-action-hit-target"
       data-own-note-menu={isOwnControl ? "true" : undefined}
       data-dashboard-trace-control={isOwnControl ? "provider-action" : undefined}
       data-swipe-ignore="true"
@@ -153,23 +165,31 @@ function ProviderActionControl({
       title={ariaLabel}
       style={style}
     >
-      {isSignal ? null : hasTodayEntry ? (
-        <span
-          aria-hidden="true"
-          style={{ display: "inline-flex", position: "relative" }}
-        >
-          <FilePenLine size={14} strokeWidth={1.9} />
-          {isPublished ? (
-            <Check
-              size={9}
-              strokeWidth={2.5}
-              style={{ position: "absolute", right: -5, bottom: -3 }}
-            />
-          ) : null}
-        </span>
-      ) : (
-        <Plus aria-hidden="true" size={14} strokeWidth={2} />
-      )}
+      <span
+        className={`glass-badge-action dashboard-arrival-provider-action${
+          isSignal ? " glass-badge-action--signal" : ""
+        }${isDimmed ? " glass-badge-action--signal-dimmed" : ""}${
+          isPulsing ? " glass-badge-action--signal-pulse" : ""
+        }`}
+        data-arrival-provider-index={arrivalProviderIndex}
+        aria-hidden="true"
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", borderRadius: "inherit" }}
+      >
+        {isSignal ? null : hasTodayEntry ? (
+          <span style={{ display: "inline-flex", position: "relative" }}>
+            <FilePenLine size={14} strokeWidth={1.9} />
+            {isPublished ? (
+              <Check
+                size={9}
+                strokeWidth={2.5}
+                style={{ position: "absolute", right: -5, bottom: -3 }}
+              />
+            ) : null}
+          </span>
+        ) : (
+          <Plus size={14} strokeWidth={2} />
+        )}
+      </span>
     </button>
   );
 }
@@ -178,6 +198,7 @@ export default function ClientOrbit({
   client,
   currentProviderId,
   presentationKey,
+  providerSignalDayKey,
   viewerRole,
   suspendMenuDismiss = false,
   onOpenNotes,
@@ -186,6 +207,7 @@ export default function ClientOrbit({
   onOpenClientHandoff,
   onOpenEducatorTarget,
   onSessionCompleted,
+  arrivalCoordinator,
 }: ClientOrbitProps) {
   const router = useRouter();
   const [menuProviderId, setMenuProviderId] = useState<string | null>(null);
@@ -270,6 +292,7 @@ export default function ClientOrbit({
       entries: readableEntriesForProvider,
       isCurrentProvider: isMe,
       locallyCompleted: isMe && completedProviderIds.has(providerId),
+      signalDayKey: providerSignalDayKey,
     });
 
     return {
@@ -284,8 +307,8 @@ export default function ClientOrbit({
               currentProviderId,
               client.id,
               providerId,
-              signalState.completedEntryIds.length > 0
-                ? signalState.completedEntryIds.join("|")
+              signalState.completedEntryVersions.length > 0
+                ? signalState.completedEntryVersions.join("|")
                 : "newly-completed",
             ].join(":")
           : null,
@@ -381,90 +404,122 @@ export default function ClientOrbit({
     const orbit = orbitRef.current;
     if (!orbit) return;
 
-    const providerNodes = Array.from(
-      orbit.querySelectorAll<HTMLElement>(".provider-orbit-node")
+    const clientVisual = orbit.querySelector<HTMLElement>(
+      ".dashboard-arrival-client-visual"
     );
-    const shuffledNodes = [...providerNodes];
-    const revealListeners: Array<{
-      layer: HTMLElement;
-      listener: (event: AnimationEvent) => void;
-    }> = [];
-
-    const isRestoredPresentation = Boolean(
-      readDashboardOrbitReturnMarker({
-        historyState: window.history.state,
-        clientId: client.id,
-        presentationKey,
-      })
+    const providerVisuals = Array.from(
+      orbit.querySelectorAll<HTMLElement>(".dashboard-arrival-provider-visual")
     );
-
-    if (isRestoredPresentation) {
-      providerNodes.forEach((node) => {
-        node.classList.remove("provider-orbit-node--ready");
-        node.classList.add("provider-orbit-node--settled");
-      });
-      return () => {
-        providerNodes.forEach((node) => {
-          node.classList.remove("provider-orbit-node--settled");
-        });
-      };
-    }
-
-    for (let index = shuffledNodes.length - 1; index > 0; index -= 1) {
-      const swapIndex = Math.floor(Math.random() * (index + 1));
-      [shuffledNodes[index], shuffledNodes[swapIndex]] = [
-        shuffledNodes[swapIndex],
-        shuffledNodes[index],
-      ];
-    }
-
-    shuffledNodes.forEach((node, revealIndex) => {
-      const distributedDelay =
-        shuffledNodes.length <= 1
-          ? 0
-          : (revealIndex / (shuffledNodes.length - 1)) *
-            PROVIDER_REVEAL_SPAN_MS;
-      const jitter =
-        (Math.random() * 2 - 1) * PROVIDER_REVEAL_JITTER_MS;
-      const delay = Math.max(0, Math.round(distributedDelay + jitter));
-      const duration = Math.round(
-        PROVIDER_FADE_MIN_MS +
-          Math.random() * (PROVIDER_FADE_MAX_MS - PROVIDER_FADE_MIN_MS)
+    const actionVisuals = Array.from(
+      orbit.querySelectorAll<HTMLElement>(".dashboard-arrival-provider-action")
+    );
+    let startFrame = 0;
+    let timer = 0;
+    let settled = false;
+    const animations: Animation[] = [];
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      animations.forEach((animation) => animation.cancel());
+    };
+    const animateSpring = (
+      element: HTMLElement,
+      startScale: number,
+      duration: number,
+      delay: number,
+      damping: number,
+      omega?: number
+    ) => {
+      animations.push(
+        element.animate(springScaleKeyframes(startScale, duration, damping, omega), {
+          duration,
+          delay,
+          easing: "linear",
+          fill: "backwards",
+        })
       );
+    };
 
-      node.style.setProperty("--provider-reveal-delay", `${delay}ms`);
-      node.style.setProperty("--provider-reveal-duration", `${duration}ms`);
-      node.classList.remove("provider-orbit-node--settled");
-      node.classList.add("provider-orbit-node--ready");
-
-      const layer = node.querySelector<HTMLElement>(
-        ".provider-badge-reveal-layer"
-      );
-      if (layer) {
-        const settleReveal = (event: AnimationEvent) => {
-          if (event.animationName !== "provider-badge-reveal") return;
-          node.classList.remove("provider-orbit-node--ready");
-          node.classList.add("provider-orbit-node--settled");
-          node.style.removeProperty("--provider-reveal-delay");
-          node.style.removeProperty("--provider-reveal-duration");
-        };
-        layer.addEventListener("animationend", settleReveal);
-        revealListeners.push({ layer, listener: settleReveal });
+    const settleFromInput = () => settle();
+    const start = () => {
+      if (
+        settled ||
+        !clientVisual ||
+        !arrivalCoordinator.shouldStart("orbit") ||
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+        typeof clientVisual.animate !== "function"
+      ) {
+        return;
       }
-    });
+
+      try {
+        animateSpring(
+          clientVisual,
+          ARRIVAL_CLIENT_START_SCALE,
+          ARRIVAL_CLIENT_DURATION_MS,
+          0,
+          ARRIVAL_CLIENT_DAMPING
+        );
+        providerVisuals.forEach((provider, index) => {
+          const providerDelay =
+            ARRIVAL_PROVIDER_FIRST_DELAY_MS +
+            index * ARRIVAL_PROVIDER_STAGGER_MS;
+          animateSpring(
+            provider,
+            ARRIVAL_PROVIDER_START_SCALE,
+            ARRIVAL_PROVIDER_DURATION_MS,
+            providerDelay,
+            ARRIVAL_PROVIDER_DAMPING,
+            ARRIVAL_FAST_SPRING_OMEGA
+          );
+          const action = actionVisuals.find(
+            (candidate) =>
+              candidate.dataset.arrivalProviderIndex === String(index)
+          );
+          if (action) {
+            animateSpring(
+              action,
+              ARRIVAL_ACTION_START_SCALE,
+              ARRIVAL_ACTION_DURATION_MS,
+              providerDelay + ARRIVAL_ACTION_FOLLOW_DELAY_MS,
+              ARRIVAL_ACTION_DAMPING,
+              ARRIVAL_FAST_SPRING_OMEGA
+            );
+          }
+        });
+      } catch {
+        settle();
+        return;
+      }
+
+      document.addEventListener("pointerdown", settleFromInput, true);
+      document.addEventListener("touchstart", settleFromInput, true);
+      document.addEventListener("wheel", settleFromInput, { capture: true, passive: true });
+      document.addEventListener("keydown", settleFromInput, true);
+      document.addEventListener("focusin", settleFromInput, true);
+      window.addEventListener("resize", settleFromInput, { passive: true });
+      timer = window.setTimeout(
+        settle,
+        ARRIVAL_PROVIDER_FIRST_DELAY_MS +
+          Math.max(0, providerVisuals.length - 1) * ARRIVAL_PROVIDER_STAGGER_MS +
+          ARRIVAL_PROVIDER_DURATION_MS +
+          40
+      );
+    };
+    startFrame = window.requestAnimationFrame(start);
 
     return () => {
-      revealListeners.forEach(({ layer, listener }) => {
-        layer.removeEventListener("animationend", listener);
-      });
-      providerNodes.forEach((node) => {
-        node.classList.remove("provider-orbit-node--ready");
-        node.classList.remove("provider-orbit-node--settled");
-        node.style.removeProperty("--provider-reveal-delay");
-        node.style.removeProperty("--provider-reveal-duration");
-      });
+      window.cancelAnimationFrame(startFrame);
+      settle();
+      document.removeEventListener("pointerdown", settleFromInput, true);
+      document.removeEventListener("touchstart", settleFromInput, true);
+      document.removeEventListener("wheel", settleFromInput, true);
+      document.removeEventListener("keydown", settleFromInput, true);
+      document.removeEventListener("focusin", settleFromInput, true);
+      window.removeEventListener("resize", settleFromInput);
     };
-  }, [client.id, presentationKey]);
+  }, [arrivalCoordinator]);
   useLayoutEffect(() => {
     const orbitStage = orbitRef.current?.closest<HTMLElement>(
       ".client-carousel-stage"
@@ -621,40 +676,8 @@ export default function ClientOrbit({
           }
         }
 
-        @keyframes provider-badge-reveal {
-          from {
-            opacity: 1;
-          }
-          to {
-            opacity: 0;
-          }
-        }
-
         .provider-orbit-node {
           opacity: 1;
-        }
-
-        .provider-badge-reveal-layer {
-          position: absolute;
-          inset: 0;
-          z-index: 30;
-          border-radius: inherit;
-          background: var(--background);
-          pointer-events: none;
-          opacity: 0;
-        }
-
-        .provider-orbit-node--ready .provider-badge-reveal-layer {
-          animation-name: provider-badge-reveal;
-          animation-duration: var(--provider-reveal-duration, 220ms);
-          animation-delay: var(--provider-reveal-delay, 0ms);
-          animation-timing-function: ease-out;
-          animation-fill-mode: both;
-        }
-
-        .provider-orbit-node--settled .provider-badge-reveal-layer {
-          opacity: 0;
-          animation: none;
         }
 
         [data-spatial-hit-target="true"]:focus-visible {
@@ -662,25 +685,12 @@ export default function ClientOrbit({
           outline-offset: 5px;
         }
 
-        @media (prefers-reduced-motion: reduce) {
-          .provider-badge-reveal-layer {
-            opacity: 0;
-            animation: none;
-          }
-        }
-
       `}</style>
       {/* CENTER CLIENT */}
       <button
         type="button"
-        className="glass-client-badge"
+        className="client-orbit-center-hit-target"
         aria-label="Open Client Summary"
-        data-client-signal={
-          client.signal?.color !== "neutral" && client.signal?.isUnread
-            ? client.signal.color
-            : undefined
-        }
-        data-client-signal-status={client.signal?.isUnread ? client.signal.status : undefined}
         data-spatial-hit-target="true"
         data-swipe-allow="true"
         onClick={onOpenClientHandoff}
@@ -704,8 +714,26 @@ export default function ClientOrbit({
           zIndex: 3,
         }}
       >
-        {client.firstName.slice(0, 2)}
-        {client.lastName.slice(0, 2)}
+        <span
+          className="glass-client-badge dashboard-arrival-client-visual"
+          data-client-signal={
+            client.signal?.color !== "neutral" && client.signal?.isUnread
+              ? client.signal.color
+              : undefined
+          }
+          data-client-signal-status={client.signal?.isUnread ? client.signal.status : undefined}
+          style={{
+            width: "100%",
+            height: "100%",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {client.firstName.slice(0, 2)}
+          {client.lastName.slice(0, 2)}
+        </span>
       </button>
 
       {/* PROVIDERS */}
@@ -981,6 +1009,8 @@ export default function ClientOrbit({
               left: "50%",
               cursor: !isMe ? "pointer" : "default",
               touchAction: "manipulation",
+              width: spokeSize,
+              height: spokeSize,
               transform: `translate(${x - spokeSize / 2}px, ${
                 y - spokeSize / 2
               }px)`,
@@ -988,7 +1018,7 @@ export default function ClientOrbit({
           >
       {/* Circle */}
       <div
-        className="glass-provider-badge"
+        className="glass-provider-badge dashboard-arrival-provider-visual"
         style={{
           position: "relative", 
           width: spokeSize,
@@ -1034,6 +1064,7 @@ export default function ClientOrbit({
         >
           {formatBadgeRole(pc.role)}
         </div>
+      </div>
 
         {showAction && (
           <ProviderActionControl
@@ -1045,6 +1076,7 @@ export default function ClientOrbit({
               isMe && !isCaregiverProvider && hasCompletedSessionNote
             }
             signalEventKey={signalEventKey}
+            arrivalProviderIndex={index}
             onActivate={(anchor) => {
               if (isMe) {
                 if (showSignal) {
@@ -1256,8 +1288,6 @@ export default function ClientOrbit({
             )
           : null}
 
-        <span className="provider-badge-reveal-layer" aria-hidden="true" />
-      </div>
     </div>
   );
       })}

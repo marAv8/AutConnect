@@ -1,0 +1,13 @@
+.lookup { position: relative; display: grid; width: min(100%, 620px); gap: 8px; }
+.label { font-size: 14px; font-weight: 650; }
+.inputRow { display: flex; align-items: center; gap: 10px; }
+.inputRow input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; border-radius: 12px; padding: 10px 12px; color: var(--foreground); }
+.inputRow input:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.inputRow button { min-height: 44px; }
+.status, .error { min-height: 20px; margin: 0; color: var(--muted-foreground); font-size: 13px; line-height: 1.45; }
+.error { color: var(--destructive, #b42318); }
+.listbox { display: grid; max-height: 320px; overflow-y: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--background); padding: 6px; box-shadow: 0 12px 28px rgb(0 0 0 / 12%); }
+.option { width: 100%; min-height: 48px; border: 0; border-radius: 10px; background: transparent; padding: 11px 12px; color: var(--foreground); text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.option:hover, .option[aria-selected="true"] { background: var(--glass); }
+.option:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+@media (max-width: 520px) { .inputRow { align-items: stretch; } .listbox { max-height: 280px; } .option { min-height: 52px; } }

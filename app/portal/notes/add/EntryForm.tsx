@@ -93,6 +93,7 @@ import {
   ClinicalReflectionEntryForm,
 } from "./EntrySpecializedForms";
 import { ObservationEntryForm } from "./ObservationEntryForm";
+import targetStyles from "./TargetWorkflow.module.css";
 
 type Props = {
   clientId: string;
@@ -196,6 +197,7 @@ export default function EntryForm({
     role === "Educator" ||
     role === "OccupationalTherapist" ||
     role === "SpeechPathologist";
+  const targetSaveInFlightRef = useRef(false);
   const [returnToProgressAfterTargetSave, setReturnToProgressAfterTargetSave] =
     useState(false);
   const isEducatorSessionMode =
@@ -1577,11 +1579,17 @@ export default function EntryForm({
 
   const submitEducatorTarget = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (activeIndex !== 2 || targetSaveInFlightRef.current) return;
     const target =
       targetDraft.target === CUSTOM_OBSERVABLE_SKILL_TARGET
         ? targetDraft.customTarget.trim()
         : targetDraft.target.trim();
 
+    if (!target || !targetDraft.goal.trim()) {
+      setActiveIndex(!target ? 0 : 1);
+      setSaveStatus("error");
+      return;
+    }
     const formData = new FormData();
     formData.append("clientId", clientId);
     formData.append("target", target);
@@ -1593,7 +1601,17 @@ export default function EntryForm({
 
     setSaveStatus("saving");
     setTargetSaveError("");
-    const result = await createEducatorTarget(formData);
+    targetSaveInFlightRef.current = true;
+    let result;
+    try {
+      result = await createEducatorTarget(formData);
+    } catch {
+      targetSaveInFlightRef.current = false;
+      setSaveStatus("error");
+      return;
+    }
+    // Keep the successful submission consumed until this Add Target owner exits.
+    if (!result.ok) targetSaveInFlightRef.current = false;
     setSaveStatus(result.ok ? "saved" : "error");
     if (!result.ok && result.reason === "duplicate_target") {
       setTargetSaveError("This target already exists.");
@@ -1641,7 +1659,7 @@ export default function EntryForm({
 
     return (
       <form
-        className="add-note-form add-target-form"
+        className={`add-note-form add-target-form ${targetStyles.addTarget}`}
         onSubmit={submitEducatorTarget}
         style={{
           display: "flex",
@@ -1865,6 +1883,7 @@ export default function EntryForm({
         >
           {activeIndex < targetCardCount - 1 ? (
             <Button
+              key="continue-target"
               type="button"
               className="material-control action-positive"
               onClick={() =>
@@ -1875,6 +1894,7 @@ export default function EntryForm({
             </Button>
           ) : (
             <Button
+              key="save-target"
               type="submit"
               className="material-control action-positive"
               disabled={saveStatus === "saving" || !target.trim() || !targetDraft.goal.trim()}
@@ -1941,7 +1961,7 @@ export default function EntryForm({
         </div>
 
         <div
-          className="paper-surface"
+          className={`paper-surface ${isEditingEducatorTarget ? targetStyles.editorStage : ""}`}
           style={{
             padding: "24px 28px",
             maxWidth: noteCardMaxWidth,
@@ -2065,6 +2085,7 @@ export default function EntryForm({
                   </div>
 
                   <div
+                    className={targetStyles.editorFields}
                     style={{
                       display: "grid",
                       gap: 12,
@@ -2182,7 +2203,7 @@ export default function EntryForm({
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", justifyContent: "center", gap: 14 }}>
+                  <div className={targetStyles.editorActions} style={{ display: "flex", justifyContent: "center", gap: 14 }}>
                     <Button
                       type="button"
                       variant="ghost"

@@ -65,7 +65,7 @@ export default function ProviderDashboardMoreMenu({
       <button
         ref={triggerRef}
         type="button"
-        className="material-control more-icon-control dashboard-round-icon-control"
+        className="material-control more-icon-control dashboard-round-icon-control dashboard-round-icon-control--arrival"
         data-dashboard-trace-control="more"
         onClick={() => {
           traceDashboardInteractionHandled("more");
@@ -75,7 +75,9 @@ export default function ProviderDashboardMoreMenu({
         aria-controls="provider-dashboard-more-menu"
         aria-label="More"
       >
-        <MoreHorizontal aria-hidden="true" size={24} strokeWidth={2} />
+        <span className="dashboard-utility-arrival-visual">
+          <MoreHorizontal aria-hidden="true" size={24} strokeWidth={2} />
+        </span>
       </button>
     </div>
   );

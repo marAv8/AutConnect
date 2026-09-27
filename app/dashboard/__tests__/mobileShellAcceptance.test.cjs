@@ -67,8 +67,8 @@ test("the inbox keeps Case Support Requests as its first and unchanged Case Supp
 });
 
 test("Case Support count remains separate from the organization invitation count", () => {
-  assert.match(inbox, /canAccessCaseSupport && caseSupportCount > 0/);
-  assert.match(inbox, /dashboard-case-support-badge[\s\S]*\{caseSupportCount\}/);
+  assert.match(inbox, /canAccessCaseSupport \? caseSupportCount : 0/);
+  assert.match(inbox, /dashboard-case-support-badge[\s\S]*\{totalPendingCount\}/);
   assert.match(inbox, /organizationInvitationCount > 0[\s\S]*\{organizationInvitationCount\}/);
   assert.doesNotMatch(inbox, /caseSupportCount\s*\+\s*organizationInvitationCount/);
   assert.doesNotMatch(dashboardPage, /caseSupportNotificationCount\s*\+\s*pendingOrganizationInvitationCount/);

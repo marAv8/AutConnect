@@ -110,6 +110,7 @@ export async function completeSessionNote(formData: FormData) {
           authorProviderId: session.providerId,
           assignedProviderIds: providerIds,
           visibility: entry.visibility,
+          reactivateForTeammates: true,
         });
       }
     })

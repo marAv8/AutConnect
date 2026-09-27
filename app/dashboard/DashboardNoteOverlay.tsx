@@ -80,6 +80,7 @@ type HistoryOverlayData = {
   clientId: string;
   clientInitials: string;
   entries: ComponentProps<typeof NoteHistoryViewer>["entries"];
+  presentedEntryIds: string[];
 };
 
 type Props = {
@@ -91,7 +92,7 @@ type Props = {
   authenticatedDisplayName?: string;
   authenticatedRole?: string;
   onClose: () => void;
-  onRead?: (authorProviderId: string) => void;
+  onRead?: (authorProviderId: string, entryIds: string[]) => void;
   onSaved?: (
     authorProviderId: string,
     entryId: string,
@@ -175,7 +176,6 @@ export default function DashboardNoteOverlay({
           }
 
           setHistoryData(payload);
-          onRead?.(providerId);
         } else {
           setFormData(payload);
         }
@@ -197,6 +197,45 @@ export default function DashboardNoteOverlay({
       controller.abort();
     };
   }, [clientId, contextKind, noteKind, onRead, overlayType, providerId]);
+
+  useEffect(() => {
+    if (
+      overlayType !== "view" ||
+      !historyData ||
+      historyData.presentedEntryIds.length === 0
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+    void fetch("/api/notes/history", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        clientId,
+        authorProviderId: providerId,
+        entryIds: historyData.presentedEntryIds,
+      }),
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return response.json() as Promise<{ acknowledgedEntryIds?: string[] }>;
+      })
+      .then((payload) => {
+        if (payload?.acknowledgedEntryIds?.length) {
+          onRead?.(providerId, payload.acknowledgedEntryIds);
+        }
+      })
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          // The notes remain visible; a failed acknowledgement leaves the
+          // signal unread so a later successful view can retry safely.
+        }
+      });
+
+    return () => controller.abort();
+  }, [clientId, historyData, onRead, overlayType, providerId]);
 
   if (status === "loading") {
     return (

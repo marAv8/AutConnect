@@ -31,7 +31,8 @@ test("Team Manager organization invitations are atomic, bounded, and concurrency
   assert.match(actions, /status: "REVOKED",[\s\S]*status: "PENDING"/);
   assert.match(actions, /transition: existing \? "REINVITED" : "INVITED"/);
   assert.match(actions, /isolationLevel: "Serializable"/);
-  assert.match(actions, /take: ORGANIZATION_RESULT_LIMIT/);
+  assert.match(actions, /take: SEARCH_CANDIDATE_LIMIT/);
+  assert.match(actions, /AUTHORIZED_LOOKUP_RESULT_LIMIT/);
   assert.match(actions, /ORGANIZATION_REQUESTED/);
 });
 
@@ -82,21 +83,24 @@ test("organization invitation navigation uses only direct active admin membershi
   assert.match(inbox, /canReviewOrganizationInvitations/);
   assert.doesNotMatch(appHeader, /clientOrganization\.count|organizationMemberships/);
   assert.doesNotMatch(authenticatedHeader, /Organization Invitations/);
-  assert.match(emptyDashboard, /organization invitations are managed separately/i);
+  assert.match(emptyDashboard, /href="\/portal\/organization\/invitations"[\s\S]*View My Organization Invitations/);
 });
 
 test("provider directory is exposed only through active Client organizations", () => {
-  assert.match(actions, /activeClientOrganizationWhere\(clientId, organizationId\)/);
-  assert.match(actions, /eligibleProvidersInOrganizationWhere\(organizationId\)/);
+  assert.match(actions, /clientOrganizations:[\s\S]*some: \{ clientId, status: "ACTIVE", revokedAt: null \}/);
+  assert.match(actions, /organizationMembership\.findMany/);
+  assert.match(actions, /active: true/);
+  assert.match(actions, /status: "ACTIVE"/);
   assert.match(actions, /providerClients: \{ none: \{ clientId, revokedAt: null \} \}/);
-  assert.match(actions, /take: PROVIDER_RESULT_LIMIT/);
-  assert.match(teamPage, /status === "ACTIVE" && relationship\.revokedAt === null/);
+  assert.match(actions, /AUTHORIZED_LOOKUP_RESULT_LIMIT/);
+  assert.doesNotMatch(teamPage, /searchEligibleClientProviders/);
   assert.doesNotMatch(invitationPage, /provider\.find|providerClients/);
 });
 
 test("assignment validates origin, role, eligibility, duplicates, and audit provenance", () => {
   assert.match(actions, /requiredId\(formData, "organizationId"\)/);
-  assert.match(actions, /isEligibleClientAssignmentRole\(roleValue\)/);
+  assert.match(actions, /select: \{ id: true, role: true \}/);
+  assert.match(actions, /isEligibleClientAssignmentRole\(provider\.role\)/);
   assert.match(actions, /eligibleProviderWhere\(providerId, organizationId\)/);
   assert.match(actions, /providerId_clientId: \{ providerId, clientId \}/);
   assert.match(actions, /organizationId,[\s\S]*assignedById: actor\.id/);
@@ -107,12 +111,10 @@ test("assignment validates origin, role, eligibility, duplicates, and audit prov
 });
 
 test("multi-organization UI groups providers by explicit organization and role", () => {
-  assert.match(teamPanel, /provider\.organization\.id}:\$\{provider\.role/);
-  assert.match(teamPanel, /first\.organization\.name/);
-  assert.match(teamPanel, /organizationTypeLabel\(first\.organization\.type\)/);
-  assert.match(teamPanel, /organizationId: provider\.organization\.id/);
-  assert.match(teamPanel, /providerId: provider\.id/);
-  assert.match(teamPanel, /role: provider\.role/);
+  assert.match(teamPanel, /providerKey/);
+  assert.match(teamPanel, /selectedProvider\.organization\.id/);
+  assert.match(teamPanel, /providerId: selectedProvider\.id/);
+  assert.doesNotMatch(teamPanel, /role: selectedProvider\.role/);
   assert.match(teamPanel, /Organization name/);
   assert.match(teamPanel, /groupedAssignments/);
   assert.match(teamPanel, /Current Care Team/);
@@ -134,11 +136,11 @@ test("care-team and invitation controls are responsive and expose pending feedba
 });
 
 test("Care Team polish keeps compact labeled searches and accessible explanations", () => {
-  assert.match(teamPanel, /type="search"[\s\S]*name="organizationQuery"/);
-  assert.match(teamPanel, /Organization name/);
+  const autocomplete = read("components/ui/AuthorizedAutocomplete.tsx");
+  assert.match(autocomplete, /type="search"/);
+  assert.match(teamPanel, /label="Organization name"/);
   assert.match(teamPanel, /placeholder="Search organizations"/);
-  assert.match(teamPanel, /type="search"[\s\S]*name="providerQuery"/);
-  assert.match(teamPanel, /Provider name/);
+  assert.match(teamPanel, /label="Provider name"/);
   assert.match(teamPanel, /placeholder="Search providers"/);
   assert.match(teamPanel, /CareTeamInfo label="About organization access"/);
   assert.match(teamPanel, /CareTeamInfo label="About eligible providers"/);

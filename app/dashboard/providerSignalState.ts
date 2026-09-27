@@ -1,18 +1,24 @@
 import type { DashboardEntryState } from "./dashboardClientTypes";
+import { providerNoteSignalDayKey } from "../libs/providerNoteSignalDay";
 
 type ProviderSignalStateInput = {
   entries: DashboardEntryState[];
   isCurrentProvider: boolean;
   locallyCompleted: boolean;
+  signalDayKey?: string;
 };
 
 export function providerSignalState({
   entries,
   isCurrentProvider,
   locallyCompleted,
+  signalDayKey = providerNoteSignalDayKey(new Date()),
 }: ProviderSignalStateInput) {
   const completedEntries = entries.filter(
-    (entry) => entry.status === "COMPLETED"
+    (entry) =>
+      entry.status === "COMPLETED" &&
+      (!entry.completedAt ||
+        providerNoteSignalDayKey(entry.completedAt) === signalDayKey)
   );
   const hasCompletedNote = locallyCompleted || completedEntries.length > 0;
   const hasUnreadNote =
@@ -25,6 +31,9 @@ export function providerSignalState({
 
   return {
     completedEntryIds: completedEntries.map((entry) => entry.id).sort(),
+    completedEntryVersions: completedEntries
+      .map((entry) => `${entry.id}:${entry.completedAt ?? "current"}`)
+      .sort(),
     hasCompletedNote,
     hasUnreadNote,
     showSignal,

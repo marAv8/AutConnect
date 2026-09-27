@@ -1,8 +1,5 @@
 import { redirect } from "next/navigation";
 import { updateClientDetailsFromCareTeam } from "@/app/actions/manageSupervisorClients";
-import {
-  searchEligibleClientProviders,
-} from "@/app/actions/manageClientTeam";
 import AdministrativeCarousel from "@/app/components/administrative/AdministrativeCarousel";
 import { getManagedOrganizationIds, requireCurrentSupervisor } from "@/lib/authorization";
 import { hasActiveClientTeamManagerAuthority } from "@/lib/clientTeamAuthorization";
@@ -68,18 +65,7 @@ export default async function EditClientProvidersPage({
     (relationship) =>
       relationship.status === "ACTIVE" && relationship.revokedAt === null
   );
-  const [providerGroups, assignments] = await Promise.all([
-    Promise.all(
-      activeOrganizations.map(async (relationship) => ({
-        organization: relationship.organization,
-        providers: await searchEligibleClientProviders(
-          clientId,
-          relationship.organization.id,
-          ""
-        ),
-      }))
-    ),
-    db.providerClient.findMany({
+  const assignments = await db.providerClient.findMany({
       where: { clientId, revokedAt: null, role: { not: "Supervisor" } },
       orderBy: [{ role: "asc" }, { assignedAt: "asc" }],
       take: 100,
@@ -89,14 +75,7 @@ export default async function EditClientProvidersPage({
         provider: { select: { firstName: true, lastName: true } },
         organization: { select: { id: true, name: true, type: true } },
       },
-    }),
-  ]);
-
-  const providerOptions = providerGroups
-    .flatMap(({ organization, providers }) =>
-      providers.map((provider) => ({ ...provider, organization }))
-    )
-    .slice(0, 50);
+    });
 
   const managedOrganizationIds = await getManagedOrganizationIds(session.providerId);
   const pendingStaffInvitations = await db.organizationInvitation.findMany({
@@ -154,12 +133,6 @@ export default async function EditClientProvidersPage({
                   clientId={clientId}
                   caseCode={client.caseCode}
                   relationships={client.clientOrganizations}
-                  organizationQuery=""
-                  organizationSearchSubmitted={false}
-                  organizationSearchTooShort={false}
-                  organizationResults={[]}
-                  providerQuery=""
-                  providerOptions={providerOptions}
                   assignments={assignments}
                   pendingStaffInvitations={pendingStaffInvitations}
                 />
@@ -174,12 +147,6 @@ export default async function EditClientProvidersPage({
                   clientId={clientId}
                   caseCode={client.caseCode}
                   relationships={client.clientOrganizations}
-                  organizationQuery=""
-                  organizationSearchSubmitted={false}
-                  organizationSearchTooShort={false}
-                  organizationResults={[]}
-                  providerQuery=""
-                  providerOptions={providerOptions}
                   assignments={assignments}
                   pendingStaffInvitations={pendingStaffInvitations}
                 />

@@ -1,6 +1,7 @@
 import ClientCarousel from "./ClientCarousel";
 import ModeContentFrame from "./ModeContentFrame";
 import type { DashboardClient, DashboardTeamFocus } from "./dashboardClientTypes";
+import type { DashboardArrivalCoordinator } from "./clientListEntrance";
 
 type Props = {
   clients: DashboardClient[];
@@ -8,7 +9,11 @@ type Props = {
   viewerRole?: string;
   activeClientId?: string;
   onActiveClientChange: (clientId: string) => void;
-  onEntryRead?: (clientId: string, authorProviderId: string) => void;
+  onEntryRead?: (
+    clientId: string,
+    authorProviderId: string,
+    entryIds: string[]
+  ) => void;
   onClientSignalRead?: (clientId: string) => void;
   onEntrySaved?: (
     clientId: string,
@@ -19,6 +24,7 @@ type Props = {
   ) => void;
   onTeamFocusSaved?: (clientId: string, teamFocus: DashboardTeamFocus) => void;
   onFocusedDataEntryChange?: (active: boolean) => void;
+  arrivalCoordinator: DashboardArrivalCoordinator;
 };
 
 export default function OrbitView({
@@ -32,6 +38,7 @@ export default function OrbitView({
   onEntrySaved,
   onTeamFocusSaved,
   onFocusedDataEntryChange,
+  arrivalCoordinator,
 }: Props) {
   if (clients.length === 0) return null;
 
@@ -48,6 +55,7 @@ export default function OrbitView({
         onEntrySaved={onEntrySaved}
         onTeamFocusSaved={onTeamFocusSaved}
         onFocusedDataEntryChange={onFocusedDataEntryChange}
+        arrivalCoordinator={arrivalCoordinator}
       />
     </ModeContentFrame>
   );
