@@ -33,6 +33,7 @@ import { ChevronControl } from "@/components/ui/ChevronControl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MaterialSelect } from "@/components/ui/MaterialSelect";
+import { TargetSelect } from "./TargetSelect";
 import { Textarea } from "@/components/ui/textarea";
 import { useGuardedSwipe } from "@/components/useGuardedSwipe";
 import {
@@ -1741,7 +1742,7 @@ export default function EntryForm({
                 >
                   {targetSelectTitle}
                 </div>
-                <MaterialSelect
+                <TargetSelect
                   ariaLabel={targetSelectTitle}
                   value={targetDraft.target}
                   onValueChange={(value) =>
@@ -1845,7 +1846,7 @@ export default function EntryForm({
                         key={profile.value}
                         type="button"
                         variant="ghost"
-                        className="target-option-control clinical-selection-control"
+                        className={`target-option-control clinical-selection-control ${targetStyles.centeredChoice}`}
                         aria-pressed={selected}
                         onClick={() =>
                           setTargetDraft((current) => ({
@@ -2094,7 +2095,7 @@ export default function EntryForm({
                       margin: "0 auto",
                     }}
                   >
-                    <MaterialSelect
+                    <TargetSelect
                       ariaLabel="Edit target"
                       value={targetEditDraft.target}
                       onValueChange={(value) =>
@@ -2176,7 +2177,7 @@ export default function EntryForm({
                             key={profile.value}
                             type="button"
                             variant="ghost"
-                            className="target-option-control clinical-selection-control"
+                            className={`target-option-control clinical-selection-control ${targetStyles.centeredChoice}`}
                             aria-pressed={selected}
                             onClick={() =>
                               setTargetEditDraft((current) => ({
@@ -2282,7 +2283,7 @@ export default function EntryForm({
                             key={option.value}
                             type="button"
                             variant="ghost"
-                            className="target-option-control clinical-selection-control"
+                            className={`target-option-control clinical-selection-control ${targetStyles.centeredChoice}`}
                             aria-pressed={selected}
                             onClick={() => updateEducatorTargetResponse(option.value)}
                             style={{

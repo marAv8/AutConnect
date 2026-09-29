@@ -241,6 +241,14 @@ export default function SupervisorDashboardMenu({
           <MenuDots />
         </span>
       </button>
+      {mode === "orbit" ? (
+        <TeamFocusSignalControl
+          clientId={activeClientId}
+          teamFocus={activeTeamFocus}
+          viewerProviderId={currentProviderId}
+          canEdit
+        />
+      ) : null}
       <DashboardInboxControl
         attentionCounts={attentionCounts}
         canAccessCaseSupport
@@ -252,14 +260,6 @@ export default function SupervisorDashboardMenu({
         onNavigate={closeMenu}
       />
       <ThemeToggle />
-      {mode === "orbit" ? (
-        <TeamFocusSignalControl
-          clientId={activeClientId}
-          teamFocus={activeTeamFocus}
-          viewerProviderId={currentProviderId}
-          canEdit
-        />
-      ) : null}
     </div>
   );
 }

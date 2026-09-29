@@ -450,6 +450,13 @@ export default function ProviderDashboard({
                 </span>
               </button>
             )}
+            {mode === "orbit" ? (
+              <TeamFocusSignalControl
+                clientId={activeClientId}
+                teamFocus={activeTeamFocus}
+                viewerProviderId={currentProviderId}
+              />
+            ) : null}
             <DashboardInboxControl
               attentionCounts={attentionCounts}
               canAccessCaseSupport={false}
@@ -461,13 +468,6 @@ export default function ProviderDashboard({
                 pendingOrganizationInvitationCount
               }
             />
-            {mode === "orbit" ? (
-              <TeamFocusSignalControl
-                clientId={activeClientId}
-                teamFocus={activeTeamFocus}
-                viewerProviderId={currentProviderId}
-              />
-            ) : null}
             <ThemeToggle />
             </div>
           </DashboardArrivalUtilities>

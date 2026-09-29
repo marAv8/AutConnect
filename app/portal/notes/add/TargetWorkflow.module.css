@@ -1,3 +1,18 @@
+/* Keep each marker and label together at the center of the target sheet. */
+.centeredChoice:global(.clinical-selection-control) {
+  justify-content: center !important;
+  padding: 9px 14px !important;
+  gap: 10px;
+  white-space: normal;
+  text-align: center;
+}
+.centeredChoice:global(.clinical-selection-control)::before {
+  position: static;
+  transform: none;
+  flex: 0 0 18px;
+}
+.centeredChoice > span { width: auto !important; }
+
 /* Target-only responsive ownership; desktop/tablet sizing remains unchanged. */
 @media (max-width: 700px) {
   .editorStage {
