@@ -49,85 +49,79 @@ export default async function createAccountPage({
                   </p>
                 </>
               ) : null}
-              <div className="auth-form-columns">
-                <div className="auth-form-column">
-                  <div className="auth-field">
-                    <label htmlFor="firstName">Name</label>
-                    <input
-                      id="firstName"
-                      name="firstName"
-                      autoComplete="given-name"
-                      required
-                    />
-                  </div>
-
-                  <div className="auth-field">
-                    <label htmlFor="lastName">Lastname</label>
-                    <input
-                      id="lastName"
-                      name="lastName"
-                      autoComplete="family-name"
-                      required
-                    />
-                  </div>
-
-                  <div className="auth-field">
-                    <label htmlFor="email">Email</label>
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      defaultValue={invitation?.email ?? ""}
-                      readOnly={Boolean(invitation)}
-                      required
-                    />
-                  </div>
-
-                  <div className="auth-field">
-                    <label htmlFor="password">Password</label>
-                    <input
-                      id="password"
-                      name="password"
-                      type="password"
-                      autoComplete="new-password"
-                      minLength={8}
-                      required
-                    />
-                  </div>
+              <div className="auth-form-columns auth-account-fields">
+                <div className="auth-field">
+                  <label htmlFor="firstName">First name</label>
+                  <input
+                    id="firstName"
+                    name="firstName"
+                    autoComplete="given-name"
+                    required
+                  />
                 </div>
 
-                <div className="auth-form-column">
-                  {invitation ? (
-                    <div className="auth-field">
-                      <label>Provider</label>
-                      <input value={roleLabel(invitation.providerRole)} readOnly />
-                    </div>
-                  ) : (
-                    <div className="auth-field">
-                      <label htmlFor="role">Provider</label>
-                      <MaterialSelect
-                        id="role"
-                        name="role"
-                        required
-                        style={{ width: "100%" }}
-                        options={[
-                          { value: "", label: "Select" },
-                          { value: "SpeechPathologist", label: "Speech Pathologist" },
-                          { value: "BehaviorTherapist", label: "Behavior Therapist" },
-                          { value: "OccupationalTherapist", label: "Occupational Therapist" },
-                          { value: "Caregiver", label: "Caretaker" },
-                          { value: "Educator", label: "Educator" },
-                        ]}
-                      />
-                    </div>
-                  )}
-
-                  <button type="submit" className="auth-button">
-                    Create Account
-                  </button>
+                <div className="auth-field">
+                  <label htmlFor="lastName">Last name</label>
+                  <input
+                    id="lastName"
+                    name="lastName"
+                    autoComplete="family-name"
+                    required
+                  />
                 </div>
+
+                <div className="auth-field">
+                  <label htmlFor="email">Email</label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    defaultValue={invitation?.email ?? ""}
+                    readOnly={Boolean(invitation)}
+                    required
+                  />
+                </div>
+
+                <div className="auth-field">
+                  <label htmlFor="password">Password</label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    required
+                  />
+                </div>
+                {invitation ? (
+                  <div className="auth-field auth-field-wide auth-provider-field">
+                    <label>Provider</label>
+                    <input value={roleLabel(invitation.providerRole)} readOnly />
+                  </div>
+                ) : (
+                  <div className="auth-field auth-field-wide auth-provider-field">
+                    <label htmlFor="role">Provider</label>
+                    <MaterialSelect
+                      id="role"
+                      name="role"
+                      required
+                      style={{ width: "100%" }}
+                      options={[
+                        { value: "", label: "Select" },
+                        { value: "SpeechPathologist", label: "Speech Pathologist" },
+                        { value: "BehaviorTherapist", label: "Behavior Therapist" },
+                        { value: "OccupationalTherapist", label: "Occupational Therapist" },
+                        { value: "Caregiver", label: "Caretaker" },
+                        { value: "Educator", label: "Educator" },
+                      ]}
+                    />
+                  </div>
+                )}
               </div>
+              <button type="submit" className="auth-button auth-form-submit">
+                Create Account
+              </button>
             </form>
 
             {googleEnabled && <div className="auth-separator">or</div>}

@@ -1730,7 +1730,7 @@ textarea::placeholder {
 }
 
 .auth-card-create {
-  width: min(100%, 720px);
+  width: min(100%, 800px);
   margin-top: 24px;
 }
 
@@ -1802,6 +1802,28 @@ textarea::placeholder {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 24px;
+}
+
+.auth-account-fields {
+  align-items: start;
+  gap: 20px 24px;
+}
+
+@media (min-width: 781px) {
+  .auth-account-fields .auth-field-wide {
+    grid-column: 1 / -1;
+  }
+
+  .auth-card-create .auth-form-submit {
+    width: min(100%, 360px);
+    justify-self: center;
+    margin-top: 4px;
+  }
+
+  .auth-card-create .auth-provider-field {
+    width: min(100%, 360px);
+    justify-self: center;
+  }
 }
 
 .auth-form-column {
@@ -3869,6 +3891,10 @@ textarea::placeholder {
 @media (max-width: 780px) {
   .auth-form-columns {
     grid-template-columns: 1fr;
+  }
+
+  .auth-account-fields {
+    gap: 16px;
   }
 }
 

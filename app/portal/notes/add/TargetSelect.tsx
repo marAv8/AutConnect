@@ -23,13 +23,14 @@ export function TargetSelect({
       name={name} value={value} defaultValue={defaultValue}
       required={required} disabled={disabled} onValueChange={onValueChange}
     >
-      <Select.Trigger id={id} aria-label={ariaLabel}
+      <Select.Trigger id={id} aria-label={ariaLabel} data-swipe-ignore="true"
         className={`${styles.trigger}${className ? ` ${className}` : ""}`} style={style}>
         <Select.Value placeholder={placeholder ?? emptyOption?.label ?? "Select"} />
         <Select.Icon className={styles.icon}><ChevronDown size={17} /></Select.Icon>
       </Select.Trigger>
       <Select.Portal>
-        <Select.Content className={styles.menu} position="popper" sideOffset={6} collisionPadding={12}>
+        {/* Portal events still bubble through the target card's React tree. */}
+        <Select.Content data-swipe-ignore="true" className={styles.menu} position="popper" sideOffset={6} collisionPadding={12}>
           <Select.ScrollUpButton className={styles.scroll}>⌃</Select.ScrollUpButton>
           <Select.Viewport className={styles.viewport}>
             {[...groups].map(([group, items]) => (

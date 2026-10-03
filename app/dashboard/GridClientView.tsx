@@ -4,12 +4,12 @@ import { useLayoutEffect, useRef, type CSSProperties } from "react";
 import styles from "./GridClientView.module.css";
 import type { DashboardClient } from "./dashboardClientTypes";
 import {
-  CLIENT_LIST_ENTRANCE_DURATION_MS,
-  CLIENT_LIST_ENTRANCE_EASING,
-  CLIENT_LIST_ENTRANCE_MAX_STAGGER_MS,
-  CLIENT_LIST_ENTRANCE_OPACITY,
-  CLIENT_LIST_ENTRANCE_SCALE,
-  clientListEntranceOffset,
+  ARRIVAL_PROVIDER_START_SCALE,
+  ARRIVAL_PROVIDER_DURATION_MS,
+  ARRIVAL_PROVIDER_STAGGER_MS,
+  ARRIVAL_PROVIDER_DAMPING,
+  ARRIVAL_FAST_SPRING_OMEGA,
+  springScaleKeyframes,
   intersectsClientListViewport,
   type DashboardArrivalCoordinator,
 } from "./clientListEntrance";
@@ -103,10 +103,6 @@ export default function GridClientView({
       if (settled || document.visibilityState !== "visible") return;
 
       const viewportBounds = scrollRegion.getBoundingClientRect();
-      const columnCount = Number.parseInt(
-        getComputedStyle(frame).getPropertyValue("--client-list-columns"),
-        10
-      );
       const visibleSlots = clients
         .filter((client) => client.id !== animatedClientId)
         .map((client) => badgeSlotRefs.current.get(client.id))
@@ -133,33 +129,25 @@ export default function GridClientView({
       frame.dataset.clientListEntrance = "running";
       scrollRegion.addEventListener("scroll", settleFromInput, { passive: true });
       scrollListenerAttached = true;
-      const staggerStep =
-        visibleSlots.length > 1
-          ? CLIENT_LIST_ENTRANCE_MAX_STAGGER_MS / (visibleSlots.length - 1)
-          : 0;
+      // Use the same stationary spring as provider badges, only for the
+      // initially visible slots. Scrolling never schedules another entrance.
+      const keyframes = springScaleKeyframes(
+        ARRIVAL_PROVIDER_START_SCALE,
+        ARRIVAL_PROVIDER_DURATION_MS,
+        ARRIVAL_PROVIDER_DAMPING,
+        ARRIVAL_FAST_SPRING_OMEGA
+      );
 
       try {
         visibleSlots.forEach((slot, index) => {
-          const bounds = slot.getBoundingClientRect();
-          const offset = clientListEntranceOffset({
-            badge: bounds,
-            viewport: viewportBounds,
-            columnCount: Number.isFinite(columnCount) ? columnCount : 1,
-          });
           animations.push(
             slot.animate(
-              [
-                {
-                  transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${CLIENT_LIST_ENTRANCE_SCALE})`,
-                  opacity: CLIENT_LIST_ENTRANCE_OPACITY,
-                },
-                { transform: "translate3d(0, 0, 0) scale(1)", opacity: 1 },
-              ],
+              keyframes,
               {
-                duration: CLIENT_LIST_ENTRANCE_DURATION_MS,
-                delay: Math.round(index * staggerStep),
-                easing: CLIENT_LIST_ENTRANCE_EASING,
-                fill: "both",
+                duration: ARRIVAL_PROVIDER_DURATION_MS,
+                delay: index * ARRIVAL_PROVIDER_STAGGER_MS,
+                easing: "linear",
+                fill: "backwards",
               }
             )
           );
@@ -171,7 +159,8 @@ export default function GridClientView({
 
       cleanupTimer = window.setTimeout(
         settle,
-        CLIENT_LIST_ENTRANCE_DURATION_MS + CLIENT_LIST_ENTRANCE_MAX_STAGGER_MS + 40
+        ARRIVAL_PROVIDER_DURATION_MS +
+          (visibleSlots.length - 1) * ARRIVAL_PROVIDER_STAGGER_MS + 40
       );
     };
 

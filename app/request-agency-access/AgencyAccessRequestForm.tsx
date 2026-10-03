@@ -25,55 +25,57 @@ export default function AgencyAccessRequestForm() {
         <input id="website" name="website" tabIndex={-1} autoComplete="off" />
       </div>
 
-      <div className="auth-field">
-        <label htmlFor="organizationName">Agency or school name</label>
-        <input id="organizationName" name="organizationName" required />
-      </div>
+      <div className="auth-form-columns auth-account-fields">
+        <div className="auth-field">
+          <label htmlFor="organizationName">Agency or school name</label>
+          <input id="organizationName" name="organizationName" required />
+        </div>
 
-      <div className="auth-field">
-        <label htmlFor="organizationType">Organization type</label>
-        <MaterialSelect
-          id="organizationType"
-          name="organizationType"
-          required
-          style={{ width: "100%" }}
-          options={[
-            { value: "AGENCY", label: "Agency" },
-            { value: "SCHOOL", label: "School" },
-            { value: "DISTRICT", label: "School district" },
-          ]}
-        />
-      </div>
+        <div className="auth-field">
+          <label htmlFor="organizationType">Organization type</label>
+          <MaterialSelect
+            id="organizationType"
+            name="organizationType"
+            required
+            style={{ width: "100%" }}
+            options={[
+              { value: "AGENCY", label: "Agency" },
+              { value: "SCHOOL", label: "School" },
+              { value: "DISTRICT", label: "School district" },
+            ]}
+          />
+        </div>
 
-      <div className="auth-field">
-        <label htmlFor="contactFirstName">Administrator first name</label>
-        <input
-          id="contactFirstName"
-          name="contactFirstName"
-          autoComplete="given-name"
-          required
-        />
-      </div>
+        <div className="auth-field">
+          <label htmlFor="contactFirstName">Administrator first name</label>
+          <input
+            id="contactFirstName"
+            name="contactFirstName"
+            autoComplete="given-name"
+            required
+          />
+        </div>
 
-      <div className="auth-field">
-        <label htmlFor="contactLastName">Administrator last name</label>
-        <input
-          id="contactLastName"
-          name="contactLastName"
-          autoComplete="family-name"
-          required
-        />
-      </div>
+        <div className="auth-field">
+          <label htmlFor="contactLastName">Administrator last name</label>
+          <input
+            id="contactLastName"
+            name="contactLastName"
+            autoComplete="family-name"
+            required
+          />
+        </div>
 
-      <div className="auth-field">
-        <label htmlFor="contactEmail">Company email</label>
-        <input
-          id="contactEmail"
-          name="contactEmail"
-          type="email"
-          autoComplete="email"
-          required
-        />
+        <div className="auth-field auth-field-wide">
+          <label htmlFor="contactEmail">Company email</label>
+          <input
+            id="contactEmail"
+            name="contactEmail"
+            type="email"
+            autoComplete="email"
+            required
+          />
+        </div>
       </div>
 
       <p className="form-helper-text">
@@ -81,7 +83,7 @@ export default function AgencyAccessRequestForm() {
         organization first, then sends a secure invitation to its first supervisor.
       </p>
 
-      <button type="submit" className="auth-button" disabled={pending}>
+      <button type="submit" className="auth-button auth-form-submit" disabled={pending}>
         {pending ? "Submitting…" : "Request Agency Access"}
       </button>
 
